@@ -40,8 +40,9 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: clap_api
+    # Direct access for local debugging only; public traffic goes through nginx.
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
       ENVIRONMENT: development
       SERVER_PORT: 8080
@@ -68,6 +69,34 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - clap_network
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: clap_nginx
+    ports:
+      - "80:80"
+      # - "443:443"
+    volumes:
+      - ./deployments/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deployments/nginx/conf.d:/etc/nginx/conf.d:ro
+      # - ./deployments/nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/nginx-health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - clap_network
     restart: unless-stopped
