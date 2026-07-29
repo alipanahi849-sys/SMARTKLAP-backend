@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS idx_users_club_id;
+ALTER TABLE users DROP COLUMN IF EXISTS club_id;

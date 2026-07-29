@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS idx_users_points;
+ALTER TABLE users DROP COLUMN IF EXISTS points;

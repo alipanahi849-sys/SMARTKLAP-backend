@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS video_likes;
+DROP TABLE IF EXISTS videos;

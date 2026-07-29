@@ -1,0 +1,56 @@
+environment: development
+
+server:
+  port: "8080"
+  mode: "debug"
+  read_timeout: 60
+  write_timeout: 60
+
+database:
+  host: "localhost"
+  port: "5432"
+  user: "postgres"
+  password: "postgres"
+  db_name: "clap"
+  ssl_mode: "disable"
+  max_open_conns: 100
+  max_idle_conns: 10
+  conn_max_lifetime: 3600
+
+redis:
+  host: "localhost"
+  port: "6379"
+  password: ""
+  db: 0
+
+jwt:
+  secret: "your-secret-key-change-in-production"
+  access_expiry: 900
+  refresh_expiry: 604800
+  issuer: "clap"
+  refresh_secret: "your-refresh-secret-key-change-in-production"
+
+cors:
+  allowed_origins:
+    - "*"
+  allowed_methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - OPTIONS
+  allowed_headers:
+    - Origin
+    - Content-Type
+    - Authorization
+
+storage:
+  provider: "r2"
+  r2_account_id: ""
+  r2_access_key_id: ""
+  r2_secret_access_key: ""
+  r2_bucket: ""
+  max_audio_file_size_mb: 20
+  signed_url_expiration_min: 30
+  max_lyric_lines: 5000
+  max_lyric_file_size_kb: 500

@@ -1,0 +1,10 @@
+DROP TRIGGER IF EXISTS update_matches_updated_at ON matches;
+DROP INDEX IF EXISTS idx_matches_deleted_at;
+DROP INDEX IF EXISTS idx_matches_provider;
+DROP INDEX IF EXISTS idx_matches_status;
+DROP INDEX IF EXISTS idx_matches_match_datetime;
+DROP INDEX IF EXISTS idx_matches_away_club_id;
+DROP INDEX IF EXISTS idx_matches_home_club_id;
+DROP INDEX IF EXISTS idx_matches_season_id;
+DROP INDEX IF EXISTS idx_matches_league_id;
+DROP TABLE IF EXISTS matches;
