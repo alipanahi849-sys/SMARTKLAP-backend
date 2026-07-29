@@ -82,9 +82,10 @@ services:
   nginx:
     image: nginx:1.27-alpine
     container_name: clap_nginx
+    # Host port is configurable because :80 is often taken by another service.
     ports:
-      - "80:80"
-      # - "443:443"
+      - "${NGINX_HTTP_PORT:-8081}:80"
+      # - "${NGINX_HTTPS_PORT:-8443}:443"
     volumes:
       - ./deployments/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./deployments/nginx/conf.d:/etc/nginx/conf.d:ro
