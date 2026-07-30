@@ -27,9 +27,9 @@ func NewMetricsHandler(m *metrics.Metrics) *MetricsHandler {
 //	@Tags			realtime
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Success		200	{object}	response.Response
-//	@Failure		401	{object}	response.Response
-//	@Failure		400	{object}	response.Response
+//	@Success		200	{object}	map[string]interface{}
+//	@Failure		401	{object}	map[string]interface{}
+//	@Failure		400	{object}	map[string]interface{}
 //	@Router			/api/v1/realtime/metrics [get]
 func (h *MetricsHandler) GetMetrics(c *gin.Context) {
 	c.JSON(http.StatusOK, h.m.Snapshot())

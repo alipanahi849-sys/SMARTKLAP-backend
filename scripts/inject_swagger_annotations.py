@@ -217,13 +217,29 @@ def build_catalog() -> dict[str, dict[str, str]]:
     add(C, f, "Sync", summary="Time sync", method_path="post /api/v1/realtime/time-sync", tags="realtime", body="dto.TimeSyncRequest")
 
     f = "internal/modules/realtime/handler/ws_handler.go"
-    add(C, f, "Connect", summary="WebSocket connect", method_path="get /api/v1/realtime/ws", tags="realtime", desc="Upgrade to WebSocket. JWT required (query or header).", auth=True)
+    # Uses map responses in annotations (package does not import response).
+    C.setdefault(f, {})["Connect"] = ann(
+        "WebSocket connect",
+        "get /api/v1/realtime/ws",
+        "realtime",
+        auth=True,
+        desc="Upgrade to WebSocket. JWT required (query or header).",
+    ).replace("response.Response", "map[string]interface{}").replace(
+        '@Success\t\t200\t{object}\tmap[string]interface{}',
+        '@Success\t\t101\t"Switching Protocols"',
+    )
 
     f = "internal/modules/realtime/handler/recovery_handler.go"
     add(C, f, "GetMatchState", summary="Realtime session recovery", method_path="get /api/v1/realtime/session/{matchId}", tags="realtime", auth=True, params=[("matchId", "string", "Match ID")])
 
     f = "internal/modules/realtime/handler/metrics_handler.go"
-    add(C, f, "GetMetrics", summary="Realtime metrics", method_path="get /api/v1/realtime/metrics", tags="realtime", auth=True, desc="Admin only")
+    C.setdefault(f, {})["GetMetrics"] = ann(
+        "Realtime metrics",
+        "get /api/v1/realtime/metrics",
+        "realtime",
+        auth=True,
+        desc="Admin only",
+    ).replace("response.Response", "map[string]interface{}")
 
     f = "internal/modules/realtime/handler/retention_handler.go"
     add(C, f, "CleanupSchedulerEvents", summary="Cleanup scheduler events", method_path="post /api/v1/realtime/admin/cleanup/scheduler-events", tags="realtime", auth=True, desc="Admin only")

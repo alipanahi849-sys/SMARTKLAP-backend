@@ -3324,19 +3324,22 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -3467,22 +3470,21 @@ const docTemplate = `{
                 ],
                 "summary": "WebSocket connect",
                 "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/clap_internal_shared_response.Response"
-                        }
+                    "101": {
+                        "description": "Switching Protocols"
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
