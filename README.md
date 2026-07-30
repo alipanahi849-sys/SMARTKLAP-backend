@@ -235,10 +235,9 @@ DELETE /api/v1/profiles/me        (protected)
 curl -X POST http://localhost:8080/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{
+    "name": "John Doe",
     "email": "user@example.com",
-    "password": "securepassword123",
-    "first_name": "John",
-    "last_name": "Doe"
+    "password": "securepassword123"
   }'
 ```
 

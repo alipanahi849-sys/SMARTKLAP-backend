@@ -31,15 +31,12 @@ func NewAuthHandler(authService service.AuthService) AuthHandler {
 	}
 }
 
-// RegisterRequest supports both auth flows:
-//   - Mobile OTP (contract §1.1): { "name", "email" }
-//   - Legacy password: { "email", "password", "first_name", "last_name" }
+// RegisterRequest is the password registration payload:
+// { "name", "email", "password" }.
 type RegisterRequest struct {
-	Name      string `json:"name" binding:"omitempty,max=100"`
-	Email     string `json:"email" binding:"required,email"`
-	Password  string `json:"password" binding:"omitempty,min=8"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
+	Name     string `json:"name" binding:"required,max=100"`
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=8"`
 }
 
 // LoginRequest supports both auth flows:
@@ -77,35 +74,14 @@ func (h *authHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// Legacy password registration keeps its original behaviour.
-	if req.Password != "" {
-		if req.FirstName == "" || req.LastName == "" {
-			response.BadRequest(c, "first_name and last_name are required for password registration")
-			return
-		}
-		user, tokenPair, err := h.authService.Register(c.Request.Context(), req.Email, req.Password, req.FirstName, req.LastName)
-		if err != nil {
-			response.Error(c, err)
-			return
-		}
-		response.Created(c, gin.H{
-			"user":   user,
-			"tokens": tokenPair,
-		})
-		return
-	}
-
-	// Mobile OTP registration (contract §1.1).
-	result, err := h.authService.RegisterOTP(c.Request.Context(), req.Name, req.Email)
+	user, tokenPair, err := h.authService.Register(c.Request.Context(), req.Name, req.Email, req.Password)
 	if err != nil {
 		response.Error(c, err)
 		return
 	}
-
 	response.Created(c, gin.H{
-		"user_id":  result.UserID,
-		"email":    result.Email,
-		"otp_sent": result.OTPSent,
+		"user":   user,
+		"tokens": tokenPair,
 	})
 }
 

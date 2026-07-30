@@ -6,12 +6,13 @@ import (
 	"clap/internal/shared/errors"
 	"clap/internal/shared/utils"
 	"context"
+	"strings"
 
 	"github.com/google/uuid"
 )
 
 type AuthService interface {
-	Register(ctx context.Context, email, password, firstName, lastName string) (*models.User, *utils.TokenPair, error)
+	Register(ctx context.Context, name, email, password string) (*models.User, *utils.TokenPair, error)
 	Login(ctx context.Context, email, password, ipAddress, userAgent string) (*models.User, *utils.TokenPair, error)
 	RefreshToken(ctx context.Context, refreshToken string) (*utils.TokenPair, error)
 	Logout(ctx context.Context, userID uuid.UUID, refreshToken string) error
@@ -60,7 +61,15 @@ func NewAuthServiceWithOTP(
 	}
 }
 
-func (s *authService) Register(ctx context.Context, email, password, firstName, lastName string) (*models.User, *utils.TokenPair, error) {
+func (s *authService) Register(ctx context.Context, name, email, password string) (*models.User, *utils.TokenPair, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, nil, errors.NewBadRequest("Name is required", nil)
+	}
+	if len(name) > 100 {
+		return nil, nil, errors.NewBadRequest("Name must be at most 100 characters", nil)
+	}
+
 	if err := utils.ValidatePassword(password); err != nil {
 		return nil, nil, errors.NewBadRequest("Invalid password", err)
 	}
@@ -78,8 +87,7 @@ func (s *authService) Register(ctx context.Context, email, password, firstName, 
 	user := &models.User{
 		Email:        email,
 		PasswordHash: passwordHash,
-		FirstName:    firstName,
-		LastName:     lastName,
+		FirstName:    name,
 		IsActive:     true,
 		IsVerified:   false,
 	}

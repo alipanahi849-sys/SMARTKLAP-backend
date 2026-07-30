@@ -46,17 +46,25 @@
 | **Screen Name** | Sign Up Screen |
 | **Endpoint** | `/api/v1/auth/register` |
 | **HTTP Method** | POST |
-| **Request** | `{ "name": "string", "email": "string" }` |
-| **Response** | `201 Created` — `{ "user_id": "string", "email": "string", "otp_sent": true }` |
+| **Request** | `{ "name": "string", "email": "string", "password": "string" }` |
+| **Response** | `201 Created` — `{ "user": { ... }, "tokens": { "access_token", "refresh_token", "expires_in" } }` |
 | **Authentication** | None |
-| **Error Codes** | `400` نام/ایمیل نامعتبر · `409` ایمیل قبلاً ثبت شده · `422` · `500` |
+| **Error Codes** | `400` نام/ایمیل/پسورد نامعتبر · `409` ایمیل قبلاً ثبت شده · `422` · `500` |
 | **Pagination** | ندارد |
 
 ```json
 {
-  "user_id": "usr_8f21",
-  "email": "john@example.com",
-  "otp_sent": true
+  "user": {
+    "id": "usr_8f21",
+    "email": "john@example.com",
+    "first_name": "John Smith",
+    "points": 0
+  },
+  "tokens": {
+    "access_token": "eyJhbGciOi...",
+    "refresh_token": "eyJhbGciOi...",
+    "expires_in": 3600
+  }
 }
 ```
 
