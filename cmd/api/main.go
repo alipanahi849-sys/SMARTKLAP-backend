@@ -9,7 +9,9 @@
 //
 //	@license.name				Proprietary
 //
-//	@host						localhost:8080
+// Host is intentionally omitted so Swagger UI calls the same origin that serves
+// the docs (e.g. http://SERVER:8081 via nginx), instead of localhost:8080.
+//
 //	@BasePath					/
 //	@schemes					http https
 //
@@ -28,7 +30,7 @@ import (
 	"syscall"
 	"time"
 
-	_ "clap/cmd/api/docs"
+	"clap/cmd/api/docs"
 	"clap/internal/modules/auth"
 	"clap/internal/modules/chant"
 	"clap/internal/modules/club"
@@ -292,8 +294,12 @@ func setupRouter(deps routerDeps) *gin.Engine {
 
 	router.GET("/health", healthCheck)
 
-	// Swagger UI: http://localhost:8080/swagger/index.html (disabled in production)
+	// Swagger UI (disabled in production). Empty Host = same origin as the page
+	// (important behind nginx / remote servers; avoids localhost:8080 in Try it out).
 	if config.AppConfig.Environment != "production" {
+		docs.SwaggerInfo.Host = ""
+		docs.SwaggerInfo.BasePath = "/"
+		docs.SwaggerInfo.Schemes = []string{"http", "https"}
 		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	}
 

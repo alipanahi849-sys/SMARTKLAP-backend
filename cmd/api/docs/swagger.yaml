@@ -490,7 +490,6 @@ definitions:
       date_of_birth:
         type: string
     type: object
-host: localhost:8080
 info:
   contact:
     name: Clap API Support

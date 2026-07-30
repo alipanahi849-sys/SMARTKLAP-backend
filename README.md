@@ -319,9 +319,10 @@ Migration files are located in `pkg/migrations/`:
 
 - **Docker:** docs are generated automatically during image build (`Dockerfile` runs `swag init`)
 - Local regenerate: `make swagger`
-- UI (non-production):
-  - API direct: [http://localhost:8080/swagger/index.html](http://localhost:8080/swagger/index.html)
-  - Via nginx: [http://localhost:8081/swagger/index.html](http://localhost:8081/swagger/index.html)
+- UI (non-production), open via nginx so Try it out hits the same host:
+  - Local: [http://localhost:8081/swagger/index.html](http://localhost:8081/swagger/index.html)
+  - Server: `http://<SERVER_IP>:8081/swagger/index.html`
+  - Do not use `localhost:8080` in the browser when the API runs on a remote Docker host
 - Spec files: `cmd/api/docs/`
 - Auth: use **Authorize** with `Bearer <access_token>`
 - Rebuild after annotation changes: `docker compose build api --no-cache` (or `docker compose up -d --build`)
