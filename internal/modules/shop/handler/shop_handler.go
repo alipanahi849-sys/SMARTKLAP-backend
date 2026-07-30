@@ -33,6 +33,19 @@ func NewShopHandler(svc service.ShopService) ShopHandler {
 	return &shopHandler{svc: svc}
 }
 
+// List snacks godoc
+//
+//	@Summary		List snacks
+//	@Tags			shop
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			search	query	string	false	"Search"
+//	@Param			category	query	string	false	"Category"
+//	@Param			currency	query	string	false	"Currency"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/snacks [get]
 func (h *shopHandler) ListSnacks(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
@@ -53,6 +66,18 @@ func (h *shopHandler) ListSnacks(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// Snack detail godoc
+//
+//	@Summary		Snack detail
+//	@Tags			shop
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			snack_id	path	string	true	"Snack ID"
+//	@Param			currency	query	string	false	"Currency"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/snacks/{snack_id} [get]
 func (h *shopHandler) SnackDetail(c *gin.Context) {
 	snackID, err := uuid.Parse(c.Param("snack_id"))
 	if err != nil {
@@ -68,6 +93,19 @@ func (h *shopHandler) SnackDetail(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// List products godoc
+//
+//	@Summary		List products
+//	@Tags			shop
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			search	query	string	false	"Search"
+//	@Param			category	query	string	false	"Category"
+//	@Param			currency	query	string	false	"Currency"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/products [get]
 func (h *shopHandler) ListProducts(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
@@ -88,6 +126,18 @@ func (h *shopHandler) ListProducts(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// Product detail godoc
+//
+//	@Summary		Product detail
+//	@Tags			shop
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			product_id	path	string	true	"Product ID"
+//	@Param			currency	query	string	false	"Currency"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/products/{product_id} [get]
 func (h *shopHandler) ProductDetail(c *gin.Context) {
 	productID, err := uuid.Parse(c.Param("product_id"))
 	if err != nil {
@@ -103,6 +153,16 @@ func (h *shopHandler) ProductDetail(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// Get cart godoc
+//
+//	@Summary		Get cart
+//	@Tags			shop
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/cart [get]
 func (h *shopHandler) GetCart(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
@@ -118,6 +178,18 @@ func (h *shopHandler) GetCart(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// Add cart item godoc
+//
+//	@Summary		Add cart item
+//	@Tags			shop
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		dto.AddCartItemRequest	true	"Request body"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/cart/items [post]
 func (h *shopHandler) AddCartItem(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
@@ -139,6 +211,19 @@ func (h *shopHandler) AddCartItem(c *gin.Context) {
 	response.Created(c, result)
 }
 
+// Update cart item godoc
+//
+//	@Summary		Update cart item
+//	@Tags			shop
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			item_id	path	string	true	"Cart item ID"
+//	@Param			body	body		dto.UpdateCartItemRequest	true	"Request body"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/cart/items/{item_id} [patch]
 func (h *shopHandler) UpdateCartItem(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
@@ -166,6 +251,17 @@ func (h *shopHandler) UpdateCartItem(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// Remove cart item godoc
+//
+//	@Summary		Remove cart item
+//	@Tags			shop
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			item_id	path	string	true	"Cart item ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/cart/items/{item_id} [delete]
 func (h *shopHandler) RemoveCartItem(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
@@ -186,6 +282,18 @@ func (h *shopHandler) RemoveCartItem(c *gin.Context) {
 	response.NoContent(c)
 }
 
+// Checkout cart godoc
+//
+//	@Summary		Checkout cart
+//	@Tags			shop
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		dto.CheckoutRequest	true	"Request body"
+//	@Success		201	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/orders [post]
 func (h *shopHandler) Checkout(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
@@ -207,6 +315,19 @@ func (h *shopHandler) Checkout(c *gin.Context) {
 	response.Created(c, result)
 }
 
+// Pay order godoc
+//
+//	@Summary		Pay order
+//	@Tags			shop
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			order_id	path	string	true	"Order ID"
+//	@Param			body	body		dto.PayOrderRequest	true	"Request body"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/orders/{order_id}/pay [post]
 func (h *shopHandler) Pay(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {

@@ -26,6 +26,18 @@ func NewPlaybackHandler(svc service.PlaybackService) PlaybackHandler {
 }
 
 // POST /api/v1/songs/schedule
+// Schedule song playback godoc
+//
+//	@Summary		Schedule song playback
+//	@Tags			playback
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		dto.ScheduleSongRequest	true	"Request body"
+//	@Success		201	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/songs/schedule [post]
 func (h *playbackHandler) ScheduleSong(c *gin.Context) {
 	var req dto.ScheduleSongRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -43,6 +55,17 @@ func (h *playbackHandler) ScheduleSong(c *gin.Context) {
 }
 
 // DELETE /api/v1/songs/schedule/:id
+// Cancel scheduled song godoc
+//
+//	@Summary		Cancel scheduled song
+//	@Tags			playback
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"Schedule ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/songs/schedule/{id} [delete]
 func (h *playbackHandler) CancelSong(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -59,6 +82,17 @@ func (h *playbackHandler) CancelSong(c *gin.Context) {
 }
 
 // GET /api/v1/songs/schedule/upcoming?match_id=<uuid>
+// Upcoming scheduled songs godoc
+//
+//	@Summary		Upcoming scheduled songs
+//	@Tags			playback
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			match_id	query	string	true	"Match ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/songs/schedule/upcoming [get]
 func (h *playbackHandler) GetUpcomingSongs(c *gin.Context) {
 	matchIDStr := c.Query("match_id")
 	if matchIDStr == "" {

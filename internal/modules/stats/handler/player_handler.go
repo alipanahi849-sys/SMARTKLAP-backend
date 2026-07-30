@@ -21,6 +21,17 @@ func NewPlayerHandler(svc service.PlayerService) PlayerHandler {
 	return &playerHandler{svc: svc}
 }
 
+// Player detail godoc
+//
+//	@Summary		Player detail
+//	@Tags			stats
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			player_id	path	string	true	"Player ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/players/{player_id} [get]
 func (h *playerHandler) PlayerDetail(c *gin.Context) {
 	playerID, err := uuid.Parse(c.Param("player_id"))
 	if err != nil {

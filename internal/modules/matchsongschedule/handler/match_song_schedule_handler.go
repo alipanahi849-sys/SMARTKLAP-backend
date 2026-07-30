@@ -29,6 +29,18 @@ func NewMatchSongScheduleHandler(scheduleService service.MatchSongScheduleServic
 	return &matchSongScheduleHandler{scheduleService: scheduleService}
 }
 
+// Create match song schedule godoc
+//
+//	@Summary		Create match song schedule
+//	@Tags			match-song-schedules
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		dto.CreateMatchSongScheduleRequest	true	"Request body"
+//	@Success		201	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/match-song-schedules [post]
 func (h *matchSongScheduleHandler) Create(c *gin.Context) {
 	var req dto.CreateMatchSongScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -46,6 +58,15 @@ func (h *matchSongScheduleHandler) Create(c *gin.Context) {
 	response.Created(c, schedule)
 }
 
+// Get match song schedule godoc
+//
+//	@Summary		Get match song schedule
+//	@Tags			match-song-schedules
+//	@Produce		json
+//	@Param			id	path	string	true	"Schedule ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/match-song-schedules/{id} [get]
 func (h *matchSongScheduleHandler) GetByID(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -62,6 +83,18 @@ func (h *matchSongScheduleHandler) GetByID(c *gin.Context) {
 	response.Success(c, schedule)
 }
 
+// List match song schedules godoc
+//
+//	@Summary		List match song schedules
+//	@Tags			match-song-schedules
+//	@Produce		json
+//	@Param			sort	query	string	false	"Sort field"
+//	@Param			order	query	string	false	"asc|desc"
+//	@Param			page	query	int	false	"Page number"
+//	@Param			per_page	query	int	false	"Items per page"
+//	@Success		200	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/match-song-schedules [get]
 func (h *matchSongScheduleHandler) List(c *gin.Context) {
 	page, pageSize := utils.GetPagination(c)
 
@@ -84,6 +117,15 @@ func (h *matchSongScheduleHandler) List(c *gin.Context) {
 	response.Success(c, schedules)
 }
 
+// List schedules by match godoc
+//
+//	@Summary		List schedules by match
+//	@Tags			match-song-schedules
+//	@Produce		json
+//	@Param			id	path	string	true	"Match ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/matches/{id}/song-schedules [get]
 func (h *matchSongScheduleHandler) ListByMatchID(c *gin.Context) {
 	matchID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -102,6 +144,15 @@ func (h *matchSongScheduleHandler) ListByMatchID(c *gin.Context) {
 	response.Success(c, schedules)
 }
 
+// List schedules by song godoc
+//
+//	@Summary		List schedules by song
+//	@Tags			match-song-schedules
+//	@Produce		json
+//	@Param			id	path	string	true	"Song ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/songs/{id}/match-schedules [get]
 func (h *matchSongScheduleHandler) ListBySongID(c *gin.Context) {
 	songID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -120,6 +171,19 @@ func (h *matchSongScheduleHandler) ListBySongID(c *gin.Context) {
 	response.Success(c, schedules)
 }
 
+// Update match song schedule godoc
+//
+//	@Summary		Update match song schedule
+//	@Tags			match-song-schedules
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"Schedule ID"
+//	@Param			body	body		dto.UpdateMatchSongScheduleRequest	true	"Request body"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/match-song-schedules/{id} [put]
 func (h *matchSongScheduleHandler) Update(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -143,6 +207,17 @@ func (h *matchSongScheduleHandler) Update(c *gin.Context) {
 	response.Success(c, schedule)
 }
 
+// Delete match song schedule godoc
+//
+//	@Summary		Delete match song schedule
+//	@Tags			match-song-schedules
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"Schedule ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/match-song-schedules/{id} [delete]
 func (h *matchSongScheduleHandler) Delete(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {

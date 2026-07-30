@@ -24,6 +24,17 @@ func NewRecoveryHandler(svc service.ReconnectionRecoveryService) *RecoveryHandle
 // Clients call this immediately after reconnecting to re-sync.
 //
 // GET /api/v1/realtime/session/:matchId
+// Realtime session recovery godoc
+//
+//	@Summary		Realtime session recovery
+//	@Tags			realtime
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			matchId	path	string	true	"Match ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/realtime/session/{matchId} [get]
 func (h *RecoveryHandler) GetMatchState(c *gin.Context) {
 	matchID, err := uuid.Parse(c.Param("matchId"))
 	if err != nil {

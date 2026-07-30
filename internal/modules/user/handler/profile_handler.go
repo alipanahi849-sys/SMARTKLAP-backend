@@ -43,6 +43,16 @@ type UpdateProfileRequest struct {
 	City        string `json:"city"`
 }
 
+// Get profile godoc
+//
+//	@Summary		Get profile
+//	@Tags			profiles
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/profiles/me [get]
 func (h *profileHandler) GetProfile(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
@@ -59,6 +69,18 @@ func (h *profileHandler) GetProfile(c *gin.Context) {
 	response.Success(c, profile)
 }
 
+// Create profile godoc
+//
+//	@Summary		Create profile
+//	@Tags			profiles
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		CreateProfileRequest	true	"Request body"
+//	@Success		201	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/profiles/me [post]
 func (h *profileHandler) CreateProfile(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
@@ -89,6 +111,18 @@ func (h *profileHandler) CreateProfile(c *gin.Context) {
 	response.Created(c, createdProfile)
 }
 
+// Update profile godoc
+//
+//	@Summary		Update profile
+//	@Tags			profiles
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		UpdateProfileRequest	true	"Request body"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/profiles/me [put]
 func (h *profileHandler) UpdateProfile(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
@@ -128,6 +162,16 @@ func (h *profileHandler) UpdateProfile(c *gin.Context) {
 	response.Success(c, profile)
 }
 
+// Delete profile godoc
+//
+//	@Summary		Delete profile
+//	@Tags			profiles
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/profiles/me [delete]
 func (h *profileHandler) DeleteProfile(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {

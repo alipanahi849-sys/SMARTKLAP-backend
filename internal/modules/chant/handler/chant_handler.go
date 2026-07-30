@@ -25,6 +25,17 @@ func NewChantHandler(svc service.ChantService) ChantHandler {
 	return &chantHandler{svc: svc}
 }
 
+// List chants godoc
+//
+//	@Summary		List chants
+//	@Tags			chants
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			search	query	string	false	"Search query"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/chants [get]
 func (h *chantHandler) List(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
@@ -50,6 +61,17 @@ func (h *chantHandler) List(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// Chant countdown godoc
+//
+//	@Summary		Chant countdown
+//	@Tags			chants
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			chant_id	path	string	true	"Chant ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/chants/{chant_id}/countdown [get]
 func (h *chantHandler) Countdown(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
@@ -71,6 +93,17 @@ func (h *chantHandler) Countdown(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// Chant lyrics godoc
+//
+//	@Summary		Chant lyrics
+//	@Tags			chants
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			chant_id	path	string	true	"Chant ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/chants/{chant_id}/lyrics [get]
 func (h *chantHandler) Lyrics(c *gin.Context) {
 	chantID, err := uuid.Parse(c.Param("chant_id"))
 	if err != nil {
@@ -92,6 +125,17 @@ func (h *chantHandler) Lyrics(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// Complete chant godoc
+//
+//	@Summary		Complete chant
+//	@Tags			chants
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			chant_id	path	string	true	"Chant ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/chants/{chant_id}/complete [post]
 func (h *chantHandler) Complete(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {

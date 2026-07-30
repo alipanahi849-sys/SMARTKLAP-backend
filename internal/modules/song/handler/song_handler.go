@@ -28,6 +28,18 @@ func NewSongHandler(songService service.SongService) SongHandler {
 	return &songHandler{songService: songService}
 }
 
+// Create song godoc
+//
+//	@Summary		Create song
+//	@Tags			songs
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		dto.CreateSongRequest	true	"Request body"
+//	@Success		201	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/songs [post]
 func (h *songHandler) Create(c *gin.Context) {
 	var req dto.CreateSongRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -45,6 +57,15 @@ func (h *songHandler) Create(c *gin.Context) {
 	response.Created(c, song)
 }
 
+// Get song godoc
+//
+//	@Summary		Get song
+//	@Tags			songs
+//	@Produce		json
+//	@Param			id	path	string	true	"Song ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/songs/{id} [get]
 func (h *songHandler) GetByID(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -61,6 +82,19 @@ func (h *songHandler) GetByID(c *gin.Context) {
 	response.Success(c, song)
 }
 
+// List songs godoc
+//
+//	@Summary		List songs
+//	@Tags			songs
+//	@Produce		json
+//	@Param			sort	query	string	false	"Sort field"
+//	@Param			order	query	string	false	"asc|desc"
+//	@Param			page	query	int	false	"Page number"
+//	@Param			per_page	query	int	false	"Items per page"
+//	@Param			q	query	string	false	"Search query"
+//	@Success		200	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/songs [get]
 func (h *songHandler) List(c *gin.Context) {
 	page, pageSize := utils.GetPagination(c)
 
@@ -83,6 +117,15 @@ func (h *songHandler) List(c *gin.Context) {
 	response.Success(c, songs)
 }
 
+// Search songs godoc
+//
+//	@Summary		Search songs
+//	@Tags			songs
+//	@Produce		json
+//	@Param			q	query	string	true	"Search query"
+//	@Success		200	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/songs/search [get]
 func (h *songHandler) Search(c *gin.Context) {
 	query := c.Query("q")
 	if query == "" {
@@ -101,6 +144,19 @@ func (h *songHandler) Search(c *gin.Context) {
 	response.Success(c, songs)
 }
 
+// Update song godoc
+//
+//	@Summary		Update song
+//	@Tags			songs
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"Song ID"
+//	@Param			body	body		dto.UpdateSongRequest	true	"Request body"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/songs/{id} [put]
 func (h *songHandler) Update(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -124,6 +180,17 @@ func (h *songHandler) Update(c *gin.Context) {
 	response.Success(c, song)
 }
 
+// Delete song godoc
+//
+//	@Summary		Delete song
+//	@Tags			songs
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"Song ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/songs/{id} [delete]
 func (h *songHandler) Delete(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {

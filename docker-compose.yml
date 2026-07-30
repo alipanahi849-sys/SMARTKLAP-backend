@@ -35,6 +35,28 @@ services:
     networks:
       - clap_network
 
+  # One-shot: apply pending *.up.sql migrations and seed default roles.
+  migrate:
+    image: postgres:16-alpine
+    container_name: clap_migrate
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: clap
+      MIGRATIONS_DIR: /migrations
+    volumes:
+      - ./pkg/migrations:/migrations:ro
+      - ./scripts/migrate_and_seed.sh:/migrate_and_seed.sh:ro
+    entrypoint: ["/bin/sh", "/migrate_and_seed.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - clap_network
+    restart: "no"
+
   api:
     build:
       context: .
@@ -65,8 +87,8 @@ services:
       CORS_ALLOWED_METHODS: GET,POST,PUT,DELETE,OPTIONS
       CORS_ALLOWED_HEADERS: Origin,Content-Type,Authorization
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
     healthcheck:

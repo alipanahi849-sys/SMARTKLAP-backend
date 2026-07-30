@@ -329,6 +329,4448 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/cart": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "Get cart",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cart/items": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "Add cart item",
+                "parameters": [
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_shop_dto.AddCartItemRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cart/items/{item_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "Remove cart item",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cart item ID",
+                        "name": "item_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "Update cart item",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cart item ID",
+                        "name": "item_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_shop_dto.UpdateCartItemRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/chants": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chants"
+                ],
+                "summary": "List chants",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search query",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/chants/{chant_id}/complete": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chants"
+                ],
+                "summary": "Complete chant",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Chant ID",
+                        "name": "chant_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/chants/{chant_id}/countdown": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chants"
+                ],
+                "summary": "Chant countdown",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Chant ID",
+                        "name": "chant_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/chants/{chant_id}/lyrics": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chants"
+                ],
+                "summary": "Chant lyrics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Chant ID",
+                        "name": "chant_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/club-seasons": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "club-seasons"
+                ],
+                "summary": "Add club to season",
+                "parameters": [
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_clubseason_dto.CreateClubSeasonRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/club-seasons/{id}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "club-seasons"
+                ],
+                "summary": "Update club-season status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ClubSeason ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_clubseason_dto.UpdateClubSeasonRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/clubs": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "clubs"
+                ],
+                "summary": "List clubs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Sort field",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "asc|desc",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search query",
+                        "name": "q",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "clubs"
+                ],
+                "summary": "Create club",
+                "parameters": [
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_club_dto.CreateClubRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/clubs/search": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "clubs"
+                ],
+                "summary": "Search clubs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search query",
+                        "name": "q",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/clubs/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "clubs"
+                ],
+                "summary": "Get club",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Club ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "clubs"
+                ],
+                "summary": "Update club",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Club ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_club_dto.UpdateClubRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "clubs"
+                ],
+                "summary": "Delete club",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Club ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/clubs/{id}/matches": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "matches"
+                ],
+                "summary": "List matches by club",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Club ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/clubs/{id}/seasons": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "club-seasons"
+                ],
+                "summary": "List seasons for club",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Club ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/guess/matches/{match_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "guess"
+                ],
+                "summary": "Guess match overview",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Match ID",
+                        "name": "match_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/guess/quizzes/{quiz_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "guess"
+                ],
+                "summary": "Quiz detail",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Quiz ID",
+                        "name": "quiz_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/guess/quizzes/{quiz_id}/answer": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "guess"
+                ],
+                "summary": "Answer quiz",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Quiz ID",
+                        "name": "quiz_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_guess_dto.AnswerQuizRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/leagues": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "leagues"
+                ],
+                "summary": "List leagues",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Sort field",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "asc|desc",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "leagues"
+                ],
+                "summary": "Create league",
+                "parameters": [
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_league_dto.CreateLeagueRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/leagues/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "leagues"
+                ],
+                "summary": "Get league",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "League ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "leagues"
+                ],
+                "summary": "Update league",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "League ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_league_dto.UpdateLeagueRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "leagues"
+                ],
+                "summary": "Delete league",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "League ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/leagues/{id}/matches": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "matches"
+                ],
+                "summary": "List matches by league",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "League ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/leagues/{id}/seasons": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "seasons"
+                ],
+                "summary": "List seasons by league",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "League ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/match-song-schedules": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match-song-schedules"
+                ],
+                "summary": "List match song schedules",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Sort field",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "asc|desc",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match-song-schedules"
+                ],
+                "summary": "Create match song schedule",
+                "parameters": [
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_matchsongschedule_dto.CreateMatchSongScheduleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/match-song-schedules/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match-song-schedules"
+                ],
+                "summary": "Get match song schedule",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Schedule ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match-song-schedules"
+                ],
+                "summary": "Update match song schedule",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Schedule ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_matchsongschedule_dto.UpdateMatchSongScheduleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match-song-schedules"
+                ],
+                "summary": "Delete match song schedule",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Schedule ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/matches": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "matches"
+                ],
+                "summary": "List matches",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Sort field",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "asc|desc",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "matches"
+                ],
+                "summary": "Create match",
+                "parameters": [
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_match_dto.CreateMatchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/matches/live": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "matches"
+                ],
+                "summary": "List live matches",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/matches/upcoming": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "matches"
+                ],
+                "summary": "List upcoming matches",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/matches/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "matches"
+                ],
+                "summary": "Get match",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Match ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "matches"
+                ],
+                "summary": "Update match",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Match ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_match_dto.UpdateMatchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "matches"
+                ],
+                "summary": "Delete match",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Match ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/matches/{id}/runtime": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match-runtime"
+                ],
+                "summary": "Get match runtime state",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Match ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/matches/{id}/runtime/end": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match-runtime"
+                ],
+                "summary": "End match runtime",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Match ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/matches/{id}/runtime/pause": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match-runtime"
+                ],
+                "summary": "Pause match runtime",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Match ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/matches/{id}/runtime/resume": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match-runtime"
+                ],
+                "summary": "Resume match runtime",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Match ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/matches/{id}/runtime/start": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match-runtime"
+                ],
+                "summary": "Start match runtime",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Match ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/matches/{id}/song-schedules": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match-song-schedules"
+                ],
+                "summary": "List schedules by match",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Match ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/media/upload": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "media"
+                ],
+                "summary": "Upload media",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Media file",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Media type",
+                        "name": "type",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/media/{id}/playback-url": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "media"
+                ],
+                "summary": "Get playback URL",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Media ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/mobile/home/club": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mobile-home"
+                ],
+                "summary": "Club home",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/mobile/home/stadium": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mobile-home"
+                ],
+                "summary": "Stadium home",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/news": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "news"
+                ],
+                "summary": "List news",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orders": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "Checkout cart",
+                "parameters": [
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_shop_dto.CheckoutRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orders/{order_id}/pay": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "Pay order",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "order_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_shop_dto.PayOrderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{player_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "stats"
+                ],
+                "summary": "Player detail",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Player ID",
+                        "name": "player_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/products": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "List products",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Currency",
+                        "name": "currency",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/products/{product_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "Product detail",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product ID",
+                        "name": "product_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Currency",
+                        "name": "currency",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/profile/leaderboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mobile-profile"
+                ],
+                "summary": "Leaderboard",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/profile/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mobile-profile"
+                ],
+                "summary": "Mobile profile me",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mobile-profile"
+                ],
+                "summary": "Update mobile profile",
+                "parameters": [
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_user_dto.UpdateMobileProfileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/profile/me/avatar": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mobile-profile"
+                ],
+                "summary": "Upload avatar",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Avatar image",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/profiles/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profiles"
+                ],
+                "summary": "Get profile",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profiles"
+                ],
+                "summary": "Update profile",
+                "parameters": [
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_modules_user_handler.UpdateProfileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profiles"
+                ],
+                "summary": "Create profile",
+                "parameters": [
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_modules_user_handler.CreateProfileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profiles"
+                ],
+                "summary": "Delete profile",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/realtime/admin/cleanup/all": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin only",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "realtime"
+                ],
+                "summary": "Cleanup all retention data",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/realtime/admin/cleanup/heartbeats": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin only",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "realtime"
+                ],
+                "summary": "Cleanup heartbeats",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/realtime/admin/cleanup/realtime-events": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin only",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "realtime"
+                ],
+                "summary": "Cleanup realtime events",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/realtime/admin/cleanup/scheduler-events": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin only",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "realtime"
+                ],
+                "summary": "Cleanup scheduler events",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/realtime/metrics": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin only",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "realtime"
+                ],
+                "summary": "Realtime metrics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/realtime/session/{matchId}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "realtime"
+                ],
+                "summary": "Realtime session recovery",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Match ID",
+                        "name": "matchId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/realtime/time": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "realtime"
+                ],
+                "summary": "Server time",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/realtime/time-sync": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "realtime"
+                ],
+                "summary": "Time sync",
+                "parameters": [
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_realtime_dto.TimeSyncRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/realtime/ws": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Upgrade to WebSocket. JWT required (query or header).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "realtime"
+                ],
+                "summary": "WebSocket connect",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/seasons": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "seasons"
+                ],
+                "summary": "List seasons",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Sort field",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "asc|desc",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "seasons"
+                ],
+                "summary": "Create season",
+                "parameters": [
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_season_dto.CreateSeasonRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/seasons/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "seasons"
+                ],
+                "summary": "Get season",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Season ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "seasons"
+                ],
+                "summary": "Update season",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Season ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_season_dto.UpdateSeasonRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "seasons"
+                ],
+                "summary": "Delete season",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Season ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/seasons/{id}/clubs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "club-seasons"
+                ],
+                "summary": "List clubs in season",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Season ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/seasons/{id}/clubs/{club_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "club-seasons"
+                ],
+                "summary": "Remove club from season",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Season ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Club ID",
+                        "name": "club_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/seasons/{id}/matches": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "matches"
+                ],
+                "summary": "List matches by season",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Season ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/snacks": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "List snacks",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Currency",
+                        "name": "currency",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/snacks/{snack_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "Snack detail",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Snack ID",
+                        "name": "snack_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Currency",
+                        "name": "currency",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/song-lyrics": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "song-lyrics"
+                ],
+                "summary": "Create song lyric",
+                "parameters": [
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_songlyric_dto.CreateSongLyricRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/song-lyrics/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "song-lyrics"
+                ],
+                "summary": "Get song lyric",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Lyric ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "song-lyrics"
+                ],
+                "summary": "Update song lyric",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Lyric ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_songlyric_dto.UpdateSongLyricRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "song-lyrics"
+                ],
+                "summary": "Delete song lyric",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Lyric ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/songs": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "songs"
+                ],
+                "summary": "List songs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Sort field",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "asc|desc",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search query",
+                        "name": "q",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "songs"
+                ],
+                "summary": "Create song",
+                "parameters": [
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_song_dto.CreateSongRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/songs/schedule": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "playback"
+                ],
+                "summary": "Schedule song playback",
+                "parameters": [
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_playback_dto.ScheduleSongRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/songs/schedule/upcoming": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "playback"
+                ],
+                "summary": "Upcoming scheduled songs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Match ID",
+                        "name": "match_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/songs/schedule/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "playback"
+                ],
+                "summary": "Cancel scheduled song",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Schedule ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/songs/search": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "songs"
+                ],
+                "summary": "Search songs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search query",
+                        "name": "q",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/songs/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "songs"
+                ],
+                "summary": "Get song",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Song ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "songs"
+                ],
+                "summary": "Update song",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Song ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_song_dto.UpdateSongRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "songs"
+                ],
+                "summary": "Delete song",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Song ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/songs/{id}/audio": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "media"
+                ],
+                "summary": "Upload song audio",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Song ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Audio file",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/songs/{id}/lyrics": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "song-lyrics"
+                ],
+                "summary": "List lyrics for song",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Song ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/songs/{id}/lyrics/import": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "song-lyrics"
+                ],
+                "summary": "Import lyrics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Song ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_songlyric_dto.ImportLyricsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/songs/{id}/lyrics/{language}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "song-lyrics"
+                ],
+                "summary": "Get lyrics by language",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Song ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Language code",
+                        "name": "language",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/songs/{id}/match-schedules": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "match-song-schedules"
+                ],
+                "summary": "List schedules by song",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Song ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/users/me": {
             "get": {
                 "security": [
@@ -409,6 +4851,220 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/videos": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "videos"
+                ],
+                "summary": "Upload video",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Video file",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Caption",
+                        "name": "caption",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/videos/feed": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "videos"
+                ],
+                "summary": "Video feed",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/videos/mine": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "videos"
+                ],
+                "summary": "My videos",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/videos/{video_id}/like": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "videos"
+                ],
+                "summary": "Like video",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Video ID",
+                        "name": "video_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "videos"
+                ],
+                "summary": "Unlike video",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Video ID",
+                        "name": "video_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "description": "Returns API, database, and Redis health status",
@@ -439,6 +5095,562 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "clap_internal_modules_club_dto.CreateClubRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "country": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "logo_url": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "short_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "clap_internal_modules_club_dto.UpdateClubRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "country": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "logo_url": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "short_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "clap_internal_modules_clubseason_dto.CreateClubSeasonRequest": {
+            "type": "object",
+            "required": [
+                "club_id",
+                "joined_at",
+                "season_id",
+                "status"
+            ],
+            "properties": {
+                "club_id": {
+                    "type": "string"
+                },
+                "joined_at": {
+                    "type": "string"
+                },
+                "season_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "active",
+                        "suspended",
+                        "withdrawn"
+                    ]
+                }
+            }
+        },
+        "clap_internal_modules_clubseason_dto.UpdateClubSeasonRequest": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "active",
+                        "suspended",
+                        "withdrawn"
+                    ]
+                }
+            }
+        },
+        "clap_internal_modules_guess_dto.AnswerQuizRequest": {
+            "type": "object",
+            "required": [
+                "choice"
+            ],
+            "properties": {
+                "choice": {
+                    "type": "string",
+                    "maxLength": 255
+                }
+            }
+        },
+        "clap_internal_modules_league_dto.CreateLeagueRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "country": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "provider_league_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "clap_internal_modules_league_dto.UpdateLeagueRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "country": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "provider_league_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "clap_internal_modules_match_dto.CreateMatchRequest": {
+            "type": "object",
+            "required": [
+                "away_club_id",
+                "home_club_id",
+                "league_id",
+                "match_datetime",
+                "season_id",
+                "status"
+            ],
+            "properties": {
+                "away_club_id": {
+                    "type": "string"
+                },
+                "home_club_id": {
+                    "type": "string"
+                },
+                "league_id": {
+                    "type": "string"
+                },
+                "match_datetime": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "provider_match_id": {
+                    "type": "string"
+                },
+                "season_id": {
+                    "type": "string"
+                },
+                "stadium_name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "scheduled",
+                        "live",
+                        "halftime",
+                        "finished",
+                        "cancelled"
+                    ]
+                }
+            }
+        },
+        "clap_internal_modules_match_dto.UpdateMatchRequest": {
+            "type": "object",
+            "required": [
+                "match_datetime",
+                "status"
+            ],
+            "properties": {
+                "away_score": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "current_minute": {
+                    "type": "string",
+                    "maxLength": 10
+                },
+                "home_score": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "match_datetime": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "provider_match_id": {
+                    "type": "string"
+                },
+                "stadium_name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "scheduled",
+                        "live",
+                        "halftime",
+                        "finished",
+                        "cancelled"
+                    ]
+                }
+            }
+        },
+        "clap_internal_modules_matchsongschedule_dto.CreateMatchSongScheduleRequest": {
+            "type": "object",
+            "required": [
+                "event_type",
+                "match_id",
+                "scheduled_time",
+                "song_id"
+            ],
+            "properties": {
+                "event_type": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "match_id": {
+                    "type": "string"
+                },
+                "scheduled_time": {
+                    "type": "string"
+                },
+                "song_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "clap_internal_modules_matchsongschedule_dto.UpdateMatchSongScheduleRequest": {
+            "type": "object",
+            "required": [
+                "event_type",
+                "scheduled_time"
+            ],
+            "properties": {
+                "event_type": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "scheduled_time": {
+                    "type": "string"
+                }
+            }
+        },
+        "clap_internal_modules_playback_dto.ScheduleSongRequest": {
+            "type": "object",
+            "required": [
+                "match_id",
+                "scheduled_at",
+                "song_id"
+            ],
+            "properties": {
+                "duration_ms": {
+                    "description": "DurationMs is the expected playback window in milliseconds.\nProviding it enables overlap detection against other schedules.\nZero means \"unknown duration\" and overlap check is skipped.",
+                    "type": "integer"
+                },
+                "match_id": {
+                    "type": "string"
+                },
+                "scheduled_at": {
+                    "type": "string"
+                },
+                "song_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "clap_internal_modules_realtime_dto.TimeSyncRequest": {
+            "type": "object",
+            "required": [
+                "client_timestamp_ms"
+            ],
+            "properties": {
+                "client_timestamp_ms": {
+                    "type": "integer"
+                }
+            }
+        },
+        "clap_internal_modules_season_dto.CreateSeasonRequest": {
+            "type": "object",
+            "required": [
+                "end_date",
+                "league_id",
+                "name",
+                "start_date"
+            ],
+            "properties": {
+                "end_date": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "league_id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "start_date": {
+                    "type": "string"
+                }
+            }
+        },
+        "clap_internal_modules_season_dto.UpdateSeasonRequest": {
+            "type": "object",
+            "required": [
+                "end_date",
+                "name",
+                "start_date"
+            ],
+            "properties": {
+                "end_date": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "start_date": {
+                    "type": "string"
+                }
+            }
+        },
+        "clap_internal_modules_shop_dto.AddCartItemRequest": {
+            "type": "object",
+            "required": [
+                "product_id",
+                "product_type",
+                "quantity"
+            ],
+            "properties": {
+                "product_id": {
+                    "type": "string"
+                },
+                "product_type": {
+                    "type": "string",
+                    "enum": [
+                        "snack",
+                        "merch"
+                    ]
+                },
+                "quantity": {
+                    "type": "integer",
+                    "maximum": 99,
+                    "minimum": 1
+                },
+                "size": {
+                    "type": "string",
+                    "maxLength": 10
+                }
+            }
+        },
+        "clap_internal_modules_shop_dto.CheckoutRequest": {
+            "type": "object",
+            "required": [
+                "delivery_method"
+            ],
+            "properties": {
+                "delivery_method": {
+                    "type": "string",
+                    "enum": [
+                        "seat",
+                        "pickup"
+                    ]
+                },
+                "seat_number": {
+                    "type": "string",
+                    "maxLength": 20
+                }
+            }
+        },
+        "clap_internal_modules_shop_dto.PayOrderRequest": {
+            "type": "object",
+            "required": [
+                "payment_method"
+            ],
+            "properties": {
+                "payment_method": {
+                    "type": "string",
+                    "maxLength": 30
+                }
+            }
+        },
+        "clap_internal_modules_shop_dto.UpdateCartItemRequest": {
+            "type": "object",
+            "required": [
+                "quantity"
+            ],
+            "properties": {
+                "quantity": {
+                    "type": "integer",
+                    "maximum": 99,
+                    "minimum": 1
+                }
+            }
+        },
+        "clap_internal_modules_song_dto.CreateSongRequest": {
+            "type": "object",
+            "required": [
+                "title"
+            ],
+            "properties": {
+                "album": {
+                    "type": "string"
+                },
+                "artist": {
+                    "type": "string"
+                },
+                "audio_url": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "clap_internal_modules_song_dto.UpdateSongRequest": {
+            "type": "object",
+            "required": [
+                "title"
+            ],
+            "properties": {
+                "album": {
+                    "type": "string"
+                },
+                "artist": {
+                    "type": "string"
+                },
+                "audio_url": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "clap_internal_modules_songlyric_dto.CreateSongLyricRequest": {
+            "type": "object",
+            "required": [
+                "language",
+                "lyrics",
+                "song_id"
+            ],
+            "properties": {
+                "language": {
+                    "type": "string"
+                },
+                "lyrics": {
+                    "type": "string"
+                },
+                "song_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "clap_internal_modules_songlyric_dto.ImportLyricsRequest": {
+            "type": "object",
+            "required": [
+                "content"
+            ],
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "replace_existing": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "clap_internal_modules_songlyric_dto.UpdateSongLyricRequest": {
+            "type": "object",
+            "required": [
+                "language",
+                "lyrics"
+            ],
+            "properties": {
+                "language": {
+                    "type": "string"
+                },
+                "lyrics": {
+                    "type": "string"
+                }
+            }
+        },
+        "clap_internal_modules_user_dto.UpdateMobileProfileRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                }
+            }
+        },
         "clap_internal_shared_response.ErrorDetail": {
             "type": "object",
             "properties": {
@@ -557,6 +5769,46 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "otp_code": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_modules_user_handler.CreateProfileRequest": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "bio": {
+                    "type": "string"
+                },
+                "city": {
+                    "type": "string"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "date_of_birth": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_modules_user_handler.UpdateProfileRequest": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "bio": {
+                    "type": "string"
+                },
+                "city": {
+                    "type": "string"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "date_of_birth": {
                     "type": "string"
                 }
             }

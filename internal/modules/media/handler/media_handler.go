@@ -25,6 +25,19 @@ func NewMediaHandler(mediaService service.MediaService) MediaHandler {
 	return &mediaHandler{mediaService: mediaService}
 }
 
+// Upload media godoc
+//
+//	@Summary		Upload media
+//	@Tags			media
+//	@Accept			mpfd
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			file	formData	file	true	"Media file"
+//	@Param			type	formData	string	false	"Media type"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/media/upload [post]
 func (h *mediaHandler) Upload(c *gin.Context) {
 	var req dto.MediaUploadRequest
 	if err := c.ShouldBind(&req); err != nil {
@@ -42,6 +55,17 @@ func (h *mediaHandler) Upload(c *gin.Context) {
 	response.Created(c, media)
 }
 
+// Get playback URL godoc
+//
+//	@Summary		Get playback URL
+//	@Tags			media
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"Media ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/media/{id}/playback-url [get]
 func (h *mediaHandler) GetPlaybackURL(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -58,6 +82,19 @@ func (h *mediaHandler) GetPlaybackURL(c *gin.Context) {
 	response.Success(c, url)
 }
 
+// Upload song audio godoc
+//
+//	@Summary		Upload song audio
+//	@Tags			media
+//	@Accept			mpfd
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"Song ID"
+//	@Param			file	formData	file	true	"Audio file"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/songs/{id}/audio [post]
 func (h *mediaHandler) UploadSongAudio(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {

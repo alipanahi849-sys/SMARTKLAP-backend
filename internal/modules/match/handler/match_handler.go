@@ -32,6 +32,18 @@ func NewMatchHandler(matchService service.MatchService) MatchHandler {
 	return &matchHandler{matchService: matchService}
 }
 
+// Create match godoc
+//
+//	@Summary		Create match
+//	@Tags			matches
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		dto.CreateMatchRequest	true	"Request body"
+//	@Success		201	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/matches [post]
 func (h *matchHandler) Create(c *gin.Context) {
 	var req dto.CreateMatchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -49,6 +61,15 @@ func (h *matchHandler) Create(c *gin.Context) {
 	response.Created(c, match)
 }
 
+// Get match godoc
+//
+//	@Summary		Get match
+//	@Tags			matches
+//	@Produce		json
+//	@Param			id	path	string	true	"Match ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/matches/{id} [get]
 func (h *matchHandler) GetByID(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -65,6 +86,18 @@ func (h *matchHandler) GetByID(c *gin.Context) {
 	response.Success(c, match)
 }
 
+// List matches godoc
+//
+//	@Summary		List matches
+//	@Tags			matches
+//	@Produce		json
+//	@Param			sort	query	string	false	"Sort field"
+//	@Param			order	query	string	false	"asc|desc"
+//	@Param			page	query	int	false	"Page number"
+//	@Param			per_page	query	int	false	"Items per page"
+//	@Success		200	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/matches [get]
 func (h *matchHandler) List(c *gin.Context) {
 	page, pageSize := utils.GetPagination(c)
 
@@ -87,6 +120,15 @@ func (h *matchHandler) List(c *gin.Context) {
 	response.Success(c, matches)
 }
 
+// List matches by season godoc
+//
+//	@Summary		List matches by season
+//	@Tags			matches
+//	@Produce		json
+//	@Param			id	path	string	true	"Season ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/seasons/{id}/matches [get]
 func (h *matchHandler) ListBySeason(c *gin.Context) {
 	seasonID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -105,6 +147,15 @@ func (h *matchHandler) ListBySeason(c *gin.Context) {
 	response.Success(c, matches)
 }
 
+// List matches by league godoc
+//
+//	@Summary		List matches by league
+//	@Tags			matches
+//	@Produce		json
+//	@Param			id	path	string	true	"League ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/leagues/{id}/matches [get]
 func (h *matchHandler) ListByLeague(c *gin.Context) {
 	leagueID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -123,6 +174,15 @@ func (h *matchHandler) ListByLeague(c *gin.Context) {
 	response.Success(c, matches)
 }
 
+// List matches by club godoc
+//
+//	@Summary		List matches by club
+//	@Tags			matches
+//	@Produce		json
+//	@Param			id	path	string	true	"Club ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/clubs/{id}/matches [get]
 func (h *matchHandler) ListByClub(c *gin.Context) {
 	clubID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -141,6 +201,14 @@ func (h *matchHandler) ListByClub(c *gin.Context) {
 	response.Success(c, matches)
 }
 
+// List upcoming matches godoc
+//
+//	@Summary		List upcoming matches
+//	@Tags			matches
+//	@Produce		json
+//	@Success		200	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/matches/upcoming [get]
 func (h *matchHandler) ListUpcoming(c *gin.Context) {
 	page, pageSize := utils.GetPagination(c)
 
@@ -153,6 +221,14 @@ func (h *matchHandler) ListUpcoming(c *gin.Context) {
 	response.Success(c, matches)
 }
 
+// List live matches godoc
+//
+//	@Summary		List live matches
+//	@Tags			matches
+//	@Produce		json
+//	@Success		200	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/matches/live [get]
 func (h *matchHandler) ListLive(c *gin.Context) {
 	matches, err := h.matchService.ListLive(c.Request.Context())
 	if err != nil {
@@ -163,6 +239,19 @@ func (h *matchHandler) ListLive(c *gin.Context) {
 	response.Success(c, matches)
 }
 
+// Update match godoc
+//
+//	@Summary		Update match
+//	@Tags			matches
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"Match ID"
+//	@Param			body	body		dto.UpdateMatchRequest	true	"Request body"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/matches/{id} [put]
 func (h *matchHandler) Update(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -186,6 +275,17 @@ func (h *matchHandler) Update(c *gin.Context) {
 	response.Success(c, match)
 }
 
+// Delete match godoc
+//
+//	@Summary		Delete match
+//	@Tags			matches
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"Match ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/matches/{id} [delete]
 func (h *matchHandler) Delete(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {

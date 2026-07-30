@@ -28,6 +28,16 @@ func NewMobileProfileHandler(svc service.MobileProfileService) MobileProfileHand
 	return &mobileProfileHandler{svc: svc}
 }
 
+// Mobile profile me godoc
+//
+//	@Summary		Mobile profile me
+//	@Tags			mobile-profile
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/profile/me [get]
 func (h *mobileProfileHandler) GetMe(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
@@ -43,6 +53,18 @@ func (h *mobileProfileHandler) GetMe(c *gin.Context) {
 	response.Success(c, profile)
 }
 
+// Update mobile profile godoc
+//
+//	@Summary		Update mobile profile
+//	@Tags			mobile-profile
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		dto.UpdateMobileProfileRequest	true	"Request body"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/profile/me [patch]
 func (h *mobileProfileHandler) UpdateMe(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
@@ -64,6 +86,16 @@ func (h *mobileProfileHandler) UpdateMe(c *gin.Context) {
 	response.Success(c, profile)
 }
 
+// Leaderboard godoc
+//
+//	@Summary		Leaderboard
+//	@Tags			mobile-profile
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/profile/leaderboard [get]
 func (h *mobileProfileHandler) Leaderboard(c *gin.Context) {
 	limit := 4
 	if raw, ok := c.GetQuery("limit"); ok {
@@ -83,6 +115,18 @@ func (h *mobileProfileHandler) Leaderboard(c *gin.Context) {
 	response.Success(c, board)
 }
 
+// Upload avatar godoc
+//
+//	@Summary		Upload avatar
+//	@Tags			mobile-profile
+//	@Accept			mpfd
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			file	formData	file	true	"Avatar image"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/profile/me/avatar [post]
 func (h *mobileProfileHandler) UploadAvatar(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {

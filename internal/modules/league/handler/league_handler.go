@@ -27,6 +27,18 @@ func NewLeagueHandler(leagueService service.LeagueService) LeagueHandler {
 	return &leagueHandler{leagueService: leagueService}
 }
 
+// Create league godoc
+//
+//	@Summary		Create league
+//	@Tags			leagues
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		dto.CreateLeagueRequest	true	"Request body"
+//	@Success		201	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/leagues [post]
 func (h *leagueHandler) Create(c *gin.Context) {
 	var req dto.CreateLeagueRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -44,6 +56,15 @@ func (h *leagueHandler) Create(c *gin.Context) {
 	response.Created(c, league)
 }
 
+// Get league godoc
+//
+//	@Summary		Get league
+//	@Tags			leagues
+//	@Produce		json
+//	@Param			id	path	string	true	"League ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/leagues/{id} [get]
 func (h *leagueHandler) GetByID(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -60,6 +81,18 @@ func (h *leagueHandler) GetByID(c *gin.Context) {
 	response.Success(c, league)
 }
 
+// List leagues godoc
+//
+//	@Summary		List leagues
+//	@Tags			leagues
+//	@Produce		json
+//	@Param			sort	query	string	false	"Sort field"
+//	@Param			order	query	string	false	"asc|desc"
+//	@Param			page	query	int	false	"Page number"
+//	@Param			per_page	query	int	false	"Items per page"
+//	@Success		200	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/leagues [get]
 func (h *leagueHandler) List(c *gin.Context) {
 	page, pageSize := utils.GetPagination(c)
 
@@ -82,6 +115,19 @@ func (h *leagueHandler) List(c *gin.Context) {
 	response.Success(c, leagues)
 }
 
+// Update league godoc
+//
+//	@Summary		Update league
+//	@Tags			leagues
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"League ID"
+//	@Param			body	body		dto.UpdateLeagueRequest	true	"Request body"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/leagues/{id} [put]
 func (h *leagueHandler) Update(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -105,6 +151,17 @@ func (h *leagueHandler) Update(c *gin.Context) {
 	response.Success(c, league)
 }
 
+// Delete league godoc
+//
+//	@Summary		Delete league
+//	@Tags			leagues
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"League ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/leagues/{id} [delete]
 func (h *leagueHandler) Delete(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {

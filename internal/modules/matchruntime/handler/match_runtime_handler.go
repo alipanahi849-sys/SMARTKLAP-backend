@@ -27,6 +27,17 @@ func NewMatchRuntimeHandler(svc service.MatchRuntimeService) MatchRuntimeHandler
 }
 
 // POST /api/v1/matches/:id/runtime/start
+// Start match runtime godoc
+//
+//	@Summary		Start match runtime
+//	@Tags			match-runtime
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"Match ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/matches/{id}/runtime/start [post]
 func (h *matchRuntimeHandler) Start(c *gin.Context) {
 	matchID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -44,6 +55,17 @@ func (h *matchRuntimeHandler) Start(c *gin.Context) {
 }
 
 // POST /api/v1/matches/:id/runtime/pause
+// Pause match runtime godoc
+//
+//	@Summary		Pause match runtime
+//	@Tags			match-runtime
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"Match ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/matches/{id}/runtime/pause [post]
 func (h *matchRuntimeHandler) Pause(c *gin.Context) {
 	matchID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -61,6 +83,17 @@ func (h *matchRuntimeHandler) Pause(c *gin.Context) {
 }
 
 // POST /api/v1/matches/:id/runtime/resume
+// Resume match runtime godoc
+//
+//	@Summary		Resume match runtime
+//	@Tags			match-runtime
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"Match ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/matches/{id}/runtime/resume [post]
 func (h *matchRuntimeHandler) Resume(c *gin.Context) {
 	matchID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -78,6 +111,17 @@ func (h *matchRuntimeHandler) Resume(c *gin.Context) {
 }
 
 // POST /api/v1/matches/:id/runtime/end
+// End match runtime godoc
+//
+//	@Summary		End match runtime
+//	@Tags			match-runtime
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"Match ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/matches/{id}/runtime/end [post]
 func (h *matchRuntimeHandler) End(c *gin.Context) {
 	matchID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -95,6 +139,15 @@ func (h *matchRuntimeHandler) End(c *gin.Context) {
 }
 
 // GET /api/v1/matches/:id/runtime
+// Get match runtime state godoc
+//
+//	@Summary		Get match runtime state
+//	@Tags			match-runtime
+//	@Produce		json
+//	@Param			id	path	string	true	"Match ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/matches/{id}/runtime [get]
 func (h *matchRuntimeHandler) GetState(c *gin.Context) {
 	matchID, err := uuid.Parse(c.Param("id"))
 	if err != nil {

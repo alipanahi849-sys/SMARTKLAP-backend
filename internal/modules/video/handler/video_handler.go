@@ -27,6 +27,16 @@ func NewVideoHandler(svc service.VideoService) VideoHandler {
 	return &videoHandler{svc: svc}
 }
 
+// Video feed godoc
+//
+//	@Summary		Video feed
+//	@Tags			videos
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/videos/feed [get]
 func (h *videoHandler) Feed(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
@@ -43,6 +53,16 @@ func (h *videoHandler) Feed(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// My videos godoc
+//
+//	@Summary		My videos
+//	@Tags			videos
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/videos/mine [get]
 func (h *videoHandler) Mine(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
@@ -59,6 +79,19 @@ func (h *videoHandler) Mine(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// Upload video godoc
+//
+//	@Summary		Upload video
+//	@Tags			videos
+//	@Accept			mpfd
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			file	formData	file	true	"Video file"
+//	@Param			caption	formData	string	false	"Caption"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/videos [post]
 func (h *videoHandler) Upload(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
@@ -83,10 +116,32 @@ func (h *videoHandler) Upload(c *gin.Context) {
 	response.Created(c, result)
 }
 
+// Like video godoc
+//
+//	@Summary		Like video
+//	@Tags			videos
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			video_id	path	string	true	"Video ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/videos/{video_id}/like [post]
 func (h *videoHandler) Like(c *gin.Context) {
 	h.toggleLike(c, true)
 }
 
+// Unlike video godoc
+//
+//	@Summary		Unlike video
+//	@Tags			videos
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			video_id	path	string	true	"Video ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/videos/{video_id}/like [delete]
 func (h *videoHandler) Unlike(c *gin.Context) {
 	h.toggleLike(c, false)
 }

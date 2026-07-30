@@ -25,6 +25,17 @@ func NewGuessHandler(svc service.GuessService) GuessHandler {
 	return &guessHandler{svc: svc}
 }
 
+// Guess match overview godoc
+//
+//	@Summary		Guess match overview
+//	@Tags			guess
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			match_id	path	string	true	"Match ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/guess/matches/{match_id} [get]
 func (h *guessHandler) MatchOverview(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
@@ -52,6 +63,17 @@ func (h *guessHandler) MatchOverview(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// Quiz detail godoc
+//
+//	@Summary		Quiz detail
+//	@Tags			guess
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			quiz_id	path	string	true	"Quiz ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/guess/quizzes/{quiz_id} [get]
 func (h *guessHandler) QuizDetail(c *gin.Context) {
 	quizID, err := uuid.Parse(c.Param("quiz_id"))
 	if err != nil {
@@ -67,6 +89,19 @@ func (h *guessHandler) QuizDetail(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// Answer quiz godoc
+//
+//	@Summary		Answer quiz
+//	@Tags			guess
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			quiz_id	path	string	true	"Quiz ID"
+//	@Param			body	body		dto.AnswerQuizRequest	true	"Request body"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/guess/quizzes/{quiz_id}/answer [post]
 func (h *guessHandler) Answer(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {

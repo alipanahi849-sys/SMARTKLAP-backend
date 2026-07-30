@@ -136,42 +136,50 @@ cp .env.example .env
 
 1. **Start all services**
 ```bash
-docker-compose up -d
+docker compose up -d --build
 ```
+
+This automatically:
+- starts Postgres + Redis
+- runs pending DB migrations (`migrate` service)
+- seeds default roles
+- starts the API (and nginx)
+
+Swagger UI: `http://localhost:8081/swagger/index.html`
 
 2. **Check service health**
 ```bash
-docker-compose ps
+docker compose ps
 ```
 
 3. **View logs**
 ```bash
-docker-compose logs -f api
+docker compose logs -f api
+# migrate/seed logs:
+docker compose logs migrate
 ```
 
 4. **Stop services**
 ```bash
-docker-compose down
+docker compose down
 ```
 
-### Running Locally
+### Running Locally (API on host)
 
 1. **Start PostgreSQL & Redis**
 ```bash
-docker-compose up -d postgres redis
+docker compose up -d postgres redis
 ```
 
-2. **Run migrations**
+2. **Migrate + seed** (only needed when the API runs on the host, not via Compose)
 ```bash
-make migrate
+make migrate-seed
+# or separately:
+# make migrate
+# make seed
 ```
 
-3. **Seed default roles**
-```bash
-make seed
-```
-
-4. **Run the application**
+3. **Run the application**
 ```bash
 make run
 # Or with hot reload:
@@ -194,6 +202,7 @@ make docker-up     # Start Docker Compose services
 make docker-down   # Stop Docker Compose services
 make migrate       # Run database migrations
 make seed          # Seed default roles
+make migrate-seed  # Migrate + seed (automatic in Docker Compose)
 ```
 
 The API will be available at `http://localhost:8080`
@@ -348,7 +357,7 @@ Migration files are located in `pkg/migrations/`:
 - Advanced rate limiting
 - Metrics and monitoring (Prometheus)
 - Distributed tracing
-- Broader Swagger annotations for remaining modules
+- Richer per-endpoint response schemas in Swagger
 
 ## License
 

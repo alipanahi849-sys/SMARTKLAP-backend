@@ -27,6 +27,18 @@ func NewClubSeasonHandler(clubSeasonService service.ClubSeasonService) ClubSeaso
 	return &clubSeasonHandler{clubSeasonService: clubSeasonService}
 }
 
+// Add club to season godoc
+//
+//	@Summary		Add club to season
+//	@Tags			club-seasons
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		dto.CreateClubSeasonRequest	true	"Request body"
+//	@Success		201	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/club-seasons [post]
 func (h *clubSeasonHandler) AddClubToSeason(c *gin.Context) {
 	var req dto.CreateClubSeasonRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -44,6 +56,18 @@ func (h *clubSeasonHandler) AddClubToSeason(c *gin.Context) {
 	response.Created(c, clubSeason)
 }
 
+// Remove club from season godoc
+//
+//	@Summary		Remove club from season
+//	@Tags			club-seasons
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"Season ID"
+//	@Param			club_id	path	string	true	"Club ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/seasons/{id}/clubs/{club_id} [delete]
 func (h *clubSeasonHandler) RemoveClubFromSeason(c *gin.Context) {
 	clubID, err := uuid.Parse(c.Param("club_id"))
 	if err != nil {
@@ -66,6 +90,17 @@ func (h *clubSeasonHandler) RemoveClubFromSeason(c *gin.Context) {
 	response.SuccessWithMessage(c, nil, "Club removed from season successfully")
 }
 
+// List clubs in season godoc
+//
+//	@Summary		List clubs in season
+//	@Tags			club-seasons
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"Season ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/seasons/{id}/clubs [get]
 func (h *clubSeasonHandler) ListClubsInSeason(c *gin.Context) {
 	seasonID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -84,6 +119,17 @@ func (h *clubSeasonHandler) ListClubsInSeason(c *gin.Context) {
 	response.Success(c, clubSeasons)
 }
 
+// List seasons for club godoc
+//
+//	@Summary		List seasons for club
+//	@Tags			club-seasons
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"Club ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/clubs/{id}/seasons [get]
 func (h *clubSeasonHandler) ListSeasonsForClub(c *gin.Context) {
 	clubID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -102,6 +148,19 @@ func (h *clubSeasonHandler) ListSeasonsForClub(c *gin.Context) {
 	response.Success(c, clubSeasons)
 }
 
+// Update club-season status godoc
+//
+//	@Summary		Update club-season status
+//	@Tags			club-seasons
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"ClubSeason ID"
+//	@Param			body	body		dto.UpdateClubSeasonRequest	true	"Request body"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/club-seasons/{id} [patch]
 func (h *clubSeasonHandler) UpdateStatus(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {

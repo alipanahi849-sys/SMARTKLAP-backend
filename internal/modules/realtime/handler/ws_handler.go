@@ -38,6 +38,17 @@ func NewWSHandler(cm *ws.ConnectionManager, m *metrics.Metrics) *WSHandler {
 // GET /api/v1/realtime/ws
 //
 // Authentication: Authorization: Bearer <token> (header only).
+// WebSocket connect godoc
+//
+//	@Summary		WebSocket connect
+//	@Description	Upgrade to WebSocket. JWT required (query or header).
+//	@Tags			realtime
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/realtime/ws [get]
 func (h *WSHandler) Connect(c *gin.Context) {
 	// 1. Authenticate before the upgrade — send HTTP 401 on failure.
 	auth, err := ws.Authenticate(c.Request)

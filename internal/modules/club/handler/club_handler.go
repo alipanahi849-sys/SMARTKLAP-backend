@@ -28,6 +28,18 @@ func NewClubHandler(clubService service.ClubService) ClubHandler {
 	return &clubHandler{clubService: clubService}
 }
 
+// Create club godoc
+//
+//	@Summary		Create club
+//	@Tags			clubs
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		dto.CreateClubRequest	true	"Request body"
+//	@Success		201	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/clubs [post]
 func (h *clubHandler) Create(c *gin.Context) {
 	var req dto.CreateClubRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -45,6 +57,15 @@ func (h *clubHandler) Create(c *gin.Context) {
 	response.Created(c, club)
 }
 
+// Get club godoc
+//
+//	@Summary		Get club
+//	@Tags			clubs
+//	@Produce		json
+//	@Param			id	path	string	true	"Club ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/clubs/{id} [get]
 func (h *clubHandler) GetByID(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -61,6 +82,19 @@ func (h *clubHandler) GetByID(c *gin.Context) {
 	response.Success(c, club)
 }
 
+// List clubs godoc
+//
+//	@Summary		List clubs
+//	@Tags			clubs
+//	@Produce		json
+//	@Param			sort	query	string	false	"Sort field"
+//	@Param			order	query	string	false	"asc|desc"
+//	@Param			page	query	int	false	"Page number"
+//	@Param			per_page	query	int	false	"Items per page"
+//	@Param			q	query	string	false	"Search query"
+//	@Success		200	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/clubs [get]
 func (h *clubHandler) List(c *gin.Context) {
 	page, pageSize := utils.GetPagination(c)
 
@@ -83,6 +117,15 @@ func (h *clubHandler) List(c *gin.Context) {
 	response.Success(c, clubs)
 }
 
+// Search clubs godoc
+//
+//	@Summary		Search clubs
+//	@Tags			clubs
+//	@Produce		json
+//	@Param			q	query	string	true	"Search query"
+//	@Success		200	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/clubs/search [get]
 func (h *clubHandler) Search(c *gin.Context) {
 	query := c.Query("q")
 	if query == "" {
@@ -101,6 +144,19 @@ func (h *clubHandler) Search(c *gin.Context) {
 	response.Success(c, clubs)
 }
 
+// Update club godoc
+//
+//	@Summary		Update club
+//	@Tags			clubs
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"Club ID"
+//	@Param			body	body		dto.UpdateClubRequest	true	"Request body"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/clubs/{id} [put]
 func (h *clubHandler) Update(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -124,6 +180,17 @@ func (h *clubHandler) Update(c *gin.Context) {
 	response.Success(c, club)
 }
 
+// Delete club godoc
+//
+//	@Summary		Delete club
+//	@Tags			clubs
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"Club ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/clubs/{id} [delete]
 func (h *clubHandler) Delete(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {

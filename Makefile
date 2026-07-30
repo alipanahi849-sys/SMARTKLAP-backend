@@ -1,4 +1,4 @@
-.PHONY: help build run test clean docker-up docker-down migrate seed dev swagger
+.PHONY: help build run test clean docker-up docker-down migrate seed migrate-seed dev swagger
 
 # Default target
 help:
@@ -10,9 +10,10 @@ help:
 	@echo "  make clean      - Clean build artifacts"
 	@echo "  make docker-up  - Start Docker Compose services"
 	@echo "  make docker-down- Stop Docker Compose services"
-	@echo "  make migrate    - Run database migrations"
-	@echo "  make seed       - Seed default roles"
-	@echo "  make swagger    - Generate Swagger docs (swag)"
+	@echo "  make migrate      - Run database migrations"
+	@echo "  make seed         - Seed default roles"
+	@echo "  make migrate-seed - Migrate + seed (Docker does this automatically)"
+	@echo "  make swagger      - Generate Swagger docs (swag)"
 
 # Build the application
 build:
@@ -54,15 +55,19 @@ docker-down:
 	@docker-compose down
 	@echo "Services stopped"
 
-# Run database migrations
+# Run database migrations (idempotent; tracks schema_migrations)
 migrate:
 	@echo "Running database migrations..."
-	@if [ "$(OS)" = "Windows_NT" ]; then powershell -ExecutionPolicy Bypass -File scripts/run_migrations.ps1; else bash scripts/run_migrations.sh; fi
+	@if [ "$(OS)" = "Windows_NT" ]; then powershell -ExecutionPolicy Bypass -File scripts/run_migrations.ps1; else SKIP_SEED=1 sh scripts/migrate_and_seed.sh; fi
 
-# Seed default roles
+# Seed default roles (idempotent)
 seed:
 	@echo "Seeding default roles..."
-	@if [ "$(OS)" = "Windows_NT" ]; then powershell -ExecutionPolicy Bypass -File scripts/seed_roles.ps1; else bash scripts/seed_roles.sh; fi
+	@if [ "$(OS)" = "Windows_NT" ]; then powershell -ExecutionPolicy Bypass -File scripts/seed_roles.ps1; else sh scripts/seed_roles.sh; fi
+
+# Migrate + seed (same as Docker migrate service)
+migrate-seed:
+	@sh scripts/migrate_and_seed.sh
 
 # Generate Swagger/OpenAPI docs
 swagger:

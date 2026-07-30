@@ -23,6 +23,17 @@ func NewRetentionHandler(
 
 // CleanupSchedulerEvents deletes terminal scheduler_events beyond retention.
 // POST /api/v1/realtime/admin/cleanup/scheduler-events
+// Cleanup scheduler events godoc
+//
+//	@Summary		Cleanup scheduler events
+//	@Description	Admin only
+//	@Tags			realtime
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/realtime/admin/cleanup/scheduler-events [post]
 func (h *RetentionHandler) CleanupSchedulerEvents(c *gin.Context) {
 	deleted, err := h.retention.CleanupSchedulerEvents(c.Request.Context())
 	if err != nil {
@@ -34,6 +45,17 @@ func (h *RetentionHandler) CleanupSchedulerEvents(c *gin.Context) {
 
 // CleanupRealtimeEvents deletes realtime_events beyond retention.
 // POST /api/v1/realtime/admin/cleanup/realtime-events
+// Cleanup realtime events godoc
+//
+//	@Summary		Cleanup realtime events
+//	@Description	Admin only
+//	@Tags			realtime
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/realtime/admin/cleanup/realtime-events [post]
 func (h *RetentionHandler) CleanupRealtimeEvents(c *gin.Context) {
 	deleted, err := h.retention.CleanupRealtimeEvents(c.Request.Context())
 	if err != nil {
@@ -45,6 +67,17 @@ func (h *RetentionHandler) CleanupRealtimeEvents(c *gin.Context) {
 
 // CleanupHeartbeats deletes client_heartbeats beyond retention.
 // POST /api/v1/realtime/admin/cleanup/heartbeats
+// Cleanup heartbeats godoc
+//
+//	@Summary		Cleanup heartbeats
+//	@Description	Admin only
+//	@Tags			realtime
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/realtime/admin/cleanup/heartbeats [post]
 func (h *RetentionHandler) CleanupHeartbeats(c *gin.Context) {
 	deleted, err := h.heartbeat.Cleanup(c.Request.Context())
 	if err != nil {
@@ -56,6 +89,17 @@ func (h *RetentionHandler) CleanupHeartbeats(c *gin.Context) {
 
 // CleanupAll runs both event retention passes.
 // POST /api/v1/realtime/admin/cleanup/all
+// Cleanup all retention data godoc
+//
+//	@Summary		Cleanup all retention data
+//	@Description	Admin only
+//	@Tags			realtime
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/realtime/admin/cleanup/all [post]
 func (h *RetentionHandler) CleanupAll(c *gin.Context) {
 	result, err := h.retention.CleanupAll(c.Request.Context())
 	if err != nil {

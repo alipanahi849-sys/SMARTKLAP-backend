@@ -23,6 +23,14 @@ func NewTimeSyncHandler(svc service.TimeSyncService) TimeSyncHandler {
 
 // GetServerTime returns the authoritative server timestamp.
 // GET /realtime/time
+// Server time godoc
+//
+//	@Summary		Server time
+//	@Tags			realtime
+//	@Produce		json
+//	@Success		200	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/realtime/time [get]
 func (h *timeSyncHandler) GetServerTime(c *gin.Context) {
 	result := h.svc.GetServerTime(c.Request.Context())
 	response.Success(c, result)
@@ -30,6 +38,16 @@ func (h *timeSyncHandler) GetServerTime(c *gin.Context) {
 
 // Sync accepts a client timestamp and returns a full sync payload with drift info.
 // GET /realtime/time-sync  (also supports POST for richer request body)
+// Time sync godoc
+//
+//	@Summary		Time sync
+//	@Tags			realtime
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		dto.TimeSyncRequest	true	"Request body"
+//	@Success		200	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/realtime/time-sync [post]
 func (h *timeSyncHandler) Sync(c *gin.Context) {
 	var req dto.TimeSyncRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
