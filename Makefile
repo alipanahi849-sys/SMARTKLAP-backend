@@ -1,4 +1,4 @@
-.PHONY: help build run test clean docker-up docker-down migrate seed dev
+.PHONY: help build run test clean docker-up docker-down migrate seed dev swagger
 
 # Default target
 help:
@@ -12,6 +12,7 @@ help:
 	@echo "  make docker-down- Stop Docker Compose services"
 	@echo "  make migrate    - Run database migrations"
 	@echo "  make seed       - Seed default roles"
+	@echo "  make swagger    - Generate Swagger docs (swag)"
 
 # Build the application
 build:
@@ -62,3 +63,11 @@ migrate:
 seed:
 	@echo "Seeding default roles..."
 	@if [ "$(OS)" = "Windows_NT" ]; then powershell -ExecutionPolicy Bypass -File scripts/seed_roles.ps1; else bash scripts/seed_roles.sh; fi
+
+# Generate Swagger/OpenAPI docs
+swagger:
+	@echo "Generating Swagger docs..."
+	@command -v swag >/dev/null 2>&1 || GOBIN="$$(go env GOPATH)/bin" go install github.com/swaggo/swag/cmd/swag@latest
+	@PATH="$$(go env GOPATH)/bin:$$PATH" swag init -g cmd/api/main.go -o cmd/api/docs --parseDependency --parseInternal
+	@echo "Swagger docs generated in cmd/api/docs"
+	@echo "UI available at http://localhost:8080/swagger/index.html after make run"

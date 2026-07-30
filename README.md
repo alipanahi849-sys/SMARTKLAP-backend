@@ -306,6 +306,13 @@ Migration files are located in `pkg/migrations/`:
 - `001_init_schema.up.sql` - Apply schema
 - `001_init_schema.down.sql` - Rollback schema
 
+### Swagger / OpenAPI
+
+- Generate docs: `make swagger`
+- UI (non-production): [http://localhost:8080/swagger/index.html](http://localhost:8080/swagger/index.html)
+- Spec files: `cmd/api/docs/`
+- Auth: use **Authorize** with `Bearer <access_token>`
+
 ### Code Quality
 
 - Follow Go best practices and idiomatic patterns
@@ -337,7 +344,7 @@ Migration files are located in `pkg/migrations/`:
 - Advanced rate limiting
 - Metrics and monitoring (Prometheus)
 - Distributed tracing
-- API documentation (Swagger/OpenAPI)
+- Broader Swagger annotations for remaining modules
 
 ## License
 

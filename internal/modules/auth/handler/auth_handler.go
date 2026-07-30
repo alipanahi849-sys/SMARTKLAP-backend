@@ -67,6 +67,18 @@ type UpdateProfileRequest struct {
 	Password  string `json:"password" binding:"omitempty,min=8"`
 }
 
+// Register godoc
+//
+//	@Summary		Register a new user
+//	@Description	Create an account with name, email, and password
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		RegisterRequest	true	"Registration payload"
+//	@Success		201		{object}	response.Response
+//	@Failure		400		{object}	response.Response
+//	@Failure		409		{object}	response.Response
+//	@Router			/api/v1/auth/register [post]
 func (h *authHandler) Register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -85,6 +97,18 @@ func (h *authHandler) Register(c *gin.Context) {
 	})
 }
 
+// Login godoc
+//
+//	@Summary		Login
+//	@Description	Password login returns tokens. OTP login (email only) sends a code.
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		LoginRequest	true	"Login payload"
+//	@Success		200		{object}	response.Response
+//	@Failure		400		{object}	response.Response
+//	@Failure		401		{object}	response.Response
+//	@Router			/api/v1/auth/login [post]
 func (h *authHandler) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -119,7 +143,18 @@ func (h *authHandler) Login(c *gin.Context) {
 	response.Success(c, gin.H{"otp_sent": true})
 }
 
-// VerifyOTP validates the 4-digit code and issues a token pair (contract §1.2).
+// VerifyOTP godoc
+//
+//	@Summary		Verify OTP
+//	@Description	Validate the 4-digit OTP and issue access/refresh tokens
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		VerifyOTPRequest	true	"OTP verification payload"
+//	@Success		200		{object}	response.Response
+//	@Failure		400		{object}	response.Response
+//	@Failure		401		{object}	response.Response
+//	@Router			/api/v1/auth/verify-otp [post]
 func (h *authHandler) VerifyOTP(c *gin.Context) {
 	var req VerifyOTPRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -147,7 +182,18 @@ func (h *authHandler) VerifyOTP(c *gin.Context) {
 	})
 }
 
-// ResendOTP re-sends the code with a 30-second cooldown (contract §1.2).
+// ResendOTP godoc
+//
+//	@Summary		Resend OTP
+//	@Description	Resend OTP with a 30-second cooldown
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		ResendOTPRequest	true	"Resend OTP payload"
+//	@Success		200		{object}	response.Response
+//	@Failure		400		{object}	response.Response
+//	@Failure		429		{object}	response.Response
+//	@Router			/api/v1/auth/resend-otp [post]
 func (h *authHandler) ResendOTP(c *gin.Context) {
 	var req ResendOTPRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -167,6 +213,18 @@ func (h *authHandler) ResendOTP(c *gin.Context) {
 	})
 }
 
+// RefreshToken godoc
+//
+//	@Summary		Refresh tokens
+//	@Description	Exchange a refresh token for a new access/refresh pair
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		RefreshTokenRequest	true	"Refresh token payload"
+//	@Success		200		{object}	response.Response
+//	@Failure		400		{object}	response.Response
+//	@Failure		401		{object}	response.Response
+//	@Router			/api/v1/auth/refresh [post]
 func (h *authHandler) RefreshToken(c *gin.Context) {
 	var req RefreshTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -183,6 +241,19 @@ func (h *authHandler) RefreshToken(c *gin.Context) {
 	response.Success(c, tokenPair)
 }
 
+// Logout godoc
+//
+//	@Summary		Logout
+//	@Description	Revoke the given refresh token, or all sessions if body is empty
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		RefreshTokenRequest	false	"Optional refresh token"
+//	@Success		200		{object}	response.Response
+//	@Success		204		"No Content"
+//	@Failure		401		{object}	response.Response
+//	@Router			/api/v1/auth/logout [post]
 func (h *authHandler) Logout(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
@@ -210,6 +281,16 @@ func (h *authHandler) Logout(c *gin.Context) {
 	response.SuccessWithMessage(c, nil, "Logged out successfully")
 }
 
+// LogoutAll godoc
+//
+//	@Summary		Logout all devices
+//	@Description	Revoke every refresh token for the current user
+//	@Tags			auth
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Router			/api/v1/auth/logout-all [post]
 func (h *authHandler) LogoutAll(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
@@ -225,6 +306,16 @@ func (h *authHandler) LogoutAll(c *gin.Context) {
 	response.SuccessWithMessage(c, nil, "Logged out from all devices")
 }
 
+// GetMe godoc
+//
+//	@Summary		Current user
+//	@Description	Return the authenticated user profile
+//	@Tags			users
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Router			/api/v1/users/me [get]
 func (h *authHandler) GetMe(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
@@ -241,6 +332,19 @@ func (h *authHandler) GetMe(c *gin.Context) {
 	response.Success(c, user)
 }
 
+// UpdateProfile godoc
+//
+//	@Summary		Update profile
+//	@Description	Update the authenticated user profile fields
+//	@Tags			users
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		UpdateProfileRequest	true	"Profile fields"
+//	@Success		200		{object}	response.Response
+//	@Failure		400		{object}	response.Response
+//	@Failure		401		{object}	response.Response
+//	@Router			/api/v1/users/me [put]
 func (h *authHandler) UpdateProfile(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {

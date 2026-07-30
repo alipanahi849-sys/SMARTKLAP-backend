@@ -1,3 +1,22 @@
+// Package main Clap Backend API.
+//
+//	@title						Clap Backend API
+//	@version					1.0
+//	@description				Clap match-day experience backend (auth, clubs, matches, realtime, shop).
+//	@termsOfService				http://swagger.io/terms/
+//
+//	@contact.name				Clap API Support
+//
+//	@license.name				Proprietary
+//
+//	@host						localhost:8080
+//	@BasePath					/
+//	@schemes					http https
+//
+//	@securityDefinitions.apikey	BearerAuth
+//	@in							header
+//	@name						Authorization
+//	@description				JWT access token. Example: "Bearer {token}"
 package main
 
 import (
@@ -9,6 +28,7 @@ import (
 	"syscall"
 	"time"
 
+	_ "clap/cmd/api/docs"
 	"clap/internal/modules/auth"
 	"clap/internal/modules/chant"
 	"clap/internal/modules/club"
@@ -48,6 +68,8 @@ import (
 	"clap/internal/shared/redis"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func main() {
@@ -270,6 +292,11 @@ func setupRouter(deps routerDeps) *gin.Engine {
 
 	router.GET("/health", healthCheck)
 
+	// Swagger UI: http://localhost:8080/swagger/index.html (disabled in production)
+	if config.AppConfig.Environment != "production" {
+		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	}
+
 	v1 := router.Group("/api/v1")
 	{
 		auth.RegisterRoutes(v1)
@@ -306,6 +333,15 @@ func setupRouter(deps routerDeps) *gin.Engine {
 	return router
 }
 
+// healthCheck godoc
+//
+//	@Summary		Health check
+//	@Description	Returns API, database, and Redis health status
+//	@Tags			system
+//	@Produce		json
+//	@Success		200	{object}	map[string]interface{}
+//	@Failure		503	{object}	map[string]interface{}
+//	@Router			/health [get]
 func healthCheck(c *gin.Context) {
 	status := "healthy"
 	statusCode := http.StatusOK

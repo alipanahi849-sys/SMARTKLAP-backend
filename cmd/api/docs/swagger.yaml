@@ -1,0 +1,372 @@
+basePath: /
+definitions:
+  clap_internal_shared_response.ErrorDetail:
+    properties:
+      code:
+        type: integer
+      details:
+        items:
+          type: string
+        type: array
+      message:
+        type: string
+    type: object
+  clap_internal_shared_response.Response:
+    properties:
+      data: {}
+      error:
+        $ref: '#/definitions/clap_internal_shared_response.ErrorDetail'
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  internal_modules_auth_handler.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    type: object
+  internal_modules_auth_handler.RefreshTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  internal_modules_auth_handler.RegisterRequest:
+    properties:
+      email:
+        type: string
+      name:
+        maxLength: 100
+        type: string
+      password:
+        minLength: 8
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  internal_modules_auth_handler.ResendOTPRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
+  internal_modules_auth_handler.UpdateProfileRequest:
+    properties:
+      first_name:
+        type: string
+      last_name:
+        type: string
+      password:
+        minLength: 8
+        type: string
+      phone:
+        type: string
+    type: object
+  internal_modules_auth_handler.VerifyOTPRequest:
+    properties:
+      email:
+        type: string
+      otp_code:
+        type: string
+    required:
+    - email
+    - otp_code
+    type: object
+host: localhost:8080
+info:
+  contact:
+    name: Clap API Support
+  description: Clap match-day experience backend (auth, clubs, matches, realtime,
+    shop).
+  license:
+    name: Proprietary
+  termsOfService: http://swagger.io/terms/
+  title: Clap Backend API
+  version: "1.0"
+paths:
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Password login returns tokens. OTP login (email only) sends a code.
+      parameters:
+      - description: Login payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_auth_handler.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      summary: Login
+      tags:
+      - auth
+  /api/v1/auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Revoke the given refresh token, or all sessions if body is empty
+      parameters:
+      - description: Optional refresh token
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/internal_modules_auth_handler.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Logout
+      tags:
+      - auth
+  /api/v1/auth/logout-all:
+    post:
+      description: Revoke every refresh token for the current user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Logout all devices
+      tags:
+      - auth
+  /api/v1/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Exchange a refresh token for a new access/refresh pair
+      parameters:
+      - description: Refresh token payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_auth_handler.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      summary: Refresh tokens
+      tags:
+      - auth
+  /api/v1/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Create an account with name, email, and password
+      parameters:
+      - description: Registration payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_auth_handler.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      summary: Register a new user
+      tags:
+      - auth
+  /api/v1/auth/resend-otp:
+    post:
+      consumes:
+      - application/json
+      description: Resend OTP with a 30-second cooldown
+      parameters:
+      - description: Resend OTP payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_auth_handler.ResendOTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      summary: Resend OTP
+      tags:
+      - auth
+  /api/v1/auth/verify-otp:
+    post:
+      consumes:
+      - application/json
+      description: Validate the 4-digit OTP and issue access/refresh tokens
+      parameters:
+      - description: OTP verification payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_auth_handler.VerifyOTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      summary: Verify OTP
+      tags:
+      - auth
+  /api/v1/users/me:
+    get:
+      description: Return the authenticated user profile
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Current user
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      description: Update the authenticated user profile fields
+      parameters:
+      - description: Profile fields
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_auth_handler.UpdateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Update profile
+      tags:
+      - users
+  /health:
+    get:
+      description: Returns API, database, and Redis health status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Health check
+      tags:
+      - system
+schemes:
+- http
+- https
+securityDefinitions:
+  BearerAuth:
+    description: 'JWT access token. Example: "Bearer {token}"'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
