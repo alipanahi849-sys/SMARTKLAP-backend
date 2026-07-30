@@ -36,9 +36,10 @@ Thumbs.db
 # Logs
 *.log
 
-# Documentation
+# Documentation (keep cmd/api/docs out of context; regenerated in Dockerfile)
 README.md
-docs/
+/docs/
+PHASE_*.md
 
 # Deployment configs (not needed in the Go build context)
 deployments/
