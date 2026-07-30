@@ -23,7 +23,7 @@ const docTemplate = `{
     "paths": {
         "/api/v1/auth/login": {
             "post": {
-                "description": "Password login returns tokens. OTP login (email only) sends a code.",
+                "description": "Send a 4-digit OTP to a registered email. Call again to resend (cooldown applies).",
                 "consumes": [
                     "application/json"
                 ],
@@ -33,7 +33,7 @@ const docTemplate = `{
                 "tags": [
                     "auth"
                 ],
-                "summary": "Login",
+                "summary": "Login (OTP email)",
                 "parameters": [
                     {
                         "description": "Login payload",
@@ -58,86 +58,14 @@ const docTemplate = `{
                             "$ref": "#/definitions/clap_internal_shared_response.Response"
                         }
                     },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/clap_internal_shared_response.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/auth/logout": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Revoke the given refresh token, or all sessions if body is empty",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Logout",
-                "parameters": [
-                    {
-                        "description": "Optional refresh token",
-                        "name": "body",
-                        "in": "body",
-                        "schema": {
-                            "$ref": "#/definitions/internal_modules_auth_handler.RefreshTokenRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/clap_internal_shared_response.Response"
                         }
                     },
-                    "204": {
-                        "description": "No Content"
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/clap_internal_shared_response.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/auth/logout-all": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Revoke every refresh token for the current user",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Logout all devices",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/clap_internal_shared_response.Response"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/clap_internal_shared_response.Response"
                         }
@@ -193,7 +121,7 @@ const docTemplate = `{
         },
         "/api/v1/auth/register": {
             "post": {
-                "description": "Create an account with name, email, and password",
+                "description": "Create account with name+email and send a 4-digit OTP. Call login again to resend.",
                 "consumes": [
                     "application/json"
                 ],
@@ -203,7 +131,7 @@ const docTemplate = `{
                 "tags": [
                     "auth"
                 ],
-                "summary": "Register a new user",
+                "summary": "Register (OTP email)",
                 "parameters": [
                     {
                         "description": "Registration payload",
@@ -212,52 +140,6 @@ const docTemplate = `{
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/internal_modules_auth_handler.RegisterRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/clap_internal_shared_response.Response"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/clap_internal_shared_response.Response"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/clap_internal_shared_response.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/auth/resend-otp": {
-            "post": {
-                "description": "Resend OTP with a 30-second cooldown",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Resend OTP",
-                "parameters": [
-                    {
-                        "description": "Resend OTP payload",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_modules_auth_handler.ResendOTPRequest"
                         }
                     }
                 ],
@@ -274,8 +156,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/clap_internal_shared_response.Response"
                         }
                     },
-                    "429": {
-                        "description": "Too Many Requests",
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/clap_internal_shared_response.Response"
                         }
@@ -5693,9 +5575,6 @@ const docTemplate = `{
             "properties": {
                 "email": {
                     "type": "string"
-                },
-                "password": {
-                    "type": "string"
                 }
             }
         },
@@ -5714,8 +5593,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "email",
-                "name",
-                "password"
+                "name"
             ],
             "properties": {
                 "email": {
@@ -5724,21 +5602,6 @@ const docTemplate = `{
                 "name": {
                     "type": "string",
                     "maxLength": 100
-                },
-                "password": {
-                    "type": "string",
-                    "minLength": 8
-                }
-            }
-        },
-        "internal_modules_auth_handler.ResendOTPRequest": {
-            "type": "object",
-            "required": [
-                "email"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string"
                 }
             }
         },
@@ -5750,10 +5613,6 @@ const docTemplate = `{
                 },
                 "last_name": {
                     "type": "string"
-                },
-                "password": {
-                    "type": "string",
-                    "minLength": 8
                 },
                 "phone": {
                     "type": "string"

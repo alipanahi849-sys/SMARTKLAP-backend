@@ -25,8 +25,3 @@ func TestLogin(t *testing.T) {
 func TestRefreshToken(t *testing.T) {
 	t.Skip("Integration test not yet implemented")
 }
-
-// TestLogout tests user logout
-func TestLogout(t *testing.T) {
-	t.Skip("Integration test not yet implemented")
-}

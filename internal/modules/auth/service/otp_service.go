@@ -17,7 +17,7 @@ import (
 	"clap/internal/shared/utils"
 )
 
-// OTP behaviour constants (Mobile API Contract §1).
+// OTP behaviour constants.
 const (
 	otpLength           = 4
 	otpTTL              = 5 * time.Minute
@@ -25,7 +25,7 @@ const (
 	otpMaxVerifyAttempt = 5
 )
 
-// OTPResult is returned by the register/login/resend OTP operations.
+// OTPResult is returned by register/login OTP operations.
 type OTPResult struct {
 	UserID            string
 	Email             string
@@ -33,10 +33,9 @@ type OTPResult struct {
 	RetryAfterSeconds int
 }
 
-// RegisterOTP creates a passwordless account for the mobile app and sends a
-// one-time code (Mobile API Contract §1.1). Returns 409 when the email is
-// already registered.
-func (s *authService) RegisterOTP(ctx context.Context, name, email string) (*OTPResult, error) {
+// Register creates a passwordless account and emails a one-time code.
+// Returns 409 when the email is already registered — call Login to request a new code.
+func (s *authService) Register(ctx context.Context, name, email string) (*OTPResult, error) {
 	name = strings.TrimSpace(name)
 	email = normalizeEmail(email)
 	if name == "" {
@@ -51,10 +50,11 @@ func (s *authService) RegisterOTP(ctx context.Context, name, email string) (*OTP
 	}
 
 	user := &models.User{
-		Email:      email,
-		FirstName:  name,
-		IsActive:   true,
-		IsVerified: false,
+		Email:        email,
+		PasswordHash: "", // passwordless; column kept for schema compatibility
+		FirstName:    name,
+		IsActive:     true,
+		IsVerified:   false,
 	}
 	if err := s.userRepo.Create(ctx, user); err != nil {
 		return nil, err
@@ -80,9 +80,9 @@ func (s *authService) RegisterOTP(ctx context.Context, name, email string) (*OTP
 	return &OTPResult{UserID: user.ID.String(), Email: email, OTPSent: true}, nil
 }
 
-// LoginOTP sends a one-time code to an existing account (Mobile API Contract
-// §1.3). Returns 404 for unregistered emails.
-func (s *authService) LoginOTP(ctx context.Context, email string) (*OTPResult, error) {
+// Login emails a one-time code to an existing account.
+// Call again to request a new code (subject to cooldown). Returns 404 if unregistered.
+func (s *authService) Login(ctx context.Context, email string) (*OTPResult, error) {
 	email = normalizeEmail(email)
 
 	user, err := s.userRepo.FindByEmail(ctx, email)
@@ -108,36 +108,8 @@ func (s *authService) LoginOTP(ctx context.Context, email string) (*OTPResult, e
 	return &OTPResult{UserID: user.ID.String(), Email: email, OTPSent: true}, nil
 }
 
-// ResendOTP re-sends the code, enforcing the 30-second cooldown (Mobile API
-// Contract §1.2).
-func (s *authService) ResendOTP(ctx context.Context, email string) (*OTPResult, error) {
-	email = normalizeEmail(email)
-
-	user, err := s.userRepo.FindByEmail(ctx, email)
-	if err != nil {
-		return nil, errors.NewNotFound("Email is not registered", nil)
-	}
-	if !user.IsActive {
-		return nil, errors.NewUnauthorized("User account is inactive", nil)
-	}
-
-	if err := s.checkResendCooldown(ctx, email); err != nil {
-		return nil, err
-	}
-	if err := s.issueOTP(ctx, email); err != nil {
-		return nil, err
-	}
-
-	return &OTPResult{
-		UserID:            user.ID.String(),
-		Email:             email,
-		OTPSent:           true,
-		RetryAfterSeconds: int(otpResendCooldown.Seconds()),
-	}, nil
-}
-
 // VerifyOTP checks the code and, on success, marks the user verified and
-// issues a JWT pair (Mobile API Contract §1.2).
+// issues a JWT pair.
 func (s *authService) VerifyOTP(ctx context.Context, email, code, ipAddress, userAgent string) (*models.User, *utils.TokenPair, error) {
 	email = normalizeEmail(email)
 

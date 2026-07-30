@@ -69,11 +69,10 @@ clap/
 - ✅ Database migrations setup
 
 ### Authentication Module
-- ✅ User registration with password hashing
-- ✅ User login with JWT tokens
+- ✅ Passwordless register/login via email OTP
+- ✅ OTP verify endpoint issuing JWT tokens
 - ✅ Access token & refresh token mechanism
 - ✅ Token refresh endpoint
-- ✅ Logout (single device & all devices)
 - ✅ Role-based access control (RBAC)
 - ✅ Protected routes with middleware
 
@@ -216,12 +215,13 @@ GET /health
 
 ### Authentication
 ```
-POST   /api/v1/auth/register
-POST   /api/v1/auth/login
+POST   /api/v1/auth/register      # name + email → OTP
+POST   /api/v1/auth/login         # email → OTP (call again to resend)
+POST   /api/v1/auth/verify-otp    # email + otp_code → tokens
 POST   /api/v1/auth/refresh
-POST   /api/v1/auth/logout        (protected)
-POST   /api/v1/auth/logout-all    (protected)
 ```
+
+
 
 ### Users
 ```
@@ -239,24 +239,32 @@ DELETE /api/v1/profiles/me        (protected)
 
 ## API Usage Examples
 
-### Register a new user
+### Register (sends OTP)
 ```bash
 curl -X POST http://localhost:8080/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "name": "John Doe",
-    "email": "user@example.com",
-    "password": "securepassword123"
+    "email": "user@example.com"
   }'
 ```
 
-### Login
+### Login (sends OTP — call again to resend)
 ```bash
 curl -X POST http://localhost:8080/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{
+    "email": "user@example.com"
+  }'
+```
+
+### Verify OTP
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/verify-otp \
+  -H "Content-Type: application/json" \
+  -d '{
     "email": "user@example.com",
-    "password": "securepassword123"
+    "otp_code": "1234"
   }'
 ```
 

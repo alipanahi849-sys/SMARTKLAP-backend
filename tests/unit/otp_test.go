@@ -193,9 +193,9 @@ func appErrorStatus(t *testing.T, err error) int {
 func TestOTP_RegisterSendsCode(t *testing.T) {
 	svc, userRepo, sender := newOTPTestService()
 
-	result, err := svc.RegisterOTP(context.Background(), "Alex Fan", "Fan@Example.com")
+	result, err := svc.Register(context.Background(), "Alex Fan", "Fan@Example.com")
 	if err != nil {
-		t.Fatalf("RegisterOTP failed: %v", err)
+		t.Fatalf("Register failed: %v", err)
 	}
 	if !result.OTPSent {
 		t.Fatal("expected OTPSent=true")
@@ -214,10 +214,10 @@ func TestOTP_RegisterSendsCode(t *testing.T) {
 func TestOTP_RegisterDuplicateEmailConflicts(t *testing.T) {
 	svc, _, _ := newOTPTestService()
 
-	if _, err := svc.RegisterOTP(context.Background(), "Alex", "fan@example.com"); err != nil {
+	if _, err := svc.Register(context.Background(), "Alex", "fan@example.com"); err != nil {
 		t.Fatalf("first register failed: %v", err)
 	}
-	_, err := svc.RegisterOTP(context.Background(), "Alex", "fan@example.com")
+	_, err := svc.Register(context.Background(), "Alex", "fan@example.com")
 	if err == nil {
 		t.Fatal("expected conflict for duplicate email")
 	}
@@ -229,7 +229,7 @@ func TestOTP_RegisterDuplicateEmailConflicts(t *testing.T) {
 func TestOTP_RegisterRequiresName(t *testing.T) {
 	svc, _, _ := newOTPTestService()
 
-	_, err := svc.RegisterOTP(context.Background(), "   ", "fan@example.com")
+	_, err := svc.Register(context.Background(), "   ", "fan@example.com")
 	if err == nil {
 		t.Fatal("expected validation error for empty name")
 	}
@@ -242,7 +242,7 @@ func TestOTP_VerifyIssuesTokens(t *testing.T) {
 	svc, _, sender := newOTPTestService()
 	ctx := context.Background()
 
-	if _, err := svc.RegisterOTP(ctx, "Alex", "fan@example.com"); err != nil {
+	if _, err := svc.Register(ctx, "Alex", "fan@example.com"); err != nil {
 		t.Fatalf("register failed: %v", err)
 	}
 
@@ -262,7 +262,7 @@ func TestOTP_VerifyWrongCodeUnauthorized(t *testing.T) {
 	svc, _, _ := newOTPTestService()
 	ctx := context.Background()
 
-	if _, err := svc.RegisterOTP(ctx, "Alex", "fan@example.com"); err != nil {
+	if _, err := svc.Register(ctx, "Alex", "fan@example.com"); err != nil {
 		t.Fatalf("register failed: %v", err)
 	}
 
@@ -279,7 +279,7 @@ func TestOTP_VerifyCodeIsSingleUse(t *testing.T) {
 	svc, _, sender := newOTPTestService()
 	ctx := context.Background()
 
-	if _, err := svc.RegisterOTP(ctx, "Alex", "fan@example.com"); err != nil {
+	if _, err := svc.Register(ctx, "Alex", "fan@example.com"); err != nil {
 		t.Fatalf("register failed: %v", err)
 	}
 	code := sender.LastCode()
@@ -297,7 +297,7 @@ func TestOTP_VerifyMaxAttemptsThenLocked(t *testing.T) {
 	svc, _, sender := newOTPTestService()
 	ctx := context.Background()
 
-	if _, err := svc.RegisterOTP(ctx, "Alex", "fan@example.com"); err != nil {
+	if _, err := svc.Register(ctx, "Alex", "fan@example.com"); err != nil {
 		t.Fatalf("register failed: %v", err)
 	}
 
@@ -316,7 +316,7 @@ func TestOTP_VerifyMaxAttemptsThenLocked(t *testing.T) {
 func TestOTP_LoginUnknownEmailNotFound(t *testing.T) {
 	svc, _, _ := newOTPTestService()
 
-	_, err := svc.LoginOTP(context.Background(), "ghost@example.com")
+	_, err := svc.Login(context.Background(), "ghost@example.com")
 	if err == nil {
 		t.Fatal("expected not-found error")
 	}
@@ -325,16 +325,16 @@ func TestOTP_LoginUnknownEmailNotFound(t *testing.T) {
 	}
 }
 
-func TestOTP_ResendCooldownEnforced(t *testing.T) {
+func TestOTP_LoginCooldownEnforced(t *testing.T) {
 	svc, _, _ := newOTPTestService()
 	ctx := context.Background()
 
-	if _, err := svc.RegisterOTP(ctx, "Alex", "fan@example.com"); err != nil {
+	if _, err := svc.Register(ctx, "Alex", "fan@example.com"); err != nil {
 		t.Fatalf("register failed: %v", err)
 	}
 
-	// Immediate resend hits the 30s cooldown set by register.
-	_, err := svc.ResendOTP(ctx, "fan@example.com")
+	// Immediate login (resend) hits the 30s cooldown set by register.
+	_, err := svc.Login(ctx, "fan@example.com")
 	if err == nil {
 		t.Fatal("expected cooldown error")
 	}

@@ -46,26 +46,14 @@
 | **Screen Name** | Sign Up Screen |
 | **Endpoint** | `/api/v1/auth/register` |
 | **HTTP Method** | POST |
-| **Request** | `{ "name": "string", "email": "string", "password": "string" }` |
-| **Response** | `201 Created` — `{ "user": { ... }, "tokens": { "access_token", "refresh_token", "expires_in" } }` |
+| **Request** | `{ "name": "string", "email": "string" }` |
+| **Response** | `200 OK` — `{ "otp_sent": true }` (کد با `verify-otp` تایید می‌شود) |
 | **Authentication** | None |
-| **Error Codes** | `400` نام/ایمیل/پسورد نامعتبر · `409` ایمیل قبلاً ثبت شده · `422` · `500` |
+| **Error Codes** | `400` نام/ایمیل نامعتبر · `409` ایمیل قبلاً ثبت شده · `500` |
 | **Pagination** | ندارد |
 
 ```json
-{
-  "user": {
-    "id": "usr_8f21",
-    "email": "john@example.com",
-    "first_name": "John Smith",
-    "points": 0
-  },
-  "tokens": {
-    "access_token": "eyJhbGciOi...",
-    "refresh_token": "eyJhbGciOi...",
-    "expires_in": 3600
-  }
-}
+{ "otp_sent": true }
 ```
 
 ### 1.2 Verify Code Screen
@@ -81,7 +69,7 @@
 | **Error Codes** | `400` · `401` کد نامعتبر/منقضی · `429` تعداد تلاش زیاد · `500` |
 | **Pagination** | ندارد |
 
-Resend: `POST /api/v1/auth/resend-otp` با `{ "email": "string" }` → `{ "otp_sent": true, "retry_after_seconds": 30 }`
+Resend: endpoint جدا ندارد — دوباره `POST /api/v1/auth/login` (یا برای کاربر جدید بعد از ثبت‌نام همان login) را صدا بزنید.
 
 ```json
 {
@@ -90,6 +78,7 @@ Resend: `POST /api/v1/auth/resend-otp` با `{ "email": "string" }` → `{ "otp_
   "user": { "id": "usr_8f21", "name": "John Smith", "email": "john@example.com", "points": 0 }
 }
 ```
+
 
 ### 1.3 Login Screen
 
@@ -107,19 +96,6 @@ Resend: `POST /api/v1/auth/resend-otp` با `{ "email": "string" }` → `{ "otp_
 ```json
 { "otp_sent": true }
 ```
-
-### 1.4 Logout
-
-| Field | Value |
-|---|---|
-| **Screen Name** | Logout (action, no dedicated screen) |
-| **Endpoint** | `/api/v1/auth/logout` |
-| **HTTP Method** | POST |
-| **Request** | بدون body |
-| **Response** | `204 No Content` |
-| **Authentication** | Bearer |
-| **Error Codes** | `401` · `500` |
-| **Pagination** | ندارد |
 
 ---
 
