@@ -23,6 +23,9 @@ const (
 	otpTTL              = 5 * time.Minute
 	otpResendCooldown   = 30 * time.Second
 	otpMaxVerifyAttempt = 5
+
+	otpPurposeRegister = "register"
+	otpPurposeLogin    = "login"
 )
 
 // OTPResult is returned by register/login OTP operations.
@@ -33,8 +36,10 @@ type OTPResult struct {
 	RetryAfterSeconds int
 }
 
-// Register creates a passwordless account and emails a one-time code.
-// Returns 409 when the email is already registered — call Login to request a new code.
+// Register starts passwordless sign-up: stores a pending registration with the
+// OTP and emails the code. The user row is created only after VerifyOTP succeeds.
+// Returns 409 when the email already belongs to an existing account.
+// Call Register again to resend (cooldown applies).
 func (s *authService) Register(ctx context.Context, name, email string) (*OTPResult, error) {
 	name = strings.TrimSpace(name)
 	email = normalizeEmail(email)
@@ -49,35 +54,19 @@ func (s *authService) Register(ctx context.Context, name, email string) (*OTPRes
 		return nil, errors.ErrEmailExists
 	}
 
-	user := &models.User{
-		Email:        email,
-		PasswordHash: "", // passwordless; column kept for schema compatibility
-		FirstName:    name,
-		IsActive:     true,
-		IsVerified:   false,
+	if err := s.checkResendCooldown(ctx, email); err != nil {
+		return nil, err
 	}
-	if err := s.userRepo.Create(ctx, user); err != nil {
+	if err := s.issueOTP(ctx, email, OTPRecord{
+		Purpose: otpPurposeRegister,
+		Name:    name,
+	}); err != nil {
 		return nil, err
 	}
 
-	userRole, err := s.roleRepo.FindByName(ctx, models.RoleUser)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.userRepo.AddRole(ctx, user.ID, userRole.ID); err != nil {
-		return nil, err
-	}
+	logger.Info().Str("email", email).Msg("otp_register_pending")
 
-	if err := s.issueOTP(ctx, email); err != nil {
-		return nil, err
-	}
-
-	logger.Info().
-		Str("user_id", user.ID.String()).
-		Str("email", email).
-		Msg("otp_register")
-
-	return &OTPResult{UserID: user.ID.String(), Email: email, OTPSent: true}, nil
+	return &OTPResult{Email: email, OTPSent: true}, nil
 }
 
 // Login emails a one-time code to an existing account.
@@ -96,7 +85,7 @@ func (s *authService) Login(ctx context.Context, email string) (*OTPResult, erro
 	if err := s.checkResendCooldown(ctx, email); err != nil {
 		return nil, err
 	}
-	if err := s.issueOTP(ctx, email); err != nil {
+	if err := s.issueOTP(ctx, email, OTPRecord{Purpose: otpPurposeLogin}); err != nil {
 		return nil, err
 	}
 
@@ -108,8 +97,8 @@ func (s *authService) Login(ctx context.Context, email string) (*OTPResult, erro
 	return &OTPResult{UserID: user.ID.String(), Email: email, OTPSent: true}, nil
 }
 
-// VerifyOTP checks the code and, on success, marks the user verified and
-// issues a JWT pair.
+// VerifyOTP checks the code. For register purpose it creates the user; for login
+// it authenticates an existing user. On success it issues a JWT pair.
 func (s *authService) VerifyOTP(ctx context.Context, email, code, ipAddress, userAgent string) (*models.User, *utils.TokenPair, error) {
 	email = normalizeEmail(email)
 
@@ -134,23 +123,33 @@ func (s *authService) VerifyOTP(ctx context.Context, email, code, ipAddress, use
 		return nil, nil, errors.NewUnauthorized("Invalid or expired code", nil)
 	}
 
-	// Code accepted — single use.
+	// Code accepted — single use. Keep a copy of pending fields before delete.
+	pending := *rec
 	if err := s.otpStore.Delete(ctx, email); err != nil {
 		return nil, nil, err
 	}
+	_ = s.otpStore.ClearCooldown(ctx, email)
 
-	user, err := s.userRepo.FindByEmail(ctx, email)
-	if err != nil {
-		return nil, nil, errors.ErrUserNotFound
-	}
-	if !user.IsActive {
-		return nil, nil, errors.NewUnauthorized("User account is inactive", nil)
-	}
-
-	if !user.IsVerified {
-		user.IsVerified = true
-		if err := s.userRepo.Update(ctx, user); err != nil {
+	var user *models.User
+	switch pending.Purpose {
+	case otpPurposeRegister:
+		user, err = s.createVerifiedUser(ctx, pending.Name, email)
+		if err != nil {
 			return nil, nil, err
+		}
+	default: // login (and legacy records without purpose)
+		user, err = s.userRepo.FindByEmail(ctx, email)
+		if err != nil {
+			return nil, nil, errors.ErrUserNotFound
+		}
+		if !user.IsActive {
+			return nil, nil, errors.NewUnauthorized("User account is inactive", nil)
+		}
+		if !user.IsVerified {
+			user.IsVerified = true
+			if err := s.userRepo.Update(ctx, user); err != nil {
+				return nil, nil, err
+			}
 		}
 	}
 
@@ -162,6 +161,7 @@ func (s *authService) VerifyOTP(ctx context.Context, email, code, ipAddress, use
 	logger.Info().
 		Str("user_id", user.ID.String()).
 		Str("email", email).
+		Str("purpose", pending.Purpose).
 		Msg("otp_verified")
 
 	return user, tokenPair, nil
@@ -169,13 +169,51 @@ func (s *authService) VerifyOTP(ctx context.Context, email, code, ipAddress, use
 
 // ─── internals ────────────────────────────────────────────────────────────────
 
-func (s *authService) issueOTP(ctx context.Context, email string) error {
+func (s *authService) createVerifiedUser(ctx context.Context, name, email string) (*models.User, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, errors.NewBadRequest("Name is required", nil)
+	}
+
+	// Race: another verify may have created the account already.
+	if existing, err := s.userRepo.FindByEmail(ctx, email); err == nil && existing != nil {
+		return nil, errors.ErrEmailExists
+	}
+
+	user := &models.User{
+		Email:        email,
+		PasswordHash: "",
+		FirstName:    name,
+		IsActive:     true,
+		IsVerified:   true,
+	}
+	if err := s.userRepo.Create(ctx, user); err != nil {
+		return nil, err
+	}
+
+	userRole, err := s.roleRepo.FindByName(ctx, models.RoleUser)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.userRepo.AddRole(ctx, user.ID, userRole.ID); err != nil {
+		return nil, err
+	}
+
+	user, err = s.userRepo.FindByID(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (s *authService) issueOTP(ctx context.Context, email string, rec OTPRecord) error {
 	code, err := generateOTPCode(otpLength)
 	if err != nil {
 		return errors.NewInternal("Failed to generate code", err)
 	}
 
-	rec := OTPRecord{CodeHash: hashOTP(code)}
+	rec.CodeHash = hashOTP(code)
+	rec.Attempts = 0
 	if err := s.otpStore.Save(ctx, email, rec, otpTTL); err != nil {
 		return err
 	}

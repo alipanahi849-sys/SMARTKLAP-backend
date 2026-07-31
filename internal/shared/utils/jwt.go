@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"time"
 
@@ -48,25 +50,21 @@ func GenerateAccessToken(userID uuid.UUID, email string, roles []string) (string
 	return tokenString, int64(cfg.AccessExpiry), nil
 }
 
+// GenerateRefreshToken returns an opaque random refresh token (~96 hex chars),
+// about half the length of the previous JWT-based refresh tokens. Binding to a
+// user and expiry is stored server-side (hashed) — userID is kept for API symmetry.
 func GenerateRefreshToken(userID uuid.UUID) (string, time.Time, error) {
+	_ = userID
 	cfg := config.AppConfig.JWT
-
 	expiresAt := time.Now().Add(time.Duration(cfg.RefreshExpiry) * time.Second)
-	claims := jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(expiresAt),
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
-		NotBefore: jwt.NewNumericDate(time.Now()),
-		Issuer:    cfg.Issuer,
-		Subject:   userID.String(),
-	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(cfg.RefreshSecret))
-	if err != nil {
+	// 48 random bytes → 96 hex characters (384 bits of entropy).
+	b := make([]byte, 48)
+	if _, err := rand.Read(b); err != nil {
 		return "", time.Time{}, err
 	}
 
-	return tokenString, expiresAt, nil
+	return hex.EncodeToString(b), expiresAt, nil
 }
 
 func ValidateAccessToken(tokenString string) (*Claims, error) {
@@ -91,29 +89,9 @@ func ValidateAccessToken(tokenString string) (*Claims, error) {
 	return claims, nil
 }
 
+// ValidateRefreshToken is no longer used for opaque refresh tokens; lookup is
+// done via hashed token in the database. Kept for compatibility and returns an error.
 func ValidateRefreshToken(tokenString string) (uuid.UUID, error) {
-	cfg := config.AppConfig.JWT
-
-	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, errors.New("invalid signing method")
-		}
-		return []byte(cfg.RefreshSecret), nil
-	})
-
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	claims, ok := token.Claims.(*jwt.RegisteredClaims)
-	if !ok || !token.Valid {
-		return uuid.Nil, errors.New("invalid token")
-	}
-
-	userID, err := uuid.Parse(claims.Subject)
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	return userID, nil
+	_ = tokenString
+	return uuid.Nil, errors.New("opaque refresh tokens must be validated via the token store")
 }

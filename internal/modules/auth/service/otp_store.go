@@ -14,9 +14,12 @@ import (
 )
 
 // OTPRecord is the persisted state of an outstanding one-time code.
+// For purpose=register, Name holds the pending display name until verify.
 type OTPRecord struct {
 	CodeHash string `json:"code_hash"`
 	Attempts int    `json:"attempts"`
+	Purpose  string `json:"purpose,omitempty"` // "register" | "login"
+	Name     string `json:"name,omitempty"`
 }
 
 // OTPStore persists outstanding OTP codes with a TTL plus a per-email resend
@@ -32,6 +35,8 @@ type OTPStore interface {
 	Delete(ctx context.Context, email string) error
 	// SetCooldown starts the resend cooldown window for an email.
 	SetCooldown(ctx context.Context, email string, ttl time.Duration) error
+	// ClearCooldown removes any active resend cooldown for an email.
+	ClearCooldown(ctx context.Context, email string) error
 	// CooldownRemaining returns the remaining cooldown, or 0 when none is active.
 	CooldownRemaining(ctx context.Context, email string) (time.Duration, error)
 }
@@ -104,6 +109,13 @@ func (s *redisOTPStore) Delete(ctx context.Context, email string) error {
 func (s *redisOTPStore) SetCooldown(ctx context.Context, email string, ttl time.Duration) error {
 	if err := redis.GetClient().Set(ctx, otpCooldown(email), "1", ttl).Err(); err != nil {
 		return errors.NewInternal("Failed to set OTP cooldown", err)
+	}
+	return nil
+}
+
+func (s *redisOTPStore) ClearCooldown(ctx context.Context, email string) error {
+	if err := redis.GetClient().Del(ctx, otpCooldown(email)).Err(); err != nil {
+		return errors.NewInternal("Failed to clear OTP cooldown", err)
 	}
 	return nil
 }
@@ -184,6 +196,13 @@ func (s *memoryOTPStore) SetCooldown(_ context.Context, email string, ttl time.D
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.cooldowns[strings.ToLower(email)] = time.Now().Add(ttl)
+	return nil
+}
+
+func (s *memoryOTPStore) ClearCooldown(_ context.Context, email string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.cooldowns, strings.ToLower(email))
 	return nil
 }
 

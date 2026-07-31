@@ -121,7 +121,7 @@ const docTemplate = `{
         },
         "/api/v1/auth/register": {
             "post": {
-                "description": "Create account with name+email and send a 4-digit OTP. Call login again to resend.",
+                "description": "Start sign-up with name+email and send a 4-digit OTP. User is saved only after verify-otp. Call register again to resend.",
                 "consumes": [
                     "application/json"
                 ],

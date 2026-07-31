@@ -47,14 +47,16 @@
 | **Endpoint** | `/api/v1/auth/register` |
 | **HTTP Method** | POST |
 | **Request** | `{ "name": "string", "email": "string" }` |
-| **Response** | `200 OK` — `{ "otp_sent": true }` (کد با `verify-otp` تایید می‌شود) |
+| **Response** | `200 OK` — `{ "otp_sent": true }` (کاربر هنوز در DB ذخیره نمی‌شود؛ بعد از `verify-otp` ساخته می‌شود) |
 | **Authentication** | None |
-| **Error Codes** | `400` نام/ایمیل نامعتبر · `409` ایمیل قبلاً ثبت شده · `500` |
+| **Error Codes** | `400` نام/ایمیل نامعتبر · `409` ایمیل قبلاً ثبت شده · `429` cooldown ارسال مجدد · `500` |
 | **Pagination** | ندارد |
 
 ```json
 { "otp_sent": true }
 ```
+
+> Resend ثبت‌نام: دوباره همین `POST /auth/register` را بزنید (نه login).
 
 ### 1.2 Verify Code Screen
 

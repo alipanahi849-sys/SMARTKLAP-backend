@@ -206,18 +206,24 @@ func TestOTP_RegisterSendsCode(t *testing.T) {
 	if sender.LastCode() == "" {
 		t.Fatal("expected an OTP code to be sent")
 	}
-	if _, err := userRepo.FindByEmail(context.Background(), "fan@example.com"); err != nil {
-		t.Fatalf("user was not persisted: %v", err)
+	// Pending only — user must not exist until verify-otp succeeds.
+	if _, err := userRepo.FindByEmail(context.Background(), "fan@example.com"); err == nil {
+		t.Fatal("user must not be persisted before OTP verify")
 	}
 }
 
 func TestOTP_RegisterDuplicateEmailConflicts(t *testing.T) {
-	svc, _, _ := newOTPTestService()
+	svc, _, sender := newOTPTestService()
+	ctx := context.Background()
 
-	if _, err := svc.Register(context.Background(), "Alex", "fan@example.com"); err != nil {
+	if _, err := svc.Register(ctx, "Alex", "fan@example.com"); err != nil {
 		t.Fatalf("first register failed: %v", err)
 	}
-	_, err := svc.Register(context.Background(), "Alex", "fan@example.com")
+	if _, _, err := svc.VerifyOTP(ctx, "fan@example.com", sender.LastCode(), "", ""); err != nil {
+		t.Fatalf("verify failed: %v", err)
+	}
+
+	_, err := svc.Register(ctx, "Alex", "fan@example.com")
 	if err == nil {
 		t.Fatal("expected conflict for duplicate email")
 	}
@@ -326,17 +332,39 @@ func TestOTP_LoginUnknownEmailNotFound(t *testing.T) {
 }
 
 func TestOTP_LoginCooldownEnforced(t *testing.T) {
+	svc, _, sender := newOTPTestService()
+	ctx := context.Background()
+
+	if _, err := svc.Register(ctx, "Alex", "fan@example.com"); err != nil {
+		t.Fatalf("register failed: %v", err)
+	}
+	if _, _, err := svc.VerifyOTP(ctx, "fan@example.com", sender.LastCode(), "", ""); err != nil {
+		t.Fatalf("verify failed: %v", err)
+	}
+	if _, err := svc.Login(ctx, "fan@example.com"); err != nil {
+		t.Fatalf("login failed: %v", err)
+	}
+
+	// Immediate second login hits the 30s cooldown.
+	_, err := svc.Login(ctx, "fan@example.com")
+	if err == nil {
+		t.Fatal("expected cooldown error")
+	}
+	if status := appErrorStatus(t, err); status != http.StatusTooManyRequests {
+		t.Fatalf("expected 429, got %d", status)
+	}
+}
+
+func TestOTP_RegisterResendCooldownEnforced(t *testing.T) {
 	svc, _, _ := newOTPTestService()
 	ctx := context.Background()
 
 	if _, err := svc.Register(ctx, "Alex", "fan@example.com"); err != nil {
 		t.Fatalf("register failed: %v", err)
 	}
-
-	// Immediate login (resend) hits the 30s cooldown set by register.
-	_, err := svc.Login(ctx, "fan@example.com")
+	_, err := svc.Register(ctx, "Alex", "fan@example.com")
 	if err == nil {
-		t.Fatal("expected cooldown error")
+		t.Fatal("expected cooldown error on register resend")
 	}
 	if status := appErrorStatus(t, err); status != http.StatusTooManyRequests {
 		t.Fatalf("expected 429, got %d", status)

@@ -57,7 +57,7 @@ type UpdateProfileRequest struct {
 // Register godoc
 //
 //	@Summary		Register (OTP email)
-//	@Description	Create account with name+email and send a 4-digit OTP. Call login again to resend.
+//	@Description	Start sign-up with name+email and send a 4-digit OTP. User is saved only after verify-otp. Call register again to resend.
 //	@Tags			auth
 //	@Accept			json
 //	@Produce		json
