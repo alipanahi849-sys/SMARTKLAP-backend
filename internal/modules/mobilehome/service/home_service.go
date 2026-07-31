@@ -10,7 +10,6 @@ import (
 	clubrepo "clap/internal/modules/club/repository"
 	matchrepo "clap/internal/modules/match/repository"
 	"clap/internal/modules/mobilehome/dto"
-	newssvc "clap/internal/modules/news/service"
 	shopsvc "clap/internal/modules/shop/service"
 	"clap/internal/shared/logger"
 
@@ -32,7 +31,6 @@ type homeService struct {
 	clubRepo  clubrepo.ClubRepository
 	chantSvc  chantsvc.ChantService
 	shopSvc   shopsvc.ShopService
-	newsSvc   newssvc.NewsService
 }
 
 func NewHomeService(
@@ -41,7 +39,6 @@ func NewHomeService(
 	clubRepo clubrepo.ClubRepository,
 	chantSvc chantsvc.ChantService,
 	shopSvc shopsvc.ShopService,
-	newsSvc newssvc.NewsService,
 ) HomeService {
 	return &homeService{
 		userRepo:  userRepo,
@@ -49,7 +46,6 @@ func NewHomeService(
 		clubRepo:  clubRepo,
 		chantSvc:  chantSvc,
 		shopSvc:   shopSvc,
-		newsSvc:   newsSvc,
 	}
 }
 
@@ -196,15 +192,9 @@ func (s *homeService) Club(ctx context.Context) (*dto.ClubHomeResponse, error) {
 		return nil, err
 	}
 
-	newsItems, err := s.newsSvc.Preview(ctx, previewLimit)
-	if err != nil {
-		return nil, err
-	}
-
 	return &dto.ClubHomeResponse{
 		UpcomingMatches: upcoming,
 		ClubStore:       store,
-		ClubNews:        newsItems,
 	}, nil
 }
 

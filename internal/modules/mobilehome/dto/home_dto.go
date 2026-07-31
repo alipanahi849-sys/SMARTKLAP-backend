@@ -1,7 +1,6 @@
 package dto
 
 import (
-	newsdto "clap/internal/modules/news/dto"
 	shopdto "clap/internal/modules/shop/dto"
 
 	"github.com/google/uuid"
@@ -67,5 +66,4 @@ type UpcomingMatch struct {
 type ClubHomeResponse struct {
 	UpcomingMatches []UpcomingMatch       `json:"upcoming_matches"`
 	ClubStore       []shopdto.CatalogItem `json:"club_store"`
-	ClubNews        []newsdto.NewsItem    `json:"club_news"`
 }

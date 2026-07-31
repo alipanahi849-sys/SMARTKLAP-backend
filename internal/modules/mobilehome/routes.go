@@ -7,7 +7,6 @@ import (
 	matchrepo "clap/internal/modules/match/repository"
 	"clap/internal/modules/mobilehome/handler"
 	"clap/internal/modules/mobilehome/service"
-	"clap/internal/modules/news"
 	"clap/internal/modules/shop"
 	"clap/internal/shared/database"
 	"clap/internal/shared/middleware"
@@ -25,7 +24,6 @@ func RegisterRoutes(r *gin.RouterGroup) {
 		clubrepo.NewClubRepository(db),
 		chant.NewService(),
 		shop.NewService(),
-		news.NewService(),
 	)
 	h := handler.NewHomeHandler(homeSvc)
 

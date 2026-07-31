@@ -381,7 +381,6 @@ Migration files are located in `pkg/migrations/`:
 - Lyrics synchronization
 - Flash/vibration events
 - Club management panels
-- News feed
 - E-commerce/shop functionality
 - Advanced rate limiting
 - Metrics and monitoring (Prometheus)

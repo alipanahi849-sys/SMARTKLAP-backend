@@ -204,10 +204,10 @@ Resend: endpoint جدا ندارد — دوباره `POST /api/v1/auth/login` (�
 | **Endpoint** | `/api/v1/mobile/home/club` |
 | **HTTP Method** | GET |
 | **Request** | بدون پارامتر |
-| **Response** | `200 OK` — `upcoming_matches[]`, `club_store[]`, `club_news[]` |
+| **Response** | `200 OK` — `upcoming_matches[]`, `club_store[]` |
 | **Authentication** | Bearer |
 | **Error Codes** | استاندارد |
-| **Pagination** | ندارد — هر سه preview هستند؛ لیست کامل: `GET /api/v1/matches`, `GET /api/v1/products`, `GET /api/v1/news` |
+| **Pagination** | ندارد — هر دو preview هستند؛ لیست کامل: `GET /api/v1/matches`, `GET /api/v1/products` |
 
 ```json
 {
@@ -227,9 +227,6 @@ Resend: endpoint جدا ندارد — دوباره `POST /api/v1/auth/login` (�
   ],
   "club_store": [
     { "id": "s_1", "name": "Sport T-shirt", "price": "32.50 €", "image_url": "https://cdn.smartklap.com/store/shirt.png" }
-  ],
-  "club_news": [
-    { "id": "n_1", "title": "Soccer & Football Injuries in Sunday game", "date": "2026-05-12T21:15:00Z", "image_url": "https://cdn.smartklap.com/news/n1.jpg" }
   ]
 }
 ```

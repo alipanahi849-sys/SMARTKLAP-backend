@@ -10,8 +10,6 @@ import (
 	chantsvc "clap/internal/modules/chant/service"
 	clubmodels "clap/internal/modules/club/models"
 	homesvc "clap/internal/modules/mobilehome/service"
-	newsmodels "clap/internal/modules/news/models"
-	newssvc "clap/internal/modules/news/service"
 	shopmodels "clap/internal/modules/shop/models"
 	shopsvc "clap/internal/modules/shop/service"
 	statsmodels "clap/internal/modules/stats/models"
@@ -86,21 +84,6 @@ func (r *stubPlayerRepo) FindByClubIDs(_ context.Context, clubIDs []uuid.UUID) (
 		}
 	}
 	return result, nil
-}
-
-type stubNewsRepo struct {
-	items []newsmodels.News
-}
-
-func (r *stubNewsRepo) FindAll(_ context.Context, _, _ int) ([]newsmodels.News, int64, error) {
-	return r.items, int64(len(r.items)), nil
-}
-
-func (r *stubNewsRepo) FindPreview(_ context.Context, limit int) ([]newsmodels.News, error) {
-	if len(r.items) > limit {
-		return r.items[:limit], nil
-	}
-	return r.items, nil
 }
 
 // ─── profile tests ────────────────────────────────────────────────────────────
@@ -240,15 +223,13 @@ func TestHome_StadiumAggregates(t *testing.T) {
 	productRepo := &stubProductRepo{products: map[uuid.UUID]shopmodels.Product{}}
 	cartRepo := newStubCartRepo()
 	orderRepo := newStubOrderRepo(cartRepo)
-	newsRepo := &stubNewsRepo{}
 
 	me := seedUser(userRepo, "Me", "me@example.com", 289)
 
 	shopService := shopsvc.NewShopService(snackRepo, productRepo, cartRepo, orderRepo)
 	chantService := chantsvc.NewChantService(chantRepo, matchRepo, nil, nil)
-	newsService := newssvc.NewNewsService(newsRepo)
 
-	svc := homesvc.NewHomeService(userRepo, matchRepo, clubRepo, chantService, shopService, newsService)
+	svc := homesvc.NewHomeService(userRepo, matchRepo, clubRepo, chantService, shopService)
 
 	resp, err := svc.Stadium(context.Background(), me.ID)
 	if err != nil {
@@ -285,13 +266,11 @@ func TestHome_ClubAggregates(t *testing.T) {
 	productRepo := &stubProductRepo{products: map[uuid.UUID]shopmodels.Product{}}
 	addProduct(productRepo, "Sport T-shirt", 3250, `["M"]`)
 	cartRepo := newStubCartRepo()
-	newsRepo := &stubNewsRepo{items: []newsmodels.News{{ID: uuid.New(), Title: "Injuries in Sunday game", PublishedAt: time.Now(), IsActive: true}}}
 
 	svc := homesvc.NewHomeService(
 		userRepo, matchRepo, clubRepo,
 		chantsvc.NewChantService(newStubChantRepo(), matchRepo, nil, nil),
 		shopsvc.NewShopService(snackRepo, productRepo, cartRepo, newStubOrderRepo(cartRepo)),
-		newssvc.NewNewsService(newsRepo),
 	)
 
 	resp, err := svc.Club(context.Background())
@@ -313,8 +292,5 @@ func TestHome_ClubAggregates(t *testing.T) {
 	}
 	if len(resp.ClubStore) != 1 {
 		t.Fatalf("expected 1 store item, got %d", len(resp.ClubStore))
-	}
-	if len(resp.ClubNews) != 1 {
-		t.Fatalf("expected 1 news item, got %d", len(resp.ClubNews))
 	}
 }
