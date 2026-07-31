@@ -300,7 +300,14 @@ func setupRouter(deps routerDeps) *gin.Engine {
 		if root == "" {
 			root = "./uploads"
 		}
-		router.Static("/uploads", root)
+		uploads := router.Group("/uploads")
+		uploads.Use(func(c *gin.Context) {
+			// Avatars are overwritten rarely but browsers cache aggressively by URL;
+			// short cache + must-revalidate avoids stale images if a URL is reused.
+			c.Header("Cache-Control", "public, max-age=60, must-revalidate")
+			c.Next()
+		})
+		uploads.StaticFS("/", gin.Dir(root, false))
 	}
 
 	// Swagger UI (disabled in production). Empty Host = same origin as the page

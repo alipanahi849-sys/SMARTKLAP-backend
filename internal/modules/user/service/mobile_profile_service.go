@@ -166,7 +166,8 @@ func (s *mobileProfileService) UploadAvatar(ctx context.Context, userID uuid.UUI
 	}
 	defer src.Close()
 
-	key := fmt.Sprintf("avatars/%s%s", userID.String(), ext)
+	// Unique key per upload so clients never reuse a cached URL for a new image.
+	key := fmt.Sprintf("avatars/%s/%s%s", userID.String(), uuid.NewString(), ext)
 	if err := s.storage.Upload(ctx, key, src, mimeType, file.Size); err != nil {
 		logger.Error().Err(err).Str("user_id", userID.String()).Str("key", key).Msg("avatar_store_failed")
 		return nil, errors.NewInternal("Failed to store avatar", err)
@@ -180,9 +181,15 @@ func (s *mobileProfileService) UploadAvatar(ctx context.Context, userID uuid.UUI
 			return nil, createErr
 		}
 	} else {
+		oldKey := profile.AvatarURL
 		profile.AvatarURL = key
 		if updateErr := s.profileRepo.Update(ctx, profile); updateErr != nil {
 			return nil, updateErr
+		}
+		// Best-effort cleanup of the previous object (ignore failures).
+		if oldKey != "" && oldKey != key &&
+			!strings.HasPrefix(oldKey, "http://") && !strings.HasPrefix(oldKey, "https://") {
+			_ = s.storage.Delete(ctx, oldKey)
 		}
 	}
 
