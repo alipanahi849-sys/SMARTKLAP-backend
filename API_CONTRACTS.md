@@ -65,8 +65,8 @@
 | **Screen Name** | Verify Code Screen |
 | **Endpoint** | `/api/v1/auth/verify-otp` |
 | **HTTP Method** | POST |
-| **Request** | `{ "email": "string", "otp_code": "string(4)" }` |
-| **Response** | `200 OK` — `{ "access_token", "refresh_token", "user": { "id", "name", "email", "points" } }` |
+| **Request** | `{ "email": "string", "code": "string(4)" }` |
+| **Response** | `200 OK` — `{ "access_token", "refresh_token" }` |
 | **Authentication** | None (نیاز به `email` از مرحله قبل) |
 | **Error Codes** | `400` · `401` کد نامعتبر/منقضی · `429` تعداد تلاش زیاد · `500` |
 | **Pagination** | ندارد |
@@ -76,8 +76,7 @@ Resend: endpoint جدا ندارد — دوباره `POST /api/v1/auth/login` (�
 ```json
 {
   "access_token": "eyJhbGciOi...",
-  "refresh_token": "eyJhbGciOi...",
-  "user": { "id": "usr_8f21", "name": "John Smith", "email": "john@example.com", "points": 0 }
+  "refresh_token": "eyJhbGciOi..."
 }
 ```
 

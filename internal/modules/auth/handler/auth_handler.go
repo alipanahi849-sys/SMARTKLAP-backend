@@ -41,7 +41,7 @@ type LoginRequest struct {
 
 type VerifyOTPRequest struct {
 	Email   string `json:"email" binding:"required,email"`
-	OTPCode string `json:"otp_code" binding:"required,len=4,numeric"`
+	OTPCode string `json:"code" binding:"required,len=4,numeric"`
 }
 
 type RefreshTokenRequest struct {
@@ -128,7 +128,7 @@ func (h *authHandler) VerifyOTP(c *gin.Context) {
 		return
 	}
 
-	user, tokenPair, err := h.authService.VerifyOTP(
+	_, tokenPair, err := h.authService.VerifyOTP(
 		c.Request.Context(), req.Email, req.OTPCode, c.ClientIP(), c.Request.UserAgent(),
 	)
 	if err != nil {
@@ -139,12 +139,6 @@ func (h *authHandler) VerifyOTP(c *gin.Context) {
 	response.SuccessWithMessage(c, gin.H{
 		"access_token":  tokenPair.AccessToken,
 		"refresh_token": tokenPair.RefreshToken,
-		"user": gin.H{
-			"id":     user.ID,
-			"name":   user.DisplayName(),
-			"email":  user.Email,
-			"points": user.Points,
-		},
 	}, "OTP verified successfully")
 }
 

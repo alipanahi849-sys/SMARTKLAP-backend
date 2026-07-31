@@ -217,7 +217,7 @@ GET /health
 ```
 POST   /api/v1/auth/register      # name + email → OTP
 POST   /api/v1/auth/login         # email → OTP (call again to resend)
-POST   /api/v1/auth/verify-otp    # email + otp_code → tokens
+POST   /api/v1/auth/verify-otp    # email + code → tokens
 POST   /api/v1/auth/refresh
 ```
 
@@ -264,7 +264,7 @@ curl -X POST http://localhost:8080/api/v1/auth/verify-otp \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
-    "otp_code": "1234"
+    "code": "1234"
   }'
 ```
 
