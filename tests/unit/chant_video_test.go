@@ -13,6 +13,7 @@ import (
 	chantmodels "clap/internal/modules/chant/models"
 	chantrepo "clap/internal/modules/chant/repository"
 	chantsvc "clap/internal/modules/chant/service"
+	matchmodels "clap/internal/modules/match/models"
 	usermodels "clap/internal/modules/user/models"
 	videomodels "clap/internal/modules/video/models"
 	videosvc "clap/internal/modules/video/service"
@@ -20,6 +21,86 @@ import (
 
 	"github.com/google/uuid"
 )
+
+// ─── match stubs (shared by chant tests) ──────────────────────────────────────
+
+type stubMatchRepo struct {
+	matches map[uuid.UUID]*matchmodels.Match
+}
+
+func newStubMatchRepo() *stubMatchRepo {
+	return &stubMatchRepo{matches: map[uuid.UUID]*matchmodels.Match{}}
+}
+
+func (r *stubMatchRepo) Create(_ context.Context, m *matchmodels.Match) error {
+	if m.ID == uuid.Nil {
+		m.ID = uuid.New()
+	}
+	r.matches[m.ID] = m
+	return nil
+}
+
+func (r *stubMatchRepo) FindByID(_ context.Context, id uuid.UUID) (*matchmodels.Match, error) {
+	if m, ok := r.matches[id]; ok {
+		return m, nil
+	}
+	return nil, sharederrors.NewNotFound("Match not found", nil)
+}
+
+func (r *stubMatchRepo) FindAll(context.Context, int, int, map[string]string, string, string) ([]matchmodels.Match, int64, error) {
+	return nil, 0, nil
+}
+func (r *stubMatchRepo) FindBySeason(context.Context, uuid.UUID, int, int) ([]matchmodels.Match, int64, error) {
+	return nil, 0, nil
+}
+func (r *stubMatchRepo) FindByLeague(context.Context, uuid.UUID, int, int) ([]matchmodels.Match, int64, error) {
+	return nil, 0, nil
+}
+func (r *stubMatchRepo) FindByClub(context.Context, uuid.UUID, int, int) ([]matchmodels.Match, int64, error) {
+	return nil, 0, nil
+}
+
+func (r *stubMatchRepo) FindUpcoming(_ context.Context, _, _ int) ([]matchmodels.Match, int64, error) {
+	var result []matchmodels.Match
+	for _, m := range r.matches {
+		if m.Status == "scheduled" {
+			result = append(result, *m)
+		}
+	}
+	return result, int64(len(result)), nil
+}
+
+func (r *stubMatchRepo) FindLive(context.Context) ([]matchmodels.Match, error) {
+	var result []matchmodels.Match
+	for _, m := range r.matches {
+		if m.Status == "live" {
+			result = append(result, *m)
+		}
+	}
+	return result, nil
+}
+
+func (r *stubMatchRepo) Update(_ context.Context, m *matchmodels.Match) error {
+	r.matches[m.ID] = m
+	return nil
+}
+
+func (r *stubMatchRepo) Delete(_ context.Context, id uuid.UUID) error {
+	delete(r.matches, id)
+	return nil
+}
+
+func newScheduledMatch(repo *stubMatchRepo, kickoff time.Time) *matchmodels.Match {
+	m := &matchmodels.Match{
+		ID:            uuid.New(),
+		Status:        "scheduled",
+		MatchDateTime: kickoff,
+		HomeClubID:    uuid.New(),
+		AwayClubID:    uuid.New(),
+	}
+	repo.matches[m.ID] = m
+	return m
+}
 
 // ─── chant stubs ──────────────────────────────────────────────────────────────
 

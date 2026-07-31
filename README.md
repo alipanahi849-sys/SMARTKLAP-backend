@@ -34,7 +34,7 @@ clap/
 │   │   │   ├── handler/
 │   │   │   └── routes.go
 │   │   ├── user/           # User profile module (example)
-│   │   ├── club/           # Club management (placeholder)
+│   │   ├── club/           # Club models + repository (internal)
 │   │   ├── match/          # Match models + repository (internal)
 │   │   ├── song/           # Song/anthem management (placeholder)
 │   │   └── realtime/       # Realtime event interfaces

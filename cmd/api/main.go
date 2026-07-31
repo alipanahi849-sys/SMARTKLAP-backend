@@ -33,12 +33,8 @@ import (
 	"clap/cmd/api/docs"
 	"clap/internal/modules/auth"
 	"clap/internal/modules/chant"
-	"clap/internal/modules/club"
-	"clap/internal/modules/clubseason"
 	schedulerrepo "clap/internal/modules/eventscheduler/repository"
 	schedulersvc "clap/internal/modules/eventscheduler/service"
-	"clap/internal/modules/guess"
-	"clap/internal/modules/league"
 	lyricssvc "clap/internal/modules/lyricssync/service"
 	"clap/internal/modules/matchruntime"
 	matchruntimerepo "clap/internal/modules/matchruntime/repository"
@@ -57,7 +53,6 @@ import (
 	"clap/internal/modules/shop"
 	"clap/internal/modules/song"
 	"clap/internal/modules/songlyric"
-	"clap/internal/modules/stats"
 	"clap/internal/modules/user"
 	"clap/internal/modules/video"
 	"clap/internal/shared/config"
@@ -320,20 +315,15 @@ func setupRouter(deps routerDeps) *gin.Engine {
 	{
 		auth.RegisterRoutes(v1)
 		user.RegisterRoutes(v1)
-		league.RegisterRoutes(v1)
 		season.RegisterRoutes(v1)
-		club.RegisterRoutes(v1)
-		clubseason.RegisterRoutes(v1)
 		song.RegisterRoutes(v1)
 		songlyric.RegisterRoutes(v1)
 		matchsongschedule.RegisterRoutes(v1)
 		media.RegisterRoutes(v1)
 		// Phase 4.3: Mobile API Contract modules
 		chant.RegisterRoutes(v1)
-		guess.RegisterRoutes(v1)
 		shop.RegisterRoutes(v1)
 		video.RegisterRoutes(v1)
-		stats.RegisterRoutes(v1)
 		// Phase 4 + 4.2: Realtime Engine Foundation + WebSocket Delivery Layer
 		realtime.RegisterRoutesWithWS(v1, realtime.WSConfig{
 			CM:           deps.cm,

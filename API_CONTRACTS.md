@@ -238,53 +238,7 @@ Removed — `/api/v1/mobile/home/*` (stadium / club) is no longer exposed.
 
 ## 5. Guess Module
 
-### 5.1 Guess Match Screen
-
-| Field | Value |
-|---|---|
-| **Screen Name** | Guess Match Screen |
-| **Endpoint** | `/api/v1/guess/matches/{match_id}` |
-| **HTTP Method** | GET |
-| **Request** | Path param `match_id` (یا `current` برای مسابقه فعال) |
-| **Response** | `200 OK` — `{ "match": {...}, "participation_points": 100, "quizzes": [{ "id", "title", "points", "is_done" }] }` |
-| **Authentication** | Bearer |
-| **Error Codes** | `404` مسابقه پیدا نشد · استاندارد |
-| **Pagination** | ندارد |
-
-```json
-{
-  "match": {
-    "home_name": "SP Burgos", "home_role": "Home", "home_logo_url": "https://cdn.smartklap.com/logos/burgos.png",
-    "away_name": "FC Barcelona", "away_role": "Away", "away_logo_url": "https://cdn.smartklap.com/logos/barcelona.png",
-    "competition_logo_url": "https://cdn.smartklap.com/logos/uefa.png",
-    "date": "2026-03-01", "time": "18:30"
-  },
-  "participation_points": 100,
-  "quizzes": [
-    { "id": "q_1", "title": "Result of the game", "points": 600, "is_done": true },
-    { "id": "q_2", "title": "Best Player", "points": 200, "is_done": false }
-  ]
-}
-```
-
-### 5.2 Result Of Game Screen (quiz answer)
-
-| Field | Value |
-|---|---|
-| **Screen Name** | Result Of Game Screen |
-| **Endpoint** | `/api/v1/guess/quizzes/{quiz_id}/answer` |
-| **HTTP Method** | POST |
-| **Request** | `{ "choice": "barcelona" \| "burgos" \| "draw" }` (برای quiz های دیگر مثل Best Player، `choice` می‌تواند `player_id` باشد — نوع quiz را در `GET /guess/quizzes/{id}` مشخص کنید) |
-| **Response** | `200 OK` — `{ "status": "submitted", "points_earned": 100 }` (امتیاز نهایی صحیح بعد پایان مسابقه از طریق push/poll اعلام می‌شود) |
-| **Authentication** | Bearer |
-| **Error Codes** | `409` قبلاً جواب داده شده · `422` مسابقه شروع/تمام شده · استاندارد |
-| **Pagination** | ندارد |
-
-سوالات هر quiz: `GET /api/v1/guess/quizzes/{quiz_id}` → `{ "id", "title", "options": [{ "id", "label" }] }`
-
-```json
-{ "status": "submitted", "points_earned": 100 }
-```
+Removed — `/api/v1/guess/*` is no longer exposed.
 
 ---
 
@@ -518,47 +472,7 @@ Removed — `/api/v1/mobile/home/*` (stadium / club) is no longer exposed.
 
 ## 9. Statistics Module
 
-### 9.1 Game Detail Screen
-
-Removed — the public `/api/v1/matches` CRUD/detail API is no longer exposed.
-
-### 9.2 Players Screen
-
-| Field | Value |
-|---|---|
-| **Screen Name** | Players Screen |
-| **Endpoint** | `/api/v1/players/{player_id}` |
-| **HTTP Method** | GET |
-| **Request** | Path param `player_id`; query `match_id?` (برای highlight روی زمین در همان مسابقه) |
-| **Response** | `200 OK` — `{ "name","jersey_number","club","age","preferred_foot","nationality","height_cm","weight_kg","weak_foot_percentage","photo_url","radar_stats":[{ "label","value" }],"formation" }` |
-| **Authentication** | Bearer |
-| **Error Codes** | `404` · استاندارد |
-| **Pagination** | ندارد |
-
-> `formation` (مثل `"4-1-2-2"`) فقط اسم فرمیشن است؛ محاسبه‌ی مکان x/y بازیکنان روی زمین سمت فرانت انجام می‌شود (`src/constants/footballFormations.ts`) — لازم نیست بک‌اند کوردینات بفرسته، مگر بخوایم فرمیشن سفارشی (custom x/y) هم ساپورت کنیم که در اون صورت هر بازیکن `x`,`y` هم داره.
-
-```json
-{
-  "name": "Dani Alves",
-  "jersey_number": 8,
-  "club": "FC Barcelona",
-  "age": 28,
-  "preferred_foot": "Right",
-  "nationality": "Spain",
-  "height_cm": 201,
-  "weight_kg": 91,
-  "weak_foot_percentage": 64,
-  "photo_url": "https://cdn.smartklap.com/players/dani-alves.png",
-  "radar_stats": [
-    { "label": "Attack", "value": 50 },
-    { "label": "Skill", "value": 85 },
-    { "label": "Defence", "value": 50 },
-    { "label": "Tactic", "value": 50 },
-    { "label": "Creativity", "value": 65 }
-  ],
-  "formation": "4-1-2-2"
-}
-```
+Removed — `/api/v1/players/*` and related stats APIs are no longer exposed.
 
 ---
 
