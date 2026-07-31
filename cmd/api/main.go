@@ -44,7 +44,6 @@ import (
 	matchruntimerepo "clap/internal/modules/matchruntime/repository"
 	"clap/internal/modules/matchsongschedule"
 	"clap/internal/modules/media"
-	"clap/internal/modules/mobilehome"
 	"clap/internal/modules/playback"
 	playbackrepo "clap/internal/modules/playback/repository"
 	playbacksvc "clap/internal/modules/playback/service"
@@ -335,7 +334,6 @@ func setupRouter(deps routerDeps) *gin.Engine {
 		shop.RegisterRoutes(v1)
 		video.RegisterRoutes(v1)
 		stats.RegisterRoutes(v1)
-		mobilehome.RegisterRoutes(v1)
 		// Phase 4 + 4.2: Realtime Engine Foundation + WebSocket Delivery Layer
 		realtime.RegisterRoutesWithWS(v1, realtime.WSConfig{
 			CM:           deps.cm,

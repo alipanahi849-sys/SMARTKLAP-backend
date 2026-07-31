@@ -4,14 +4,9 @@ import (
 	"context"
 	"net/http"
 	"testing"
-	"time"
 
 	authmodels "clap/internal/modules/auth/models"
-	chantsvc "clap/internal/modules/chant/service"
 	clubmodels "clap/internal/modules/club/models"
-	homesvc "clap/internal/modules/mobilehome/service"
-	shopmodels "clap/internal/modules/shop/models"
-	shopsvc "clap/internal/modules/shop/service"
 	statsmodels "clap/internal/modules/stats/models"
 	statssvc "clap/internal/modules/stats/service"
 	userdto "clap/internal/modules/user/dto"
@@ -209,88 +204,5 @@ func TestPlayer_DetailUnknownNotFound(t *testing.T) {
 	}
 	if status := appErrorStatus(t, err); status != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", status)
-	}
-}
-
-// ─── home tests ───────────────────────────────────────────────────────────────
-
-func TestHome_StadiumAggregates(t *testing.T) {
-	userRepo := newStubUserRepo()
-	matchRepo := newStubMatchRepo()
-	clubRepo := newStubClubRepo()
-	chantRepo := newStubChantRepo()
-	snackRepo := &stubSnackRepo{snacks: map[uuid.UUID]shopmodels.Snack{}}
-	productRepo := &stubProductRepo{products: map[uuid.UUID]shopmodels.Product{}}
-	cartRepo := newStubCartRepo()
-	orderRepo := newStubOrderRepo(cartRepo)
-
-	me := seedUser(userRepo, "Me", "me@example.com", 289)
-
-	shopService := shopsvc.NewShopService(snackRepo, productRepo, cartRepo, orderRepo)
-	chantService := chantsvc.NewChantService(chantRepo, matchRepo, nil, nil)
-
-	svc := homesvc.NewHomeService(userRepo, matchRepo, clubRepo, chantService, shopService)
-
-	resp, err := svc.Stadium(context.Background(), me.ID)
-	if err != nil {
-		t.Fatalf("Stadium failed: %v", err)
-	}
-	if resp.UserSummary.Points != 289 {
-		t.Fatalf("expected 289 points, got %d", resp.UserSummary.Points)
-	}
-	if resp.LiveMatch != nil {
-		t.Fatal("expected live_match to be nil when nothing is live")
-	}
-	if resp.ChantProgram.TodayTarget != chantsvc.DefaultDailyTarget {
-		t.Fatalf("unexpected today_target: %d", resp.ChantProgram.TodayTarget)
-	}
-}
-
-func TestHome_ClubAggregates(t *testing.T) {
-	userRepo := newStubUserRepo()
-	matchRepo := newStubMatchRepo()
-	clubRepo := newStubClubRepo()
-
-	home := clubmodels.Club{Name: "SP Burgos", LogoURL: "https://cdn/logo1.png"}
-	home.ID = uuid.New()
-	away := clubmodels.Club{Name: "FC Barcelona", LogoURL: "https://cdn/logo2.png"}
-	away.ID = uuid.New()
-	clubRepo.clubs[home.ID] = home
-	clubRepo.clubs[away.ID] = away
-
-	match := newScheduledMatch(matchRepo, time.Now().Add(36*time.Hour))
-	match.HomeClubID = home.ID
-	match.AwayClubID = away.ID
-
-	snackRepo := &stubSnackRepo{snacks: map[uuid.UUID]shopmodels.Snack{}}
-	productRepo := &stubProductRepo{products: map[uuid.UUID]shopmodels.Product{}}
-	addProduct(productRepo, "Sport T-shirt", 3250, `["M"]`)
-	cartRepo := newStubCartRepo()
-
-	svc := homesvc.NewHomeService(
-		userRepo, matchRepo, clubRepo,
-		chantsvc.NewChantService(newStubChantRepo(), matchRepo, nil, nil),
-		shopsvc.NewShopService(snackRepo, productRepo, cartRepo, newStubOrderRepo(cartRepo)),
-	)
-
-	resp, err := svc.Club(context.Background())
-	if err != nil {
-		t.Fatalf("Club failed: %v", err)
-	}
-	if len(resp.UpcomingMatches) != 1 {
-		t.Fatalf("expected 1 upcoming match, got %d", len(resp.UpcomingMatches))
-	}
-	um := resp.UpcomingMatches[0]
-	if um.HomeName != "SP Burgos" || um.AwayName != "FC Barcelona" {
-		t.Fatalf("unexpected team names: %q vs %q", um.HomeName, um.AwayName)
-	}
-	if um.Status != "upcoming" {
-		t.Fatalf("expected status upcoming, got %q", um.Status)
-	}
-	if um.CountdownSeconds <= 0 {
-		t.Fatal("expected a positive countdown")
-	}
-	if len(resp.ClubStore) != 1 {
-		t.Fatalf("expected 1 store item, got %d", len(resp.ClubStore))
 	}
 }
