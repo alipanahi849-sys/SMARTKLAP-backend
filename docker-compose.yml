@@ -35,6 +35,18 @@ services:
     networks:
       - clap_network
 
+  # Local SMTP catcher for OTP emails (no auth / no TLS).
+  # Web UI: http://localhost:8025
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: clap_mailhog
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web UI
+    networks:
+      - clap_network
+    restart: unless-stopped
+
   # One-shot: apply pending *.up.sql migrations and seed default roles.
   migrate:
     image: postgres:16-alpine
@@ -86,11 +98,21 @@ services:
       CORS_ALLOWED_ORIGINS: "*"
       CORS_ALLOWED_METHODS: GET,POST,PUT,DELETE,OPTIONS
       CORS_ALLOWED_HEADERS: Origin,Content-Type,Authorization
+      # OTP email via MailHog inside the compose network (not host "localhost").
+      SMTP_HOST: mailhog
+      SMTP_PORT: "1025"
+      SMTP_USERNAME: ""
+      SMTP_PASSWORD: ""
+      SMTP_FROM: noreply@clap.local
+      SMTP_FROM_NAME: Clap
+      SMTP_USE_TLS: "false"
     depends_on:
       migrate:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+      mailhog:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health || exit 1"]
       interval: 10s

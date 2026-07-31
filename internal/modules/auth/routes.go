@@ -24,8 +24,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	} else {
 		otpStore = service.NewMemoryOTPStore()
 	}
-	revealOTP := config.AppConfig != nil && config.AppConfig.Environment == "development"
-	otpSender := service.NewLogOTPSender(revealOTP)
+	otpSender := service.NewOTPSenderFromConfig(config.AppConfig)
 
 	authService := service.NewAuthServiceWithOTP(userRepo, roleRepo, refreshTokenRepo, otpStore, otpSender)
 	authHandler := handler.NewAuthHandler(authService)

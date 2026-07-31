@@ -296,6 +296,25 @@ curl -X GET http://localhost:8080/api/v1/users/me \
 | `JWT_ACCESS_EXPIRY` | Access token expiry (seconds) | 900 |
 | `JWT_REFRESH_EXPIRY` | Refresh token expiry (seconds) | 604800 |
 | `CORS_ALLOWED_ORIGINS` | CORS allowed origins | * |
+| `SMTP_HOST` | SMTP host (MailHog in Docker: `mailhog`) | localhost |
+| `SMTP_PORT` | SMTP port (MailHog: `1025`) | 1025 |
+| `SMTP_USERNAME` | SMTP username (empty for MailHog) | - |
+| `SMTP_PASSWORD` | SMTP password (empty for MailHog) | - |
+| `SMTP_FROM` | From email address | noreply@clap.local |
+| `SMTP_FROM_NAME` | From display name | Clap |
+| `SMTP_USE_TLS` | STARTTLS (`false` for MailHog) | false |
+
+### MailHog (local OTP inbox)
+
+Compose starts MailHog automatically:
+- SMTP: `localhost:1025` (host) / `mailhog:1025` (API container)
+- Web UI: [http://localhost:8025](http://localhost:8025)
+
+```bash
+docker compose up -d --build
+make test-smtp TO=test@clap.local
+# then open http://localhost:8025
+```
 
 ## Development
 

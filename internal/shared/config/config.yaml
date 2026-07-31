@@ -54,3 +54,12 @@ storage:
   signed_url_expiration_min: 30
   max_lyric_lines: 5000
   max_lyric_file_size_kb: 500
+
+smtp:
+  host: "localhost"
+  port: "1025"
+  username: ""
+  password: ""
+  from: "noreply@clap.local"
+  from_name: "Clap"
+  use_tls: false

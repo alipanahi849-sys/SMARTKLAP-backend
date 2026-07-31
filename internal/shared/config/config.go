@@ -18,6 +18,31 @@ type Config struct {
 	RateLimit   RateLimit `mapstructure:"rate_limit"`
 	Storage     Storage   `mapstructure:"storage"`
 	Realtime    Realtime  `mapstructure:"realtime"`
+	SMTP        SMTP      `mapstructure:"smtp"`
+}
+
+// SMTP holds outbound mail settings for OTP delivery.
+// When Host is empty the app falls back to logging OTPs (dev).
+type SMTP struct {
+	Host     string `mapstructure:"host"`
+	Port     string `mapstructure:"port"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
+	From     string `mapstructure:"from"`
+	FromName string `mapstructure:"from_name"`
+	UseTLS   bool   `mapstructure:"use_tls"`
+}
+
+func (s SMTP) Enabled() bool {
+	return strings.TrimSpace(s.Host) != ""
+}
+
+func (s SMTP) Address() string {
+	port := strings.TrimSpace(s.Port)
+	if port == "" {
+		port = "587"
+	}
+	return fmt.Sprintf("%s:%s", s.Host, port)
 }
 
 type Server struct {
@@ -212,6 +237,15 @@ func LoadFromEnv() error {
 			RealtimeEventRetentionDays:    getEnvAsInt("REALTIME_EVENT_RETENTION_DAYS", 0),
 			ShutdownDrainTimeoutSeconds:   getEnvAsInt("REALTIME_SHUTDOWN_DRAIN_TIMEOUT_SECONDS", 0),
 		},
+		SMTP: SMTP{
+			Host:     getEnv("SMTP_HOST", "localhost"),
+			Port:     getEnv("SMTP_PORT", "1025"),
+			Username: getEnv("SMTP_USERNAME", ""),
+			Password: getEnv("SMTP_PASSWORD", ""),
+			From:     getEnv("SMTP_FROM", "noreply@clap.local"),
+			FromName: getEnv("SMTP_FROM_NAME", "Clap"),
+			UseTLS:   getEnvAsBool("SMTP_USE_TLS", false),
+		},
 	}
 
 	applyRealtimeDefaults(AppConfig)
@@ -340,6 +374,21 @@ func getEnvAsInt(key string, defaultValue int) int {
 		return value
 	}
 	return defaultValue
+}
+
+func getEnvAsBool(key string, defaultValue bool) bool {
+	valueStr := strings.TrimSpace(strings.ToLower(getEnv(key, "")))
+	if valueStr == "" {
+		return defaultValue
+	}
+	switch valueStr {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return defaultValue
+	}
 }
 
 func GetDSN() string {
