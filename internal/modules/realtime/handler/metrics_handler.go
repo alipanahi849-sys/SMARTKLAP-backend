@@ -1,9 +1,8 @@
 package handler
 
 import (
-	"net/http"
-
 	"clap/internal/modules/realtime/metrics"
+	"clap/internal/shared/response"
 
 	"github.com/gin-gonic/gin"
 )
@@ -27,10 +26,10 @@ func NewMetricsHandler(m *metrics.Metrics) *MetricsHandler {
 //	@Tags			realtime
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Success		200	{object}	map[string]interface{}
-//	@Failure		401	{object}	map[string]interface{}
-//	@Failure		400	{object}	map[string]interface{}
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
 //	@Router			/api/v1/realtime/metrics [get]
 func (h *MetricsHandler) GetMetrics(c *gin.Context) {
-	c.JSON(http.StatusOK, h.m.Snapshot())
+	response.Success(c, h.m.Snapshot())
 }

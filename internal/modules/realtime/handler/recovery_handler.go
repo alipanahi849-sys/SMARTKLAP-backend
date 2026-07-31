@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"net/http"
-
 	"clap/internal/modules/realtime/service"
 	"clap/internal/shared/response"
 
@@ -38,7 +36,7 @@ func NewRecoveryHandler(svc service.ReconnectionRecoveryService) *RecoveryHandle
 func (h *RecoveryHandler) GetMatchState(c *gin.Context) {
 	matchID, err := uuid.Parse(c.Param("matchId"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid match_id"})
+		response.BadRequest(c, "invalid match_id")
 		return
 	}
 

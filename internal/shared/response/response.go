@@ -1,6 +1,7 @@
 package response
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"clap/internal/shared/errors"
@@ -8,10 +9,15 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// EmptyObject encodes as {} and is not dropped by omitempty.
+var EmptyObject = json.RawMessage(`{}`)
+
+
 type Response struct {
 	Success bool         `json:"success"`
+	Status  int          `json:"status"`
+	Message string       `json:"message"`
 	Data    interface{}  `json:"data,omitempty"`
-	Message string       `json:"message,omitempty"`
 	Error   *ErrorDetail `json:"error,omitempty"`
 }
 
@@ -23,8 +29,9 @@ type ErrorDetail struct {
 
 type PaginatedResponse struct {
 	Success bool           `json:"success"`
+	Status  int            `json:"status"`
+	Message string         `json:"message"`
 	Data    interface{}    `json:"data"`
-	Message string         `json:"message,omitempty"`
 	Meta    PaginationMeta `json:"meta"`
 }
 
@@ -36,25 +43,27 @@ type PaginationMeta struct {
 }
 
 func Success(c *gin.Context, data interface{}) {
-	c.JSON(http.StatusOK, Response{
-		Success: true,
-		Data:    data,
-	})
+	SuccessWithMessage(c, data, "OK")
 }
 
 func SuccessWithMessage(c *gin.Context, data interface{}, message string) {
+	if message == "" {
+		message = "OK"
+	}
 	c.JSON(http.StatusOK, Response{
 		Success: true,
-		Data:    data,
+		Status:  http.StatusOK,
 		Message: message,
+		Data:    data,
 	})
 }
 
 func Created(c *gin.Context, data interface{}) {
 	c.JSON(http.StatusCreated, Response{
 		Success: true,
-		Data:    data,
+		Status:  http.StatusCreated,
 		Message: "Resource created successfully",
+		Data:    data,
 	})
 }
 
@@ -72,6 +81,8 @@ func Error(c *gin.Context, err error) {
 
 	c.JSON(appErr.StatusCode, Response{
 		Success: false,
+		Status:  appErr.StatusCode,
+		Message: appErr.Message,
 		Error: &ErrorDetail{
 			Code:    appErr.Code,
 			Message: appErr.Message,
@@ -80,49 +91,54 @@ func Error(c *gin.Context, err error) {
 }
 
 func BadRequest(c *gin.Context, message string) {
-	c.JSON(http.StatusBadRequest, Response{
-		Success: false,
-		Error: &ErrorDetail{
-			Code:    400,
-			Message: message,
-		},
-	})
+	writeError(c, http.StatusBadRequest, message)
 }
 
 func Unauthorized(c *gin.Context, message string) {
-	c.JSON(http.StatusUnauthorized, Response{
-		Success: false,
-		Error: &ErrorDetail{
-			Code:    401,
-			Message: message,
-		},
-	})
+	writeError(c, http.StatusUnauthorized, message)
 }
 
 func Forbidden(c *gin.Context, message string) {
-	c.JSON(http.StatusForbidden, Response{
-		Success: false,
-		Error: &ErrorDetail{
-			Code:    403,
-			Message: message,
-		},
-	})
+	writeError(c, http.StatusForbidden, message)
 }
 
 func NotFound(c *gin.Context, message string) {
-	c.JSON(http.StatusNotFound, Response{
-		Success: false,
-		Error: &ErrorDetail{
-			Code:    404,
-			Message: message,
-		},
-	})
+	writeError(c, http.StatusNotFound, message)
+}
+
+func TooManyRequests(c *gin.Context, message string) {
+	writeError(c, http.StatusTooManyRequests, message)
+}
+
+func RequestTimeout(c *gin.Context, message string) {
+	writeError(c, http.StatusRequestTimeout, message)
+}
+
+func UnprocessableEntity(c *gin.Context, message string) {
+	writeError(c, http.StatusUnprocessableEntity, message)
 }
 
 func Paginated(c *gin.Context, data interface{}, meta PaginationMeta) {
 	c.JSON(http.StatusOK, PaginatedResponse{
 		Success: true,
+		Status:  http.StatusOK,
+		Message: "OK",
 		Data:    data,
 		Meta:    meta,
+	})
+}
+
+func writeError(c *gin.Context, status int, message string) {
+	if message == "" {
+		message = http.StatusText(status)
+	}
+	c.JSON(status, Response{
+		Success: false,
+		Status:  status,
+		Message: message,
+		Error: &ErrorDetail{
+			Code:    status,
+			Message: message,
+		},
 	})
 }

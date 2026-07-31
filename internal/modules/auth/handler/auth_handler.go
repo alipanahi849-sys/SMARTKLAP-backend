@@ -78,7 +78,7 @@ func (h *authHandler) Register(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, gin.H{"otp_sent": true})
+	response.SuccessWithMessage(c, response.EmptyObject, "OTP sent successfully")
 }
 
 // Login godoc
@@ -106,7 +106,7 @@ func (h *authHandler) Login(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, gin.H{"otp_sent": true})
+	response.SuccessWithMessage(c, response.EmptyObject, "OTP sent successfully")
 }
 
 // VerifyOTP godoc
@@ -136,7 +136,7 @@ func (h *authHandler) VerifyOTP(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, gin.H{
+	response.SuccessWithMessage(c, gin.H{
 		"access_token":  tokenPair.AccessToken,
 		"refresh_token": tokenPair.RefreshToken,
 		"user": gin.H{
@@ -145,7 +145,7 @@ func (h *authHandler) VerifyOTP(c *gin.Context) {
 			"email":  user.Email,
 			"points": user.Points,
 		},
-	})
+	}, "OTP verified successfully")
 }
 
 // RefreshToken godoc
@@ -173,7 +173,7 @@ func (h *authHandler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, tokenPair)
+	response.SuccessWithMessage(c, tokenPair, "Tokens refreshed successfully")
 }
 
 // GetMe godoc
@@ -199,7 +199,7 @@ func (h *authHandler) GetMe(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, user)
+	response.SuccessWithMessage(c, user, "User fetched successfully")
 }
 
 // UpdateProfile godoc
@@ -245,5 +245,5 @@ func (h *authHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, user)
+	response.SuccessWithMessage(c, user, "Profile updated successfully")
 }

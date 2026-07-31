@@ -8,6 +8,7 @@ import (
 	"clap/internal/shared/config"
 	"clap/internal/shared/logger"
 	"clap/internal/shared/redis"
+	"clap/internal/shared/response"
 
 	"github.com/gin-gonic/gin"
 	goredis "github.com/redis/go-redis/v9"
@@ -65,9 +66,7 @@ func ConnectionRateLimit() gin.HandlerFunc {
 				Str("client_ip", ip).
 				Int64("count", count).
 				Msg("websocket connection rate limit exceeded")
-			c.JSON(429, gin.H{
-				"error": "WebSocket connection rate limit exceeded. Try again shortly.",
-			})
+			response.TooManyRequests(c, "WebSocket connection rate limit exceeded. Try again shortly.")
 			c.Abort()
 			return
 		}

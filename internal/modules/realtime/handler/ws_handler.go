@@ -7,6 +7,7 @@ import (
 	"clap/internal/modules/realtime/ws"
 	"clap/internal/shared/config"
 	"clap/internal/shared/logger"
+	"clap/internal/shared/response"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -46,8 +47,8 @@ func NewWSHandler(cm *ws.ConnectionManager, m *metrics.Metrics) *WSHandler {
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Success		101	"Switching Protocols"
-//	@Failure		401	{object}	map[string]interface{}
-//	@Failure		400	{object}	map[string]interface{}
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
 //	@Router			/api/v1/realtime/ws [get]
 func (h *WSHandler) Connect(c *gin.Context) {
 	// 1. Authenticate before the upgrade — send HTTP 401 on failure.
@@ -61,9 +62,7 @@ func (h *WSHandler) Connect(c *gin.Context) {
 			Str("client_ip", c.ClientIP()).
 			Err(err).
 			Msg("websocket auth failure")
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "authentication required",
-		})
+		response.Unauthorized(c, "authentication required")
 		return
 	}
 

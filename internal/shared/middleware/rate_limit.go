@@ -7,6 +7,7 @@ import (
 
 	"clap/internal/shared/config"
 	"clap/internal/shared/redis"
+	"clap/internal/shared/response"
 
 	"github.com/gin-gonic/gin"
 )
@@ -34,7 +35,7 @@ func RateLimit(config RateLimitConfig) gin.HandlerFunc {
 		// Check minute limit
 		minuteCount, _ := redis.Get(ctx, minuteKey)
 		if minuteCount != "" && minuteCount == fmt.Sprintf("%d", config.RequestsPerMinute) {
-			c.JSON(429, gin.H{"error": "Rate limit exceeded (per minute)"})
+			response.TooManyRequests(c, "Rate limit exceeded (per minute)")
 			c.Abort()
 			return
 		}
@@ -42,7 +43,7 @@ func RateLimit(config RateLimitConfig) gin.HandlerFunc {
 		// Check hour limit
 		hourCount, _ := redis.Get(ctx, hourKey)
 		if hourCount != "" && hourCount == fmt.Sprintf("%d", config.RequestsPerHour) {
-			c.JSON(429, gin.H{"error": "Rate limit exceeded (per hour)"})
+			response.TooManyRequests(c, "Rate limit exceeded (per hour)")
 			c.Abort()
 			return
 		}
@@ -95,9 +96,7 @@ func AuthRateLimit() gin.HandlerFunc {
 
 		// Check limit
 		if newCount > int64(maxRequests) {
-			c.JSON(429, gin.H{
-				"error": "Rate limit exceeded",
-			})
+			response.TooManyRequests(c, "Rate limit exceeded")
 			c.Abort()
 			return
 		}

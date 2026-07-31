@@ -2,10 +2,10 @@ package middleware
 
 import (
 	"context"
-	"net/http"
 	"time"
 
 	"clap/internal/shared/config"
+	"clap/internal/shared/response"
 
 	"github.com/gin-gonic/gin"
 )
@@ -32,9 +32,8 @@ func Timeout() gin.HandlerFunc {
 		case <-finished:
 			return
 		case <-ctx.Done():
-			c.AbortWithStatusJSON(http.StatusRequestTimeout, gin.H{
-				"error": "Request timeout",
-			})
+			response.RequestTimeout(c, "Request timeout")
+			c.Abort()
 			return
 		}
 	}

@@ -401,6 +401,8 @@ definitions:
         $ref: '#/definitions/clap_internal_shared_response.ErrorDetail'
       message:
         type: string
+      status:
+        type: integer
       success:
         type: boolean
     type: object
@@ -2491,18 +2493,15 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/clap_internal_shared_response.Response'
         "400":
           description: Bad Request
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/clap_internal_shared_response.Response'
         "401":
           description: Unauthorized
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/clap_internal_shared_response.Response'
       security:
       - BearerAuth: []
       summary: Realtime metrics
@@ -2588,13 +2587,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/clap_internal_shared_response.Response'
         "401":
           description: Unauthorized
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/clap_internal_shared_response.Response'
       security:
       - BearerAuth: []
       summary: WebSocket connect

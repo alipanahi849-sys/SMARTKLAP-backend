@@ -6,9 +6,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"net/http"
 
 	"clap/internal/modules/idempotency/service"
+	"clap/internal/shared/response"
 
 	"github.com/gin-gonic/gin"
 )
@@ -51,7 +51,8 @@ func Idempotency(svc service.IdempotencyService) gin.HandlerFunc {
 		// Read and restore body so the handler can consume it normally.
 		rawBody, err := io.ReadAll(c.Request.Body)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "cannot read request body"})
+			response.BadRequest(c, "cannot read request body")
+			c.Abort()
 			return
 		}
 		c.Request.Body = io.NopCloser(bytes.NewBuffer(rawBody))
@@ -63,7 +64,8 @@ func Idempotency(svc service.IdempotencyService) gin.HandlerFunc {
 		if findErr == nil {
 			// Cached result exists — validate it was the same request.
 			if err := svc.ValidateRequestHash(existing, requestHash); err != nil {
-				c.AbortWithStatusJSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+				response.UnprocessableEntity(c, err.Error())
+				c.Abort()
 				return
 			}
 			// Replay the cached response.
