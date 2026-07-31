@@ -6,12 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// RankInfo is the user's leaderboard position (Mobile API Contract §2.1).
-type RankInfo struct {
-	Position int   `json:"position"`
-	Total    int64 `json:"total"`
-}
-
 // MobileProfileResponse is the shape of GET/PATCH /profile/me.
 // ID is the user id (not the profiles-table row id).
 type MobileProfileResponse struct {
