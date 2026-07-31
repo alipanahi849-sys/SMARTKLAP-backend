@@ -206,6 +206,9 @@ func (s *mobileProfileService) buildProfileResponse(ctx context.Context, user *a
 	}
 
 	return &dto.MobileProfileResponse{
+		ID:        user.ID,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
 		Name:      user.DisplayName(),
 		Email:     user.Email,
 		AvatarURL: s.avatarURLForUser(ctx, user.ID),

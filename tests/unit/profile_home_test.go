@@ -134,6 +134,9 @@ func TestProfile_GetMeIncludesRank(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetMe failed: %v", err)
 	}
+	if profile.ID != me.ID {
+		t.Fatalf("expected id %s, got %s", me.ID, profile.ID)
+	}
 	if profile.Points != 500 {
 		t.Fatalf("expected 500 points, got %d", profile.Points)
 	}

@@ -1,5 +1,11 @@
 package dto
 
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
+
 // RankInfo is the user's leaderboard position (Mobile API Contract §2.1).
 type RankInfo struct {
 	Position int   `json:"position"`
@@ -7,12 +13,16 @@ type RankInfo struct {
 }
 
 // MobileProfileResponse is the shape of GET/PATCH /profile/me.
+// ID is the user id (not the profiles-table row id).
 type MobileProfileResponse struct {
-	Name      string   `json:"name"`
-	Email     string   `json:"email"`
-	AvatarURL string   `json:"avatar_url"`
-	Points    int      `json:"points"`
-	Rank      RankInfo `json:"rank"`
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Name      string    `json:"name"`
+	Email     string    `json:"email"`
+	AvatarURL string    `json:"avatar_url"`
+	Points    int       `json:"points"`
+	Rank      RankInfo  `json:"rank"`
 }
 
 // UpdateMobileProfileRequest is the PATCH /profile/me body (§2.2).
