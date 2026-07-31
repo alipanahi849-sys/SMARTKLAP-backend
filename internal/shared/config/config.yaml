@@ -45,7 +45,9 @@ cors:
     - Authorization
 
 storage:
-  provider: "r2"
+  provider: "local"
+  local_root: "./uploads"
+  local_public_url: "/uploads"
   r2_account_id: ""
   r2_access_key_id: ""
   r2_secret_access_key: ""

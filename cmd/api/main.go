@@ -294,6 +294,15 @@ func setupRouter(deps routerDeps) *gin.Engine {
 
 	router.GET("/health", healthCheck)
 
+	// Disk-backed uploads are served from /uploads (local provider, or R2 fallback).
+	if config.AppConfig != nil {
+		root := config.AppConfig.Storage.LocalRoot
+		if root == "" {
+			root = "./uploads"
+		}
+		router.Static("/uploads", root)
+	}
+
 	// Swagger UI (disabled in production). Empty Host = same origin as the page
 	// (important behind nginx / remote servers; avoids localhost:8080 in Try it out).
 	if config.AppConfig.Environment != "production" {

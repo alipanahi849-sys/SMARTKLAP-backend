@@ -168,6 +168,7 @@ func (s *mobileProfileService) UploadAvatar(ctx context.Context, userID uuid.UUI
 
 	key := fmt.Sprintf("avatars/%s%s", userID.String(), ext)
 	if err := s.storage.Upload(ctx, key, src, mimeType, file.Size); err != nil {
+		logger.Error().Err(err).Str("user_id", userID.String()).Str("key", key).Msg("avatar_store_failed")
 		return nil, errors.NewInternal("Failed to store avatar", err)
 	}
 

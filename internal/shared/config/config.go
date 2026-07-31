@@ -97,6 +97,8 @@ type Storage struct {
 	R2AccessKeyID          string `mapstructure:"r2_access_key_id"`
 	R2SecretAccessKey      string `mapstructure:"r2_secret_access_key"`
 	R2Bucket               string `mapstructure:"r2_bucket"`
+	LocalRoot              string `mapstructure:"local_root"`
+	LocalPublicURL         string `mapstructure:"local_public_url"`
 	MaxAudioFileSizeMB     int    `mapstructure:"max_audio_file_size_mb"`
 	MaxVideoFileSizeMB     int    `mapstructure:"max_video_file_size_mb"`
 	SignedURLExpirationMin int    `mapstructure:"signed_url_expiration_min"`
@@ -216,11 +218,13 @@ func LoadFromEnv() error {
 			AuthWindowMinutes: getEnvAsInt("AUTH_RATE_LIMIT_WINDOW_MINUTES", 1),
 		},
 		Storage: Storage{
-			Provider:               getEnv("STORAGE_PROVIDER", "r2"),
+			Provider:               getEnv("STORAGE_PROVIDER", "local"),
 			R2AccountID:            getEnv("R2_ACCOUNT_ID", ""),
 			R2AccessKeyID:          getEnv("R2_ACCESS_KEY_ID", ""),
 			R2SecretAccessKey:      getEnv("R2_SECRET_ACCESS_KEY", ""),
 			R2Bucket:               getEnv("R2_BUCKET", ""),
+			LocalRoot:              getEnv("STORAGE_LOCAL_ROOT", "./uploads"),
+			LocalPublicURL:         getEnv("STORAGE_LOCAL_PUBLIC_URL", "/uploads"),
 			MaxAudioFileSizeMB:     getEnvAsInt("MAX_AUDIO_FILE_SIZE_MB", 20),
 			MaxVideoFileSizeMB:     getEnvAsInt("MAX_VIDEO_FILE_SIZE_MB", 50),
 			SignedURLExpirationMin: getEnvAsInt("SIGNED_URL_EXPIRATION_MINUTES", 30),
