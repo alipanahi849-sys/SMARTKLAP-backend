@@ -5620,14 +5620,14 @@ const docTemplate = `{
         "internal_modules_auth_handler.VerifyOTPRequest": {
             "type": "object",
             "required": [
-                "code",
-                "email"
+                "email",
+                "code"
             ],
             "properties": {
-                "code": {
+                "email": {
                     "type": "string"
                 },
-                "email": {
+                "code": {
                     "type": "string"
                 }
             }

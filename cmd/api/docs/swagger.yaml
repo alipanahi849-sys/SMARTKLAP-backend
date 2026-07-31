@@ -442,13 +442,13 @@ definitions:
     type: object
   internal_modules_auth_handler.VerifyOTPRequest:
     properties:
-      code:
-        type: string
       email:
         type: string
+      code:
+        type: string
     required:
-    - code
     - email
+    - code
     type: object
   internal_modules_user_handler.CreateProfileRequest:
     properties:
