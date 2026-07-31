@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// MobileProfileResponse is the shape of GET/PATCH /profile/me.
+// MobileProfileResponse is the shape of GET/PATCH /profile/mobile/me.
 // ID is the user id (not the profiles-table row id).
 type MobileProfileResponse struct {
 	ID        uuid.UUID `json:"id"`
@@ -18,7 +18,7 @@ type MobileProfileResponse struct {
 	Points    int       `json:"points"`
 }
 
-// UpdateMobileProfileRequest is the PATCH /profile/me body (§2.2).
+// UpdateMobileProfileRequest is the PATCH /profile/mobile/me body (§2.2).
 type UpdateMobileProfileRequest struct {
 	Name  *string `json:"name" binding:"omitempty,min=1,max=100"`
 	Email *string `json:"email" binding:"omitempty,email"`
@@ -32,12 +32,12 @@ type LeaderboardItem struct {
 	AvatarURL string `json:"avatar_url"`
 }
 
-// LeaderboardResponse wraps GET /profile/leaderboard.
+// LeaderboardResponse wraps GET /profile/mobile/leaderboard.
 type LeaderboardResponse struct {
 	Items []LeaderboardItem `json:"items"`
 }
 
-// AvatarUploadResponse is returned by POST /profile/me/avatar (§2.2).
+// AvatarUploadResponse is returned by POST /profile/mobile/me/avatar (§2.2).
 type AvatarUploadResponse struct {
 	AvatarURL string `json:"avatar_url"`
 }

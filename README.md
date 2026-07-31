@@ -231,10 +231,12 @@ PUT    /api/v1/users/me           (protected)
 
 ### Profiles
 ```
-GET    /api/v1/profiles/me        (protected)
-POST   /api/v1/profiles/me        (protected)
-PUT    /api/v1/profiles/me        (protected)
-DELETE /api/v1/profiles/me        (protected)
+GET    /api/v1/profile/me                      (protected)
+DELETE /api/v1/profile/me                      (protected)
+GET    /api/v1/profile/mobile/me               (protected)
+PATCH  /api/v1/profile/mobile/me               (protected)
+POST   /api/v1/profile/mobile/me/avatar        (protected)
+GET    /api/v1/profile/mobile/leaderboard      (protected)
 ```
 
 ## API Usage Examples

@@ -201,7 +201,7 @@ func (s *authService) createVerifiedUser(ctx context.Context, name, email string
 		return nil, err
 	}
 
-	// Profiles are required by GET /profiles/me; create an empty row with the user.
+	// Profiles row is used for avatar storage; create an empty one with the user.
 	if db := database.GetDB(); db != nil {
 		profile := &usermodels.Profile{UserID: user.ID}
 		if err := db.WithContext(ctx).Create(profile).Error; err != nil {

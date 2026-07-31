@@ -107,15 +107,15 @@ Resend: endpoint جدا ندارد — دوباره `POST /api/v1/auth/login` (�
 | Field | Value |
 |---|---|
 | **Screen Name** | Profile Screen |
-| **Endpoint** | `/api/v1/profile/me` |
+| **Endpoint** | `/api/v1/profile/mobile/me` |
 | **HTTP Method** | GET |
 | **Request** | بدون پارامتر |
-| **Response** | `200 OK` — `{ "name", "avatar_url", "points", "rank": { "position", "total" } }` + لیدربرد جدا |
+| **Response** | `200 OK` — `{ "id", "created_at", "updated_at", "name", "email", "avatar_url", "points" }` + لیدربرد جدا |
 | **Authentication** | Bearer |
 | **Error Codes** | استاندارد |
 | **Pagination** | ندارد |
 
-**لیدربرد (کارت‌های "Top ranks"):** `GET /api/v1/profile/leaderboard?limit=4`
+**لیدربرد (کارت‌های "Top ranks"):** `GET /api/v1/profile/mobile/leaderboard?limit=4`
 
 ```json
 {
@@ -140,15 +140,15 @@ Resend: endpoint جدا ندارد — دوباره `POST /api/v1/auth/login` (�
 | Field | Value |
 |---|---|
 | **Screen Name** | Edit Profile Screen |
-| **Endpoint** | `/api/v1/profile/me` |
+| **Endpoint** | `/api/v1/profile/mobile/me` |
 | **HTTP Method** | PATCH |
 | **Request** | `{ "name"?: "string", "email"?: "string" }` |
-| **Response** | `200 OK` — same shape as `GET /profile/me` |
+| **Response** | `200 OK` — same shape as `GET /profile/mobile/me` |
 | **Authentication** | Bearer |
 | **Error Codes** | `400` / `422` ایمیل تکراری · استاندارد |
 | **Pagination** | ندارد |
 
-**آپلود آواتار (جدا، multipart):** `POST /api/v1/profile/me/avatar` — فیلد `avatar` (image, max ۵MB) → `{ "avatar_url": "string" }`. خطای اضافه: `413` حجم فایل زیاد.
+**آپلود آواتار (جدا، multipart):** `POST /api/v1/profile/mobile/me/avatar` — فیلد `avatar` (image, max ۵MB) → `{ "avatar_url": "string" }`. خطای اضافه: `413` حجم فایل زیاد.
 
 ```json
 { "name": "John Smith", "email": "john@example.com", "avatar_url": "https://cdn.smartklap.com/avatars/usr_8f21.png", "points": 960, "rank": { "position": 3, "total": 128 } }
