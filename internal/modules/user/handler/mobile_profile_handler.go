@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"mime/multipart"
 	"strconv"
 
 	"clap/internal/modules/user/dto"
@@ -96,7 +97,7 @@ func (h *mobileProfileHandler) Leaderboard(c *gin.Context) {
 //	@Accept			mpfd
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			file	formData	file	true	"Avatar image"
+//	@Param			avatar	formData	file	true	"Avatar image"
 //	@Success		200	{object}	response.Response
 //	@Failure		401	{object}	response.Response
 //	@Failure		400	{object}	response.Response
@@ -108,8 +109,8 @@ func (h *mobileProfileHandler) UploadAvatar(c *gin.Context) {
 		return
 	}
 
-	file, err := c.FormFile("avatar")
-	if err != nil {
+	file := firstFormFile(c, "avatar", "file", "image", "photo")
+	if file == nil {
 		response.BadRequest(c, "avatar file is required")
 		return
 	}
@@ -120,4 +121,25 @@ func (h *mobileProfileHandler) UploadAvatar(c *gin.Context) {
 		return
 	}
 	response.Success(c, result)
+}
+
+// firstFormFile returns the first multipart file matching any of the given
+// field names, or the first uploaded file in the form as a fallback.
+func firstFormFile(c *gin.Context, names ...string) *multipart.FileHeader {
+	for _, name := range names {
+		if file, err := c.FormFile(name); err == nil && file != nil {
+			return file
+		}
+	}
+
+	form, err := c.MultipartForm()
+	if err != nil || form == nil {
+		return nil
+	}
+	for _, files := range form.File {
+		if len(files) > 0 && files[0] != nil {
+			return files[0]
+		}
+	}
+	return nil
 }
