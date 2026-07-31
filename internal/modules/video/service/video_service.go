@@ -174,9 +174,11 @@ func (s *videoService) Upload(ctx context.Context, userID uuid.UUID, file *multi
 	}
 
 	return &dto.VideoUploadResponse{
-		ID:       video.ID,
-		Status:   video.Status,
-		VideoURL: videoURL,
+		ID:        video.ID,
+		CreatedAt: video.CreatedAt,
+		UpdatedAt: video.UpdatedAt,
+		Status:    video.Status,
+		VideoURL:  videoURL,
 	}, nil
 }
 
@@ -247,6 +249,8 @@ func (s *videoService) buildFeedResponse(ctx context.Context, userID uuid.UUID, 
 
 		items[i] = dto.VideoItem{
 			ID:           v.ID,
+			CreatedAt:    v.CreatedAt,
+			UpdatedAt:    v.UpdatedAt,
 			VideoURL:     s.signedURL(ctx, v.StorageKey),
 			ThumbnailURL: s.signedURL(ctx, v.ThumbnailKey),
 			Author: dto.VideoAuthor{
