@@ -27,7 +27,7 @@ func NewProfileService(profileRepo repository.ProfileRepository) ProfileService 
 }
 
 func (s *profileService) GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error) {
-	return s.profileRepo.FindByUserID(ctx, userID)
+	return s.ensureProfile(ctx, userID)
 }
 
 func (s *profileService) CreateProfile(ctx context.Context, userID uuid.UUID, profile *models.Profile) (*models.Profile, error) {
@@ -45,7 +45,7 @@ func (s *profileService) CreateProfile(ctx context.Context, userID uuid.UUID, pr
 }
 
 func (s *profileService) UpdateProfile(ctx context.Context, userID uuid.UUID, updates map[string]interface{}) (*models.Profile, error) {
-	profile, err := s.profileRepo.FindByUserID(ctx, userID)
+	profile, err := s.ensureProfile(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -81,4 +81,23 @@ func (s *profileService) DeleteProfile(ctx context.Context, userID uuid.UUID) er
 		return err
 	}
 	return s.profileRepo.Delete(ctx, profile.ID)
+}
+
+// ensureProfile returns the user's profile row, creating an empty one when OTP
+// registration (or older accounts) never created it.
+func (s *profileService) ensureProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error) {
+	profile, err := s.profileRepo.FindByUserID(ctx, userID)
+	if err == nil {
+		return profile, nil
+	}
+	if err != errors.ErrUserNotFound {
+		return nil, err
+	}
+
+	profile = &models.Profile{UserID: userID}
+	if createErr := s.profileRepo.Create(ctx, profile); createErr != nil {
+		// Concurrent first GET may race; reload whatever won.
+		return s.profileRepo.FindByUserID(ctx, userID)
+	}
+	return s.profileRepo.FindByUserID(ctx, userID)
 }

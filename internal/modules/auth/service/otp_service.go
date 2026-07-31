@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"clap/internal/modules/auth/models"
+	usermodels "clap/internal/modules/user/models"
+	"clap/internal/shared/database"
 	"clap/internal/shared/errors"
 	"clap/internal/shared/logger"
 	"clap/internal/shared/utils"
@@ -197,6 +199,14 @@ func (s *authService) createVerifiedUser(ctx context.Context, name, email string
 	}
 	if err := s.userRepo.AddRole(ctx, user.ID, userRole.ID); err != nil {
 		return nil, err
+	}
+
+	// Profiles are required by GET /profiles/me; create an empty row with the user.
+	if db := database.GetDB(); db != nil {
+		profile := &usermodels.Profile{UserID: user.ID}
+		if err := db.WithContext(ctx).Create(profile).Error; err != nil {
+			return nil, errors.NewInternal("Failed to create user profile", err)
+		}
 	}
 
 	user, err = s.userRepo.FindByID(ctx, user.ID)
