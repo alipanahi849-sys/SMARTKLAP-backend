@@ -2,7 +2,7 @@
 //
 //	@title						Clap Backend API
 //	@version					1.0
-//	@description				Clap match-day experience backend (auth, clubs, matches, realtime, shop).
+//	@description				Clap match-day experience backend (auth, clubs, realtime, shop).
 //	@termsOfService				http://swagger.io/terms/
 //
 //	@contact.name				Clap API Support
@@ -40,7 +40,6 @@ import (
 	"clap/internal/modules/guess"
 	"clap/internal/modules/league"
 	lyricssvc "clap/internal/modules/lyricssync/service"
-	"clap/internal/modules/match"
 	"clap/internal/modules/matchruntime"
 	matchruntimerepo "clap/internal/modules/matchruntime/repository"
 	"clap/internal/modules/matchsongschedule"
@@ -326,7 +325,6 @@ func setupRouter(deps routerDeps) *gin.Engine {
 		season.RegisterRoutes(v1)
 		club.RegisterRoutes(v1)
 		clubseason.RegisterRoutes(v1)
-		match.RegisterRoutesWithPublisher(v1, deps.wsGateway)
 		song.RegisterRoutes(v1)
 		songlyric.RegisterRoutes(v1)
 		matchsongschedule.RegisterRoutes(v1)

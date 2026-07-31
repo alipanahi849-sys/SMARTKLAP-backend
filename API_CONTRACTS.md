@@ -207,7 +207,7 @@ Resend: endpoint جدا ندارد — دوباره `POST /api/v1/auth/login` (�
 | **Response** | `200 OK` — `upcoming_matches[]`, `club_store[]` |
 | **Authentication** | Bearer |
 | **Error Codes** | استاندارد |
-| **Pagination** | ندارد — هر دو preview هستند؛ لیست کامل: `GET /api/v1/matches`, `GET /api/v1/products` |
+| **Pagination** | ندارد — هر دو preview هستند؛ لیست کامل محصولات: `GET /api/v1/products` |
 
 ```json
 {
@@ -593,16 +593,7 @@ Resend: endpoint جدا ندارد — دوباره `POST /api/v1/auth/login` (�
 
 ### 9.1 Game Detail Screen
 
-| Field | Value |
-|---|---|
-| **Screen Name** | Game Detail Screen |
-| **Endpoint** | `/api/v1/matches/{match_id}` |
-| **HTTP Method** | GET |
-| **Request** | Path param `match_id` |
-| **Response** | `200 OK` — `{ "home_team","away_team","score","minute","stadium","stats":[{ "label","home","away" }],"timeline":[...],"squads":[{ "title","players":[{ "name","position","photo_url" }] }] }` |
-| **Authentication** | Bearer |
-| **Error Codes** | `404` · استاندارد |
-| **Pagination** | ندارد |
+Removed — the public `/api/v1/matches` CRUD/detail API is no longer exposed.
 
 ```json
 {

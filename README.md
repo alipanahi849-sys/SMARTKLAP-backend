@@ -35,7 +35,7 @@ clap/
 │   │   │   └── routes.go
 │   │   ├── user/           # User profile module (example)
 │   │   ├── club/           # Club management (placeholder)
-│   │   ├── match/          # Match scheduling (placeholder)
+│   │   ├── match/          # Match models + repository (internal)
 │   │   ├── song/           # Song/anthem management (placeholder)
 │   │   └── realtime/       # Realtime event interfaces
 │   └── shared/             # Shared infrastructure
@@ -370,7 +370,6 @@ Migration files are located in `pkg/migrations/`:
 
 - WebSocket integration for realtime features
 - Centrifugo or NATS for scalable pub/sub
-- Match scheduling and management
 - Anthem synchronization
 - Lyrics synchronization
 - Flash/vibration events

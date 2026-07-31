@@ -11,8 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// RegisterRoutes wires the Players endpoint (Mobile API Contract §9.2). Match
-// detail statistics are served through the existing GET /matches/:id.
+// RegisterRoutes wires the Players endpoint (Mobile API Contract §9.2).
 func RegisterRoutes(r *gin.RouterGroup) {
 	db := database.GetDB()
 
