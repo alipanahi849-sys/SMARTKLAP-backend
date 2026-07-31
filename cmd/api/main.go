@@ -49,7 +49,6 @@ import (
 	realtimerepo "clap/internal/modules/realtime/repository"
 	realtimesvc "clap/internal/modules/realtime/service"
 	realtimews "clap/internal/modules/realtime/ws"
-	"clap/internal/modules/season"
 	"clap/internal/modules/shop"
 	"clap/internal/modules/song"
 	"clap/internal/modules/songlyric"
@@ -315,7 +314,6 @@ func setupRouter(deps routerDeps) *gin.Engine {
 	{
 		auth.RegisterRoutes(v1)
 		user.RegisterRoutes(v1)
-		season.RegisterRoutes(v1)
 		song.RegisterRoutes(v1)
 		songlyric.RegisterRoutes(v1)
 		matchsongschedule.RegisterRoutes(v1)
