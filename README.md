@@ -223,12 +223,6 @@ POST   /api/v1/auth/refresh
 
 
 
-### Users
-```
-GET    /api/v1/users/me           (protected)
-PUT    /api/v1/users/me           (protected)
-```
-
 ### Profiles
 ```
 GET    /api/v1/profile/me                 (protected)
@@ -271,7 +265,7 @@ curl -X POST http://localhost:8080/api/v1/auth/verify-otp \
 
 ### Access protected route
 ```bash
-curl -X GET http://localhost:8080/api/v1/users/me \
+curl -X GET http://localhost:8080/api/v1/profile/me \
   -H "Authorization: Bearer <access_token>"
 ```
 

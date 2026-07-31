@@ -6,8 +6,6 @@ import (
 	"clap/internal/shared/errors"
 	"clap/internal/shared/utils"
 	"context"
-
-	"github.com/google/uuid"
 )
 
 type AuthService interface {
@@ -17,8 +15,6 @@ type AuthService interface {
 	VerifyOTP(ctx context.Context, email, code, ipAddress, userAgent string) (*models.User, *utils.TokenPair, error)
 
 	RefreshToken(ctx context.Context, refreshToken string) (*utils.TokenPair, error)
-	GetUser(ctx context.Context, userID uuid.UUID) (*models.User, error)
-	UpdateUser(ctx context.Context, userID uuid.UUID, updates map[string]interface{}) (*models.User, error)
 }
 
 type authService struct {
@@ -85,33 +81,6 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*u
 	}
 
 	return newTokenPair, nil
-}
-
-func (s *authService) GetUser(ctx context.Context, userID uuid.UUID) (*models.User, error) {
-	return s.userRepo.FindByID(ctx, userID)
-}
-
-func (s *authService) UpdateUser(ctx context.Context, userID uuid.UUID, updates map[string]interface{}) (*models.User, error) {
-	user, err := s.userRepo.FindByID(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	if firstName, ok := updates["first_name"].(string); ok {
-		user.FirstName = firstName
-	}
-	if lastName, ok := updates["last_name"].(string); ok {
-		user.LastName = lastName
-	}
-	if phone, ok := updates["phone"].(string); ok {
-		user.Phone = phone
-	}
-
-	if err := s.userRepo.Update(ctx, user); err != nil {
-		return nil, err
-	}
-
-	return s.userRepo.FindByID(ctx, userID)
 }
 
 func (s *authService) generateTokenPair(ctx context.Context, user *models.User, ipAddress, userAgent string) (*utils.TokenPair, error) {

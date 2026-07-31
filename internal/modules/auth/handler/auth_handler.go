@@ -2,11 +2,9 @@ package handler
 
 import (
 	"clap/internal/modules/auth/service"
-	"clap/internal/shared/middleware"
 	"clap/internal/shared/response"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 type AuthHandler interface {
@@ -14,8 +12,6 @@ type AuthHandler interface {
 	Login(c *gin.Context)
 	VerifyOTP(c *gin.Context)
 	RefreshToken(c *gin.Context)
-	GetMe(c *gin.Context)
-	UpdateProfile(c *gin.Context)
 }
 
 type authHandler struct {
@@ -46,12 +42,6 @@ type VerifyOTPRequest struct {
 
 type RefreshTokenRequest struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
-}
-
-type UpdateProfileRequest struct {
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Phone     string `json:"phone"`
 }
 
 // Register godoc
@@ -168,76 +158,4 @@ func (h *authHandler) RefreshToken(c *gin.Context) {
 	}
 
 	response.SuccessWithMessage(c, tokenPair, "Tokens refreshed successfully")
-}
-
-// GetMe godoc
-//
-//	@Summary		Current user
-//	@Description	Return the authenticated user profile
-//	@Tags			users
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Success		200	{object}	response.Response
-//	@Failure		401	{object}	response.Response
-//	@Router			/api/v1/users/me [get]
-func (h *authHandler) GetMe(c *gin.Context) {
-	userID := middleware.GetUserID(c)
-	if userID == uuid.Nil {
-		response.Unauthorized(c, "Invalid user")
-		return
-	}
-
-	user, err := h.authService.GetUser(c.Request.Context(), userID)
-	if err != nil {
-		response.Error(c, err)
-		return
-	}
-
-	response.SuccessWithMessage(c, user, "User fetched successfully")
-}
-
-// UpdateProfile godoc
-//
-//	@Summary		Update profile
-//	@Description	Update the authenticated user profile fields
-//	@Tags			users
-//	@Accept			json
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Param			body	body		UpdateProfileRequest	true	"Profile fields"
-//	@Success		200		{object}	response.Response
-//	@Failure		400		{object}	response.Response
-//	@Failure		401		{object}	response.Response
-//	@Router			/api/v1/users/me [put]
-func (h *authHandler) UpdateProfile(c *gin.Context) {
-	userID := middleware.GetUserID(c)
-	if userID == uuid.Nil {
-		response.Unauthorized(c, "Invalid user")
-		return
-	}
-
-	var req UpdateProfileRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
-		return
-	}
-
-	updates := make(map[string]interface{})
-	if req.FirstName != "" {
-		updates["first_name"] = req.FirstName
-	}
-	if req.LastName != "" {
-		updates["last_name"] = req.LastName
-	}
-	if req.Phone != "" {
-		updates["phone"] = req.Phone
-	}
-
-	user, err := h.authService.UpdateUser(c.Request.Context(), userID, updates)
-	if err != nil {
-		response.Error(c, err)
-		return
-	}
-
-	response.SuccessWithMessage(c, user, "Profile updated successfully")
 }
