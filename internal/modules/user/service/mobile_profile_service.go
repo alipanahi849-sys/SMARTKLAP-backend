@@ -196,15 +196,6 @@ func (s *mobileProfileService) UploadAvatar(ctx context.Context, userID uuid.UUI
 // ─── internals ────────────────────────────────────────────────────────────────
 
 func (s *mobileProfileService) buildProfileResponse(ctx context.Context, user *authmodels.User) (*dto.MobileProfileResponse, error) {
-	total, err := s.userRepo.CountActive(ctx)
-	if err != nil {
-		return nil, err
-	}
-	ahead, err := s.userRepo.CountWithMorePoints(ctx, user.Points)
-	if err != nil {
-		return nil, err
-	}
-
 	return &dto.MobileProfileResponse{
 		ID:        user.ID,
 		CreatedAt: user.CreatedAt,
@@ -213,10 +204,6 @@ func (s *mobileProfileService) buildProfileResponse(ctx context.Context, user *a
 		Email:     user.Email,
 		AvatarURL: s.avatarURLForUser(ctx, user.ID),
 		Points:    user.Points,
-		Rank: dto.RankInfo{
-			Position: int(ahead) + 1,
-			Total:    total,
-		},
 	}, nil
 }
 

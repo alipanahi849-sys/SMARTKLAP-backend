@@ -123,7 +123,7 @@ func seedUser(repo *stubUserRepo, name, email string, points int) *authmodels.Us
 	return u
 }
 
-func TestProfile_GetMeIncludesRank(t *testing.T) {
+func TestProfile_GetMeIncludesIdentity(t *testing.T) {
 	svc, userRepo := newProfileFixture()
 
 	seedUser(userRepo, "Leader", "leader@example.com", 900)
@@ -137,14 +137,11 @@ func TestProfile_GetMeIncludesRank(t *testing.T) {
 	if profile.ID != me.ID {
 		t.Fatalf("expected id %s, got %s", me.ID, profile.ID)
 	}
+	if profile.Name != "Me" {
+		t.Fatalf("expected name Me, got %q", profile.Name)
+	}
 	if profile.Points != 500 {
 		t.Fatalf("expected 500 points, got %d", profile.Points)
-	}
-	if profile.Rank.Position != 2 {
-		t.Fatalf("expected rank 2, got %d", profile.Rank.Position)
-	}
-	if profile.Rank.Total != 3 {
-		t.Fatalf("expected total 3, got %d", profile.Rank.Total)
 	}
 }
 

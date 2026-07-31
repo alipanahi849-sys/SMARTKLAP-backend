@@ -22,7 +22,6 @@ type MobileProfileResponse struct {
 	Email     string    `json:"email"`
 	AvatarURL string    `json:"avatar_url"`
 	Points    int       `json:"points"`
-	Rank      RankInfo  `json:"rank"`
 }
 
 // UpdateMobileProfileRequest is the PATCH /profile/me body (§2.2).
