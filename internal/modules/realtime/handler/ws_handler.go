@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"clap/internal/modules/realtime/metrics"
 	"clap/internal/modules/realtime/ws"
@@ -42,7 +43,7 @@ func NewWSHandler(cm *ws.ConnectionManager, m *metrics.Metrics) *WSHandler {
 // WebSocket connect godoc
 //
 //	@Summary		WebSocket connect
-//	@Description	Upgrade to WebSocket. JWT required (query or header).
+//	@Description	Real WebSocket upgrade endpoint. Swagger "Try it out" cannot open sockets (plain GET → 400). Use a WS client: Authorization Bearer JWT only (no query token). Example: ws(s)://HOST/api/v1/realtime/ws
 //	@Tags			realtime
 //	@Produce		json
 //	@Security		BearerAuth
@@ -66,6 +67,13 @@ func (h *WSHandler) Connect(c *gin.Context) {
 		return
 	}
 
+	// Swagger / curl without Upgrade headers hit a plain GET; return a clear
+	// JSON 400 instead of gorilla's opaque "Bad Request" text body.
+	if !isWebSocketHandshake(c.Request) {
+		response.BadRequest(c, "WebSocket upgrade required (Connection: Upgrade, Upgrade: websocket). Swagger Try-it-out cannot open WebSockets — use a WS client with Authorization: Bearer <token>.")
+		return
+	}
+
 	// 2. Upgrade.
 	conn, upgradeErr := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if upgradeErr != nil {
@@ -85,4 +93,16 @@ func (h *WSHandler) Connect(c *gin.Context) {
 
 	go client.WritePump()
 	go client.ReadPump()
+}
+
+func isWebSocketHandshake(r *http.Request) bool {
+	if !strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+		return false
+	}
+	for _, part := range strings.Split(r.Header.Get("Connection"), ",") {
+		if strings.EqualFold(strings.TrimSpace(part), "upgrade") {
+			return true
+		}
+	}
+	return false
 }
