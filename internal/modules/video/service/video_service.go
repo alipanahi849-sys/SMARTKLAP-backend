@@ -90,9 +90,6 @@ func (s *videoService) Mine(ctx context.Context, userID uuid.UUID, page, limit i
 }
 
 func (s *videoService) Upload(ctx context.Context, userID uuid.UUID, file *multipart.FileHeader, mediaType, caption string) (*dto.VideoUploadResponse, error) {
-	if mediaType != models.MediaTypeImage && mediaType != models.MediaTypeVideo {
-		return nil, errors.NewBadRequest("type must be 'image' or 'video'", nil)
-	}
 	if file.Size > s.maxFileSize {
 		return nil, errors.NewPayloadTooLarge(
 			fmt.Sprintf("File exceeds the %d MB limit", s.maxFileSize/(1024*1024)), nil,
@@ -104,6 +101,21 @@ func (s *videoService) Upload(ctx context.Context, userID uuid.UUID, file *multi
 		mimeType = mime.TypeByExtension(filepath.Ext(file.Filename))
 	}
 	mimeType = strings.ToLower(mimeType)
+
+	mediaType = strings.ToLower(strings.TrimSpace(mediaType))
+	if mediaType == "" {
+		switch {
+		case strings.HasPrefix(mimeType, "video/"):
+			mediaType = models.MediaTypeVideo
+		case strings.HasPrefix(mimeType, "image/"):
+			mediaType = models.MediaTypeImage
+		default:
+			return nil, errors.NewBadRequest("type must be 'image' or 'video'", nil)
+		}
+	}
+	if mediaType != models.MediaTypeImage && mediaType != models.MediaTypeVideo {
+		return nil, errors.NewBadRequest("type must be 'image' or 'video'", nil)
+	}
 
 	allowed := allowedImageMimes
 	if mediaType == models.MediaTypeVideo {

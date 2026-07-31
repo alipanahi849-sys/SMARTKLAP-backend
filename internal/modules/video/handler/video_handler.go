@@ -86,7 +86,8 @@ func (h *videoHandler) Mine(c *gin.Context) {
 //	@Accept			mpfd
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			file	formData	file	true	"Video file"
+//	@Param			media	formData	file	true	"Media file (image or video)"
+//	@Param			type	formData	string	false	"image or video (inferred from file when omitted)"
 //	@Param			caption	formData	string	false	"Caption"
 //	@Success		200	{object}	response.Response
 //	@Failure		401	{object}	response.Response
@@ -99,8 +100,8 @@ func (h *videoHandler) Upload(c *gin.Context) {
 		return
 	}
 
-	file, err := c.FormFile("media")
-	if err != nil {
+	file := utils.FirstFormFile(c, "media", "file", "video", "image")
+	if file == nil {
 		response.BadRequest(c, "media file is required")
 		return
 	}

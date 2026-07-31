@@ -1,13 +1,13 @@
 package handler
 
 import (
-	"mime/multipart"
 	"strconv"
 
 	"clap/internal/modules/user/dto"
 	"clap/internal/modules/user/service"
 	"clap/internal/shared/middleware"
 	"clap/internal/shared/response"
+	"clap/internal/shared/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -109,7 +109,7 @@ func (h *mobileProfileHandler) UploadAvatar(c *gin.Context) {
 		return
 	}
 
-	file := firstFormFile(c, "avatar", "file", "image", "photo")
+	file := utils.FirstFormFile(c, "avatar", "file", "image", "photo")
 	if file == nil {
 		response.BadRequest(c, "avatar file is required")
 		return
@@ -121,25 +121,4 @@ func (h *mobileProfileHandler) UploadAvatar(c *gin.Context) {
 		return
 	}
 	response.Success(c, result)
-}
-
-// firstFormFile returns the first multipart file matching any of the given
-// field names, or the first uploaded file in the form as a fallback.
-func firstFormFile(c *gin.Context, names ...string) *multipart.FileHeader {
-	for _, name := range names {
-		if file, err := c.FormFile(name); err == nil && file != nil {
-			return file
-		}
-	}
-
-	form, err := c.MultipartForm()
-	if err != nil || form == nil {
-		return nil
-	}
-	for _, files := range form.File {
-		if len(files) > 0 && files[0] != nil {
-			return files[0]
-		}
-	}
-	return nil
 }
