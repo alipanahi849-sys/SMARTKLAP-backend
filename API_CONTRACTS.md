@@ -595,32 +595,6 @@ Resend: endpoint جدا ندارد — دوباره `POST /api/v1/auth/login` (�
 
 Removed — the public `/api/v1/matches` CRUD/detail API is no longer exposed.
 
-```json
-{
-  "home_team": { "name": "SP Burgos", "logo_url": "https://cdn.smartklap.com/logos/burgos.png" },
-  "away_team": { "name": "FC Barcelona", "logo_url": "https://cdn.smartklap.com/logos/barcelona.png" },
-  "score": "3 : 2",
-  "minute": "90+6",
-  "stadium": "Camp Nou",
-  "stats": [
-    { "label": "Total shots", "home": 95, "away": 85 },
-    { "label": "Possession", "home": 55, "away": 45 }
-  ],
-  "timeline": [
-    { "kind": "marker", "minute": "45+3", "score": "2 - 1" },
-    { "kind": "event", "side": "home", "type": "goal", "name": "Dani Alves", "minute": "66", "highlighted": true }
-  ],
-  "squads": [
-    {
-      "title": "Forward",
-      "players": [
-        { "id": "p_1", "name": "Gerard Pique", "position": "Forward", "photo_url": "https://cdn.smartklap.com/players/p1.png" }
-      ]
-    }
-  ]
-}
-```
-
 ### 9.2 Players Screen
 
 | Field | Value |
