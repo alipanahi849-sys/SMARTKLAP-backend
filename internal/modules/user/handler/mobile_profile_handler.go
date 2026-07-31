@@ -12,9 +12,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// MobileProfileHandler serves mobile Profile screens nested under /profile/mobile.
+// MobileProfileHandler serves update/avatar/leaderboard under /profile.
 type MobileProfileHandler interface {
-	GetMe(c *gin.Context)
 	UpdateMe(c *gin.Context)
 	Leaderboard(c *gin.Context)
 	UploadAvatar(c *gin.Context)
@@ -28,35 +27,10 @@ func NewMobileProfileHandler(svc service.MobileProfileService) MobileProfileHand
 	return &mobileProfileHandler{svc: svc}
 }
 
-// Mobile profile me godoc
+// Update profile godoc
 //
-//	@Summary		Get mobile profile
-//	@Tags			profile/mobile
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Success		200	{object}	response.Response
-//	@Failure		401	{object}	response.Response
-//	@Failure		400	{object}	response.Response
-//	@Router			/api/v1/profile/mobile/me [get]
-func (h *mobileProfileHandler) GetMe(c *gin.Context) {
-	userID := middleware.GetUserID(c)
-	if userID == uuid.Nil {
-		response.Unauthorized(c, "Invalid user")
-		return
-	}
-
-	profile, err := h.svc.GetMe(c.Request.Context(), userID)
-	if err != nil {
-		response.Error(c, err)
-		return
-	}
-	response.Success(c, profile)
-}
-
-// Update mobile profile godoc
-//
-//	@Summary		Update mobile profile
-//	@Tags			profile/mobile
+//	@Summary		Update profile
+//	@Tags			profile
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
@@ -64,7 +38,7 @@ func (h *mobileProfileHandler) GetMe(c *gin.Context) {
 //	@Success		200	{object}	response.Response
 //	@Failure		401	{object}	response.Response
 //	@Failure		400	{object}	response.Response
-//	@Router			/api/v1/profile/mobile/me [patch]
+//	@Router			/api/v1/profile/me [patch]
 func (h *mobileProfileHandler) UpdateMe(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
@@ -89,13 +63,13 @@ func (h *mobileProfileHandler) UpdateMe(c *gin.Context) {
 // Leaderboard godoc
 //
 //	@Summary		Leaderboard
-//	@Tags			profile/mobile
+//	@Tags			profile
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Success		200	{object}	response.Response
 //	@Failure		401	{object}	response.Response
 //	@Failure		400	{object}	response.Response
-//	@Router			/api/v1/profile/mobile/leaderboard [get]
+//	@Router			/api/v1/profile/leaderboard [get]
 func (h *mobileProfileHandler) Leaderboard(c *gin.Context) {
 	limit := 4
 	if raw, ok := c.GetQuery("limit"); ok {
@@ -118,7 +92,7 @@ func (h *mobileProfileHandler) Leaderboard(c *gin.Context) {
 // Upload avatar godoc
 //
 //	@Summary		Upload avatar
-//	@Tags			profile/mobile
+//	@Tags			profile
 //	@Accept			mpfd
 //	@Produce		json
 //	@Security		BearerAuth
@@ -126,7 +100,7 @@ func (h *mobileProfileHandler) Leaderboard(c *gin.Context) {
 //	@Success		200	{object}	response.Response
 //	@Failure		401	{object}	response.Response
 //	@Failure		400	{object}	response.Response
-//	@Router			/api/v1/profile/mobile/me/avatar [post]
+//	@Router			/api/v1/profile/me/avatar [post]
 func (h *mobileProfileHandler) UploadAvatar(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
