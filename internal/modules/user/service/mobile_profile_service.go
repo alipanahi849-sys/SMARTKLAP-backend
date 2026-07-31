@@ -193,34 +193,55 @@ func (s *mobileProfileService) UploadAvatar(ctx context.Context, userID uuid.UUI
 		}
 	}
 
+	// Reload so CreatedAt/UpdatedAt match what we return (like video upload).
+	if reloaded, reloadErr := s.profileRepo.FindByUserID(ctx, userID); reloadErr == nil && reloaded != nil {
+		profile = reloaded
+	}
+
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
 	logger.Info().
 		Str("user_id", userID.String()).
 		Str("storage_key", key).
 		Msg("avatar_uploaded")
 
-	return &dto.AvatarUploadResponse{AvatarURL: s.resolveAvatarURL(ctx, key)}, nil
+	return &dto.AvatarUploadResponse{
+		ID:        user.ID,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: latestTime(user.UpdatedAt, profile.UpdatedAt),
+		AvatarURL: s.resolveAvatarURL(ctx, key),
+	}, nil
 }
 
 // ─── internals ────────────────────────────────────────────────────────────────
 
 func (s *mobileProfileService) buildProfileResponse(ctx context.Context, user *authmodels.User) (*dto.MobileProfileResponse, error) {
+	updatedAt := user.UpdatedAt
+	avatarURL := ""
+	if profile, err := s.profileRepo.FindByUserID(ctx, user.ID); err == nil && profile != nil {
+		avatarURL = s.resolveAvatarURL(ctx, profile.AvatarURL)
+		updatedAt = latestTime(user.UpdatedAt, profile.UpdatedAt)
+	}
+
 	return &dto.MobileProfileResponse{
 		ID:        user.ID,
 		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
+		UpdatedAt: updatedAt,
 		Name:      user.DisplayName(),
 		Email:     user.Email,
-		AvatarURL: s.avatarURLForUser(ctx, user.ID),
+		AvatarURL: avatarURL,
 		Points:    user.Points,
 	}, nil
 }
 
-func (s *mobileProfileService) avatarURLForUser(ctx context.Context, userID uuid.UUID) string {
-	profile, err := s.profileRepo.FindByUserID(ctx, userID)
-	if err != nil || profile == nil {
-		return ""
+func latestTime(a, b time.Time) time.Time {
+	if b.After(a) {
+		return b
 	}
-	return s.resolveAvatarURL(ctx, profile.AvatarURL)
+	return a
 }
 
 // resolveAvatarURL turns a stored value into a fetchable URL. Absolute URLs

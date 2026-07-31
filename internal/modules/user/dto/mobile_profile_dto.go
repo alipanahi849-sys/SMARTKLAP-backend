@@ -39,5 +39,8 @@ type LeaderboardResponse struct {
 
 // AvatarUploadResponse is returned by POST /profile/me/avatar (§2.2).
 type AvatarUploadResponse struct {
-	AvatarURL string `json:"avatar_url"`
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	AvatarURL string    `json:"avatar_url"`
 }
