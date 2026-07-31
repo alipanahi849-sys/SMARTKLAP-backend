@@ -14,15 +14,6 @@ import (
 func RegisterRoutes(r *gin.RouterGroup) {
 	profileRepo := repository.NewProfileRepository()
 	profileService := service.NewProfileService(profileRepo)
-	profileHandler := handler.NewProfileHandler(profileService)
-
-	profileGroup := r.Group("/profiles")
-	{
-		profileGroup.GET("/me", middleware.Auth(), profileHandler.GetProfile)
-		profileGroup.POST("/me", middleware.Auth(), profileHandler.CreateProfile)
-		profileGroup.PUT("/me", middleware.Auth(), profileHandler.UpdateProfile)
-		profileGroup.DELETE("/me", middleware.Auth(), profileHandler.DeleteProfile)
-	}
 
 	// Mobile Profile screens (Mobile API Contract §2).
 	mobileSvc := service.NewMobileProfileService(
@@ -31,6 +22,18 @@ func RegisterRoutes(r *gin.RouterGroup) {
 		storageinit.Provider(),
 	)
 	mobileHandler := handler.NewMobileProfileHandler(mobileSvc)
+
+	// /profiles/me aliases the same compact response for clients using the plural path.
+	profileHandler := handler.NewProfileHandler(mobileSvc, profileService)
+
+	profileGroup := r.Group("/profiles")
+	{
+		profileGroup.GET("/me", middleware.Auth(), profileHandler.GetProfile)
+		profileGroup.POST("/me", middleware.Auth(), profileHandler.CreateProfile)
+		profileGroup.PUT("/me", middleware.Auth(), profileHandler.UpdateProfile)
+		profileGroup.PATCH("/me", middleware.Auth(), profileHandler.UpdateProfile)
+		profileGroup.DELETE("/me", middleware.Auth(), profileHandler.DeleteProfile)
+	}
 
 	mobileGroup := r.Group("/profile")
 	{

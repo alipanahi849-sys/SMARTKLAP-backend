@@ -1,7 +1,10 @@
 package handler
 
 import (
-	"clap/internal/modules/user/models"
+	"bytes"
+	"io"
+
+	"clap/internal/modules/user/dto"
 	"clap/internal/modules/user/service"
 	"clap/internal/shared/middleware"
 	"clap/internal/shared/response"
@@ -10,6 +13,8 @@ import (
 	"github.com/google/uuid"
 )
 
+// ProfileHandler serves /api/v1/profiles/me with the same compact mobile shape
+// as /api/v1/profile/me (contract §2): name, email, avatar_url, points, rank.
 type ProfileHandler interface {
 	GetProfile(c *gin.Context)
 	CreateProfile(c *gin.Context)
@@ -18,29 +23,15 @@ type ProfileHandler interface {
 }
 
 type profileHandler struct {
-	profileService service.ProfileService
+	mobileSvc  service.MobileProfileService
+	profileSvc service.ProfileService
 }
 
-func NewProfileHandler(profileService service.ProfileService) ProfileHandler {
+func NewProfileHandler(mobileSvc service.MobileProfileService, profileSvc service.ProfileService) ProfileHandler {
 	return &profileHandler{
-		profileService: profileService,
+		mobileSvc:  mobileSvc,
+		profileSvc: profileSvc,
 	}
-}
-
-type CreateProfileRequest struct {
-	Bio         string `json:"bio"`
-	AvatarURL   string `json:"avatar_url"`
-	DateOfBirth string `json:"date_of_birth"`
-	Country     string `json:"country"`
-	City        string `json:"city"`
-}
-
-type UpdateProfileRequest struct {
-	Bio         string `json:"bio"`
-	AvatarURL   string `json:"avatar_url"`
-	DateOfBirth string `json:"date_of_birth"`
-	Country     string `json:"country"`
-	City        string `json:"city"`
 }
 
 // Get profile godoc
@@ -60,7 +51,7 @@ func (h *profileHandler) GetProfile(c *gin.Context) {
 		return
 	}
 
-	profile, err := h.profileService.GetProfile(c.Request.Context(), userID)
+	profile, err := h.mobileSvc.GetMe(c.Request.Context(), userID)
 	if err != nil {
 		response.Error(c, err)
 		return
@@ -72,11 +63,12 @@ func (h *profileHandler) GetProfile(c *gin.Context) {
 // Create profile godoc
 //
 //	@Summary		Create profile
+//	@Description	Ensures profile exists and optionally sets name/email. Returns the compact mobile profile shape.
 //	@Tags			profiles
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			body	body		CreateProfileRequest	true	"Request body"
+//	@Param			body	body		dto.UpdateMobileProfileRequest	false	"Optional name/email"
 //	@Success		201	{object}	response.Response
 //	@Failure		401	{object}	response.Response
 //	@Failure		400	{object}	response.Response
@@ -88,27 +80,26 @@ func (h *profileHandler) CreateProfile(c *gin.Context) {
 		return
 	}
 
-	var req CreateProfileRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+	req, ok := bindOptionalProfileUpdate(c)
+	if !ok {
 		return
 	}
 
-	profile := &models.Profile{
-		Bio:         req.Bio,
-		AvatarURL:   req.AvatarURL,
-		DateOfBirth: &req.DateOfBirth,
-		Country:     req.Country,
-		City:        req.City,
+	var (
+		profile *dto.MobileProfileResponse
+		err     error
+	)
+	if req.Name != nil || req.Email != nil {
+		profile, err = h.mobileSvc.UpdateMe(c.Request.Context(), userID, &req)
+	} else {
+		profile, err = h.mobileSvc.GetMe(c.Request.Context(), userID)
 	}
-
-	createdProfile, err := h.profileService.CreateProfile(c.Request.Context(), userID, profile)
 	if err != nil {
 		response.Error(c, err)
 		return
 	}
 
-	response.Created(c, createdProfile)
+	response.Created(c, profile)
 }
 
 // Update profile godoc
@@ -118,7 +109,7 @@ func (h *profileHandler) CreateProfile(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			body	body		UpdateProfileRequest	true	"Request body"
+//	@Param			body	body		dto.UpdateMobileProfileRequest	true	"Request body"
 //	@Success		200	{object}	response.Response
 //	@Failure		401	{object}	response.Response
 //	@Failure		400	{object}	response.Response
@@ -130,30 +121,13 @@ func (h *profileHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	var req UpdateProfileRequest
+	var req dto.UpdateMobileProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}
 
-	updates := make(map[string]interface{})
-	if req.Bio != "" {
-		updates["bio"] = req.Bio
-	}
-	if req.AvatarURL != "" {
-		updates["avatar_url"] = req.AvatarURL
-	}
-	if req.DateOfBirth != "" {
-		updates["date_of_birth"] = req.DateOfBirth
-	}
-	if req.Country != "" {
-		updates["country"] = req.Country
-	}
-	if req.City != "" {
-		updates["city"] = req.City
-	}
-
-	profile, err := h.profileService.UpdateProfile(c.Request.Context(), userID, updates)
+	profile, err := h.mobileSvc.UpdateMe(c.Request.Context(), userID, &req)
 	if err != nil {
 		response.Error(c, err)
 		return
@@ -179,10 +153,31 @@ func (h *profileHandler) DeleteProfile(c *gin.Context) {
 		return
 	}
 
-	if err := h.profileService.DeleteProfile(c.Request.Context(), userID); err != nil {
+	if err := h.profileSvc.DeleteProfile(c.Request.Context(), userID); err != nil {
 		response.Error(c, err)
 		return
 	}
 
 	response.SuccessWithMessage(c, nil, "Profile deleted successfully")
+}
+
+// bindOptionalProfileUpdate accepts missing/empty JSON bodies for create.
+// Returns ok=false when a BadRequest response was already written.
+func bindOptionalProfileUpdate(c *gin.Context) (dto.UpdateMobileProfileRequest, bool) {
+	var req dto.UpdateMobileProfileRequest
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		response.BadRequest(c, "invalid request body")
+		return req, false
+	}
+	body = bytes.TrimSpace(body)
+	if len(body) == 0 || bytes.Equal(body, []byte("null")) || bytes.Equal(body, []byte("{}")) {
+		return req, true
+	}
+	c.Request.Body = io.NopCloser(bytes.NewReader(body))
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return req, false
+	}
+	return req, true
 }
