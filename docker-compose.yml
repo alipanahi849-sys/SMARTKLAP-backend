@@ -8,8 +8,9 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: clap
+    # Bind to loopback only — never expose Postgres on the public internet.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -23,8 +24,9 @@ services:
   redis:
     image: redis:7-alpine
     container_name: clap_redis
+    # Bind to loopback only — never expose Redis on the public internet.
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -36,13 +38,13 @@ services:
       - clap_network
 
   # Local SMTP catcher for OTP emails (no auth / no TLS).
-  # Web UI: http://localhost:8025
+  # Web UI (local only): http://127.0.0.1:8025
   mailhog:
     image: mailhog/mailhog:v1.0.1
     container_name: clap_mailhog
     ports:
-      - "1025:1025" # SMTP
-      - "8025:8025" # Web UI
+      - "127.0.0.1:1025:1025" # SMTP
+      - "127.0.0.1:8025:8025" # Web UI
     networks:
       - clap_network
     restart: unless-stopped

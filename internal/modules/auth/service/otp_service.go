@@ -78,7 +78,12 @@ func (s *authService) Login(ctx context.Context, email string) (*OTPResult, erro
 
 	user, err := s.userRepo.FindByEmail(ctx, email)
 	if err != nil {
-		return nil, errors.NewNotFound("Email is not registered", nil)
+		// Only map a real missing user to 404. DB/connectivity failures must
+		// surface as 500 so ops aren't misled by "Email is not registered".
+		if err == errors.ErrUserNotFound {
+			return nil, errors.NewNotFound("Email is not registered", nil)
+		}
+		return nil, err
 	}
 	if !user.IsActive {
 		return nil, errors.NewUnauthorized("User account is inactive", nil)
