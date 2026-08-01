@@ -38,13 +38,13 @@ services:
       - clap_network
 
   # Local SMTP catcher for OTP emails (no auth / no TLS).
-  # Web UI (local only): http://127.0.0.1:8025
+  # Web UI: http://<host>:8025  |  SMTP stays on the Docker network only.
   mailhog:
     image: mailhog/mailhog:v1.0.1
     container_name: clap_mailhog
     ports:
-      - "127.0.0.1:1025:1025" # SMTP
-      - "127.0.0.1:8025:8025" # Web UI
+      # SMTP is not published; API reaches mailhog:1025 over clap_network.
+      - "8025:8025" # Web UI (needed to read OTP codes in dev)
     networks:
       - clap_network
     restart: unless-stopped

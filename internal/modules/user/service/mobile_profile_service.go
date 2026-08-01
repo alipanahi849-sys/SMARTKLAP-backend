@@ -84,10 +84,8 @@ func (s *mobileProfileService) UpdateMe(ctx context.Context, userID uuid.UUID, r
 	if req.Email != nil {
 		email := strings.ToLower(strings.TrimSpace(*req.Email))
 		if email != user.Email {
-			if existing, findErr := s.userRepo.FindByEmail(ctx, email); findErr == nil && existing != nil && existing.ID != userID {
-				return nil, errors.NewUnprocessable("Email already in use", nil)
-			}
-			user.Email = email
+			// Email ownership must be proven via OTP on /auth/change-email.
+			return nil, errors.NewBadRequest("Use POST /api/v1/auth/change-email to change email", nil)
 		}
 	}
 

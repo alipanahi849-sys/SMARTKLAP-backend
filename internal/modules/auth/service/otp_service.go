@@ -17,6 +17,8 @@ import (
 	"clap/internal/shared/errors"
 	"clap/internal/shared/logger"
 	"clap/internal/shared/utils"
+
+	"github.com/google/uuid"
 )
 
 // OTP behaviour constants.
@@ -26,8 +28,9 @@ const (
 	otpResendCooldown   = 30 * time.Second
 	otpMaxVerifyAttempt = 5
 
-	otpPurposeRegister = "register"
-	otpPurposeLogin    = "login"
+	otpPurposeRegister    = "register"
+	otpPurposeLogin       = "login"
+	otpPurposeChangeEmail = "change_email"
 )
 
 // OTPResult is returned by register/login OTP operations.
@@ -106,36 +109,17 @@ func (s *authService) Login(ctx context.Context, email string) (*OTPResult, erro
 
 // VerifyOTP checks the code. For register purpose it creates the user; for login
 // it authenticates an existing user. On success it issues a JWT pair.
+// Change-email OTPs must use VerifyChangeEmail (authenticated) instead.
 func (s *authService) VerifyOTP(ctx context.Context, email, code, ipAddress, userAgent string) (*models.User, *utils.TokenPair, error) {
 	email = normalizeEmail(email)
 
-	rec, err := s.otpStore.Get(ctx, email)
+	pending, err := s.consumeOTP(ctx, email, code)
 	if err != nil {
 		return nil, nil, err
 	}
-	if rec == nil {
+	if pending.Purpose == otpPurposeChangeEmail {
 		return nil, nil, errors.NewUnauthorized("Invalid or expired code", nil)
 	}
-	if rec.Attempts >= otpMaxVerifyAttempt {
-		_ = s.otpStore.Delete(ctx, email)
-		return nil, nil, errors.NewTooManyRequests("Too many attempts. Request a new code.", nil)
-	}
-
-	if subtle.ConstantTimeCompare([]byte(hashOTP(code)), []byte(rec.CodeHash)) != 1 {
-		attempts, incErr := s.otpStore.IncrementAttempts(ctx, email)
-		if incErr == nil && attempts >= otpMaxVerifyAttempt {
-			_ = s.otpStore.Delete(ctx, email)
-		}
-		logger.Warn().Str("email", email).Msg("otp_verify_failed")
-		return nil, nil, errors.NewUnauthorized("Invalid or expired code", nil)
-	}
-
-	// Code accepted — single use. Keep a copy of pending fields before delete.
-	pending := *rec
-	if err := s.otpStore.Delete(ctx, email); err != nil {
-		return nil, nil, err
-	}
-	_ = s.otpStore.ClearCooldown(ctx, email)
 
 	var user *models.User
 	switch pending.Purpose {
@@ -174,7 +158,140 @@ func (s *authService) VerifyOTP(ctx context.Context, email, code, ipAddress, use
 	return user, tokenPair, nil
 }
 
+// RequestChangeEmail sends an OTP to the new email address. The address is
+// applied only after VerifyChangeEmail succeeds. Call again to resend (cooldown).
+func (s *authService) RequestChangeEmail(ctx context.Context, userID uuid.UUID, newEmail string) (*OTPResult, error) {
+	newEmail = normalizeEmail(newEmail)
+
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !user.IsActive {
+		return nil, errors.NewUnauthorized("User account is inactive", nil)
+	}
+	if newEmail == user.Email {
+		return nil, errors.NewBadRequest("New email must be different from the current email", nil)
+	}
+	if existing, findErr := s.userRepo.FindByEmail(ctx, newEmail); findErr == nil && existing != nil {
+		return nil, errors.ErrEmailExists
+	}
+
+	if err := s.checkResendCooldown(ctx, newEmail); err != nil {
+		return nil, err
+	}
+	if err := s.issueOTP(ctx, newEmail, OTPRecord{
+		Purpose: otpPurposeChangeEmail,
+		UserID:  userID.String(),
+	}); err != nil {
+		return nil, err
+	}
+
+	logger.Info().
+		Str("user_id", userID.String()).
+		Str("new_email", newEmail).
+		Msg("otp_change_email_requested")
+
+	return &OTPResult{UserID: userID.String(), Email: newEmail, OTPSent: true}, nil
+}
+
+// VerifyChangeEmail validates the OTP sent to the new address, updates the
+// user's email, revokes existing refresh tokens, and issues a fresh token pair.
+func (s *authService) VerifyChangeEmail(ctx context.Context, userID uuid.UUID, newEmail, code, ipAddress, userAgent string) (*models.User, *utils.TokenPair, error) {
+	newEmail = normalizeEmail(newEmail)
+
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !user.IsActive {
+		return nil, nil, errors.NewUnauthorized("User account is inactive", nil)
+	}
+	if newEmail == user.Email {
+		return nil, nil, errors.NewBadRequest("New email must be different from the current email", nil)
+	}
+
+	// Bind OTP to this authenticated user before consuming so another session
+	// cannot burn a change-email code that does not belong to them.
+	rec, err := s.otpStore.Get(ctx, newEmail)
+	if err != nil {
+		return nil, nil, err
+	}
+	if rec == nil || rec.Purpose != otpPurposeChangeEmail || rec.UserID != userID.String() {
+		return nil, nil, errors.NewUnauthorized("Invalid or expired code", nil)
+	}
+
+	if _, err := s.consumeOTP(ctx, newEmail, code); err != nil {
+		return nil, nil, err
+	}
+
+	// Re-check uniqueness in case another account claimed the address meanwhile.
+	if existing, findErr := s.userRepo.FindByEmail(ctx, newEmail); findErr == nil && existing != nil && existing.ID != userID {
+		return nil, nil, errors.ErrEmailExists
+	}
+
+	oldEmail := user.Email
+	user.Email = newEmail
+	user.IsVerified = true
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return nil, nil, err
+	}
+
+	// Force re-auth on other sessions after identity change.
+	_ = s.refreshTokenRepo.RevokeAllForUser(ctx, userID)
+
+	user, err = s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	tokenPair, err := s.generateTokenPair(ctx, user, ipAddress, userAgent)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	logger.Info().
+		Str("user_id", userID.String()).
+		Str("old_email", oldEmail).
+		Str("new_email", newEmail).
+		Msg("otp_change_email_verified")
+
+	return user, tokenPair, nil
+}
+
 // ─── internals ────────────────────────────────────────────────────────────────
+
+// consumeOTP loads, validates, and deletes a pending OTP for email+code.
+// On success it returns a copy of the pending record (purpose/name/user id).
+func (s *authService) consumeOTP(ctx context.Context, email, code string) (*OTPRecord, error) {
+	rec, err := s.otpStore.Get(ctx, email)
+	if err != nil {
+		return nil, err
+	}
+	if rec == nil {
+		return nil, errors.NewUnauthorized("Invalid or expired code", nil)
+	}
+	if rec.Attempts >= otpMaxVerifyAttempt {
+		_ = s.otpStore.Delete(ctx, email)
+		return nil, errors.NewTooManyRequests("Too many attempts. Request a new code.", nil)
+	}
+
+	if subtle.ConstantTimeCompare([]byte(hashOTP(code)), []byte(rec.CodeHash)) != 1 {
+		attempts, incErr := s.otpStore.IncrementAttempts(ctx, email)
+		if incErr == nil && attempts >= otpMaxVerifyAttempt {
+			_ = s.otpStore.Delete(ctx, email)
+		}
+		logger.Warn().Str("email", email).Msg("otp_verify_failed")
+		return nil, errors.NewUnauthorized("Invalid or expired code", nil)
+	}
+
+	pending := *rec
+	if err := s.otpStore.Delete(ctx, email); err != nil {
+		return nil, err
+	}
+	_ = s.otpStore.ClearCooldown(ctx, email)
+	return &pending, nil
+}
 
 func (s *authService) createVerifiedUser(ctx context.Context, name, email string) (*models.User, error) {
 	name = strings.TrimSpace(name)

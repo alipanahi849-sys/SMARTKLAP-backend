@@ -15,11 +15,13 @@ import (
 
 // OTPRecord is the persisted state of an outstanding one-time code.
 // For purpose=register, Name holds the pending display name until verify.
+// For purpose=change_email, UserID binds the OTP to the authenticated requester.
 type OTPRecord struct {
 	CodeHash string `json:"code_hash"`
 	Attempts int    `json:"attempts"`
-	Purpose  string `json:"purpose,omitempty"` // "register" | "login"
+	Purpose  string `json:"purpose,omitempty"` // "register" | "login" | "change_email"
 	Name     string `json:"name,omitempty"`
+	UserID   string `json:"user_id,omitempty"`
 }
 
 // OTPStore persists outstanding OTP codes with a TTL plus a per-email resend

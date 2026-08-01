@@ -61,6 +61,13 @@ func (r *stubUserRepo) FindByEmail(_ context.Context, email string) (*models.Use
 func (r *stubUserRepo) Update(_ context.Context, user *models.User) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	// FindByID returns the stored pointer, so Email may already be mutated.
+	// Drop every email key that still points at this user, then reindex.
+	for email, u := range r.byEmail {
+		if u.ID == user.ID {
+			delete(r.byEmail, email)
+		}
+	}
 	r.byEmail[user.Email] = user
 	r.byID[user.ID] = user
 	return nil
@@ -368,5 +375,126 @@ func TestOTP_RegisterResendCooldownEnforced(t *testing.T) {
 	}
 	if status := appErrorStatus(t, err); status != http.StatusTooManyRequests {
 		t.Fatalf("expected 429, got %d", status)
+	}
+}
+
+func TestOTP_ChangeEmailHappyPath(t *testing.T) {
+	svc, userRepo, sender := newOTPTestService()
+	ctx := context.Background()
+
+	if _, err := svc.Register(ctx, "Alex", "old@example.com"); err != nil {
+		t.Fatalf("register failed: %v", err)
+	}
+	user, _, err := svc.VerifyOTP(ctx, "old@example.com", sender.LastCode(), "", "")
+	if err != nil {
+		t.Fatalf("verify failed: %v", err)
+	}
+
+	if _, err := svc.RequestChangeEmail(ctx, user.ID, "New@Example.com"); err != nil {
+		t.Fatalf("request change email failed: %v", err)
+	}
+	updated, tokens, err := svc.VerifyChangeEmail(ctx, user.ID, "new@example.com", sender.LastCode(), "", "")
+	if err != nil {
+		t.Fatalf("verify change email failed: %v", err)
+	}
+	if updated.Email != "new@example.com" {
+		t.Fatalf("expected new email, got %q", updated.Email)
+	}
+	if tokens == nil || tokens.AccessToken == "" {
+		t.Fatal("expected fresh tokens after email change")
+	}
+	userRepo.mu.Lock()
+	for email, u := range userRepo.byEmail {
+		t.Logf("byEmail[%q]=%s emailField=%q", email, u.ID, u.Email)
+	}
+	userRepo.mu.Unlock()
+	if _, err := userRepo.FindByEmail(ctx, "old@example.com"); err == nil {
+		t.Fatal("old email should no longer resolve")
+	}
+	if _, err := userRepo.FindByEmail(ctx, "new@example.com"); err != nil {
+		t.Fatalf("new email should resolve: %v", err)
+	}
+}
+
+func TestOTP_ChangeEmailRejectsTakenAddress(t *testing.T) {
+	svc, _, sender := newOTPTestService()
+	ctx := context.Background()
+
+	if _, err := svc.Register(ctx, "Other", "taken@example.com"); err != nil {
+		t.Fatalf("register other failed: %v", err)
+	}
+	if _, _, err := svc.VerifyOTP(ctx, "taken@example.com", sender.LastCode(), "", ""); err != nil {
+		t.Fatalf("verify other failed: %v", err)
+	}
+
+	if _, err := svc.Register(ctx, "Alex", "me@example.com"); err != nil {
+		t.Fatalf("register me failed: %v", err)
+	}
+	me, _, err := svc.VerifyOTP(ctx, "me@example.com", sender.LastCode(), "", "")
+	if err != nil {
+		t.Fatalf("verify me failed: %v", err)
+	}
+
+	_, err = svc.RequestChangeEmail(ctx, me.ID, "taken@example.com")
+	if err == nil {
+		t.Fatal("expected conflict for taken email")
+	}
+	if status := appErrorStatus(t, err); status != http.StatusConflict {
+		t.Fatalf("expected 409, got %d", status)
+	}
+}
+
+func TestOTP_ChangeEmailRejectsSameEmail(t *testing.T) {
+	svc, _, sender := newOTPTestService()
+	ctx := context.Background()
+
+	if _, err := svc.Register(ctx, "Alex", "me@example.com"); err != nil {
+		t.Fatalf("register failed: %v", err)
+	}
+	me, _, err := svc.VerifyOTP(ctx, "me@example.com", sender.LastCode(), "", "")
+	if err != nil {
+		t.Fatalf("verify failed: %v", err)
+	}
+
+	_, err = svc.RequestChangeEmail(ctx, me.ID, "me@example.com")
+	if err == nil {
+		t.Fatal("expected bad request for unchanged email")
+	}
+	if status := appErrorStatus(t, err); status != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", status)
+	}
+}
+
+func TestOTP_ChangeEmailWrongUserRejected(t *testing.T) {
+	svc, _, sender := newOTPTestService()
+	ctx := context.Background()
+
+	if _, err := svc.Register(ctx, "Alex", "a@example.com"); err != nil {
+		t.Fatalf("register a failed: %v", err)
+	}
+	a, _, err := svc.VerifyOTP(ctx, "a@example.com", sender.LastCode(), "", "")
+	if err != nil {
+		t.Fatalf("verify a failed: %v", err)
+	}
+	if _, err := svc.Register(ctx, "Bob", "b@example.com"); err != nil {
+		t.Fatalf("register b failed: %v", err)
+	}
+	b, _, err := svc.VerifyOTP(ctx, "b@example.com", sender.LastCode(), "", "")
+	if err != nil {
+		t.Fatalf("verify b failed: %v", err)
+	}
+
+	if _, err := svc.RequestChangeEmail(ctx, a.ID, "new@example.com"); err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	code := sender.LastCode()
+
+	// Bob must not be able to consume Alex's change-email OTP.
+	_, _, err = svc.VerifyChangeEmail(ctx, b.ID, "new@example.com", code, "", "")
+	if err == nil {
+		t.Fatal("expected unauthorized for wrong user")
+	}
+	if status := appErrorStatus(t, err); status != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", status)
 	}
 }

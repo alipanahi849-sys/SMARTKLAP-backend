@@ -6,6 +6,8 @@ import (
 	"clap/internal/shared/errors"
 	"clap/internal/shared/utils"
 	"context"
+
+	"github.com/google/uuid"
 )
 
 type AuthService interface {
@@ -13,6 +15,10 @@ type AuthService interface {
 	Register(ctx context.Context, name, email string) (*OTPResult, error)
 	Login(ctx context.Context, email string) (*OTPResult, error)
 	VerifyOTP(ctx context.Context, email, code, ipAddress, userAgent string) (*models.User, *utils.TokenPair, error)
+
+	// Change email: OTP is sent to the new address; verify applies the update.
+	RequestChangeEmail(ctx context.Context, userID uuid.UUID, newEmail string) (*OTPResult, error)
+	VerifyChangeEmail(ctx context.Context, userID uuid.UUID, newEmail, code, ipAddress, userAgent string) (*models.User, *utils.TokenPair, error)
 
 	RefreshToken(ctx context.Context, refreshToken string) (*utils.TokenPair, error)
 }

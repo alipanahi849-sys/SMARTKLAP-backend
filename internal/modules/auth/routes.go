@@ -35,5 +35,9 @@ func RegisterRoutes(r *gin.RouterGroup) {
 		authGroup.POST("/login", middleware.AuthRateLimit(), authHandler.Login)
 		authGroup.POST("/verify-otp", middleware.AuthRateLimit(), authHandler.VerifyOTP)
 		authGroup.POST("/refresh", middleware.AuthRateLimit(), authHandler.RefreshToken)
+
+		// Authenticated email change (OTP delivered to the new address).
+		authGroup.POST("/change-email", middleware.Auth(), middleware.AuthRateLimit(), authHandler.RequestChangeEmail)
+		authGroup.POST("/verify-change-email", middleware.Auth(), middleware.AuthRateLimit(), authHandler.VerifyChangeEmail)
 	}
 }

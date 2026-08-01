@@ -2,15 +2,19 @@ package handler
 
 import (
 	"clap/internal/modules/auth/service"
+	"clap/internal/shared/middleware"
 	"clap/internal/shared/response"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type AuthHandler interface {
 	Register(c *gin.Context)
 	Login(c *gin.Context)
 	VerifyOTP(c *gin.Context)
+	RequestChangeEmail(c *gin.Context)
+	VerifyChangeEmail(c *gin.Context)
 	RefreshToken(c *gin.Context)
 }
 
@@ -36,6 +40,17 @@ type LoginRequest struct {
 }
 
 type VerifyOTPRequest struct {
+	Email   string `json:"email" binding:"required,email"`
+	OTPCode string `json:"code" binding:"required,len=4,numeric"`
+}
+
+// ChangeEmailRequest starts an authenticated email change: OTP goes to the new address.
+type ChangeEmailRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+// VerifyChangeEmailRequest confirms the OTP sent to the new email.
+type VerifyChangeEmailRequest struct {
 	Email   string `json:"email" binding:"required,email"`
 	OTPCode string `json:"code" binding:"required,len=4,numeric"`
 }
@@ -130,6 +145,83 @@ func (h *authHandler) VerifyOTP(c *gin.Context) {
 		"access_token":  tokenPair.AccessToken,
 		"refresh_token": tokenPair.RefreshToken,
 	}, "OTP verified successfully")
+}
+
+// RequestChangeEmail godoc
+//
+//	@Summary		Change email (request OTP)
+//	@Description	Send a 4-digit OTP to the new email. Email is updated only after verify-change-email. Call again to resend.
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		ChangeEmailRequest	true	"New email"
+//	@Success		200		{object}	response.Response
+//	@Failure		400		{object}	response.Response
+//	@Failure		401		{object}	response.Response
+//	@Failure		409		{object}	response.Response
+//	@Failure		429		{object}	response.Response
+//	@Router			/api/v1/auth/change-email [post]
+func (h *authHandler) RequestChangeEmail(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == uuid.Nil {
+		response.Unauthorized(c, "Invalid user")
+		return
+	}
+
+	var req ChangeEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	if _, err := h.authService.RequestChangeEmail(c.Request.Context(), userID, req.Email); err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.SuccessWithMessage(c, response.EmptyObject, "OTP sent successfully")
+}
+
+// VerifyChangeEmail godoc
+//
+//	@Summary		Change email (verify OTP)
+//	@Description	Validate the OTP sent to the new email, update the account email, and issue fresh tokens
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		VerifyChangeEmailRequest	true	"New email + OTP"
+//	@Success		200		{object}	response.Response
+//	@Failure		400		{object}	response.Response
+//	@Failure		401		{object}	response.Response
+//	@Failure		409		{object}	response.Response
+//	@Router			/api/v1/auth/verify-change-email [post]
+func (h *authHandler) VerifyChangeEmail(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == uuid.Nil {
+		response.Unauthorized(c, "Invalid user")
+		return
+	}
+
+	var req VerifyChangeEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	_, tokenPair, err := h.authService.VerifyChangeEmail(
+		c.Request.Context(), userID, req.Email, req.OTPCode, c.ClientIP(), c.Request.UserAgent(),
+	)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.SuccessWithMessage(c, gin.H{
+		"access_token":  tokenPair.AccessToken,
+		"refresh_token": tokenPair.RefreshToken,
+	}, "Email changed successfully")
 }
 
 // RefreshToken godoc

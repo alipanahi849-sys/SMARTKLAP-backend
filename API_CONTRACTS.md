@@ -98,6 +98,30 @@ Resend: endpoint جدا ندارد — دوباره `POST /api/v1/auth/login` (�
 { "otp_sent": true }
 ```
 
+### 1.4 Change Email
+
+| Field | Value |
+|---|---|
+| **Endpoint** | `/api/v1/auth/change-email` |
+| **HTTP Method** | POST |
+| **Request** | `{ "email": "string" }` (ایمیل جدید) |
+| **Response** | `200 OK` — `{ }` + message OTP sent |
+| **Authentication** | Bearer |
+| **Error Codes** | `400` ایمیل فعلی/نامعتبر · `401` · `409` ایمیل تکراری · `429` · `500` |
+
+سپس تایید با:
+
+| Field | Value |
+|---|---|
+| **Endpoint** | `/api/v1/auth/verify-change-email` |
+| **HTTP Method** | POST |
+| **Request** | `{ "email": "string", "code": "string(4)" }` |
+| **Response** | `200 OK` — `{ "access_token", "refresh_token" }` |
+| **Authentication** | Bearer |
+| **Error Codes** | `400` · `401` کد نامعتبر · `409` · `429` · `500` |
+
+> تغییر ایمیل از `PATCH /profile/me` پشتیبانی نمی‌شود؛ باید همین جریان OTP استفاده شود.
+
 ---
 
 ## 2. Profile Module
@@ -142,10 +166,10 @@ Resend: endpoint جدا ندارد — دوباره `POST /api/v1/auth/login` (�
 | **Screen Name** | Edit Profile Screen |
 | **Endpoint** | `/api/v1/profile/me` |
 | **HTTP Method** | PATCH |
-| **Request** | `{ "name"?: "string", "email"?: "string" }` |
+| **Request** | `{ "name"?: "string" }` (تغییر ایمیل از `POST /auth/change-email`) |
 | **Response** | `200 OK` — same shape as `GET /profile/me` |
 | **Authentication** | Bearer |
-| **Error Codes** | `400` / `422` ایمیل تکراری · استاندارد |
+| **Error Codes** | `400` · استاندارد |
 | **Pagination** | ندارد |
 
 **آپلود آواتار (جدا، multipart):** `POST /api/v1/profile/me/avatar` — فیلد `avatar` (image, max ۵MB) → `{ "avatar_url": "string" }`. خطای اضافه: `413` حجم فایل زیاد.
