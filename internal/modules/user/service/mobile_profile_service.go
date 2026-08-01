@@ -81,14 +81,6 @@ func (s *mobileProfileService) UpdateMe(ctx context.Context, userID uuid.UUID, r
 		user.LastName = ""
 	}
 
-	if req.Email != nil {
-		email := strings.ToLower(strings.TrimSpace(*req.Email))
-		if email != user.Email {
-			// Email ownership must be proven via OTP on /auth/change-email.
-			return nil, errors.NewBadRequest("Use POST /api/v1/auth/change-email to change email", nil)
-		}
-	}
-
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		return nil, err
 	}

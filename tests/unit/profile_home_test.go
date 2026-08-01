@@ -69,20 +69,6 @@ func TestProfile_UpdateMeRejectsEmptyName(t *testing.T) {
 	}
 }
 
-func TestProfile_UpdateMeRejectsEmailChange(t *testing.T) {
-	svc, userRepo := newProfileFixture()
-	me := seedUser(userRepo, "Me", "me@example.com", 0)
-
-	next := "new@example.com"
-	_, err := svc.UpdateMe(context.Background(), me.ID, &userdto.UpdateMobileProfileRequest{Email: &next})
-	if err == nil {
-		t.Fatal("expected error directing clients to auth change-email")
-	}
-	if status := appErrorStatus(t, err); status != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", status)
-	}
-}
-
 func TestProfile_GetMeUnknownUserNotFound(t *testing.T) {
 	svc, _ := newProfileFixture()
 

@@ -19,9 +19,9 @@ type MobileProfileResponse struct {
 }
 
 // UpdateMobileProfileRequest is the PATCH /profile/me body (§2.2).
+// Email cannot be changed here — use POST /api/v1/auth/change-email.
 type UpdateMobileProfileRequest struct {
-	Name  *string `json:"name" binding:"omitempty,min=1,max=100"`
-	Email *string `json:"email" binding:"omitempty,email"`
+	Name *string `json:"name" binding:"omitempty,min=1,max=100"`
 }
 
 // LeaderboardItem is a single "Top ranks" card (§2.1).
