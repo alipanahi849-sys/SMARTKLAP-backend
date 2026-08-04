@@ -93,16 +93,16 @@ func (s *chantService) List(ctx context.Context, userID uuid.UUID, matchID *uuid
 		return nil, err
 	}
 
-	// The "next" chant is the earliest not-done chant that hasn't passed yet.
-	now := time.Now().UTC()
+	// The "next" chant is the first not-done chant in schedule order.
 	nextID := uuid.Nil
 	for _, c := range chants {
-		if !done[c.ID] && !c.ScheduledAt.Before(now.Add(-time.Duration(c.DurationSeconds)*time.Second)) {
+		if !done[c.ID] {
 			nextID = c.ID
 			break
 		}
 	}
 
+	now := time.Now().UTC()
 	today := now.Truncate(24 * time.Hour)
 	tomorrow := today.Add(24 * time.Hour)
 
