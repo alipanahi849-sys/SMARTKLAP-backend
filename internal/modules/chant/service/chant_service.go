@@ -93,14 +93,7 @@ func (s *chantService) List(ctx context.Context, userID uuid.UUID, matchID *uuid
 		return nil, err
 	}
 
-	// The "next" chant is the first not-done chant in schedule order.
-	nextID := uuid.Nil
-	for _, c := range chants {
-		if !done[c.ID] {
-			nextID = c.ID
-			break
-		}
-	}
+	// isNext is computed per section after grouping (see markNextInSection).
 
 	now := time.Now().UTC()
 	today := now.Truncate(24 * time.Hour)
@@ -114,7 +107,6 @@ func (s *chantService) List(ctx context.Context, userID uuid.UUID, matchID *uuid
 			SongPoints:      c.Points,
 			DurationSeconds: chantDuration(&c),
 			IsDone:          done[c.ID],
-			IsNext:          c.ID == nextID,
 			IsPreview:       c.IsPreview,
 		}
 		switch {
@@ -127,6 +119,9 @@ func (s *chantService) List(ctx context.Context, userID uuid.UUID, matchID *uuid
 		}
 	}
 
+	markNextInSection(todayItems)
+	markNextInSection(upcomingItems)
+	markNextInSection(previousItems)
 	sections := make([]dto.ChantSection, 0, 3)
 	if len(todayItems) > 0 {
 		sections = append(sections, dto.ChantSection{Title: "Todays chants", Items: todayItems})
@@ -269,4 +264,26 @@ func chantDuration(c *models.Chant) int {
 		return c.DurationSeconds
 	}
 	return c.Song.Duration
+}
+
+// markNextInSection sets is_next on the first incomplete item that follows
+// a completed prefix within the same section (parent group).
+func markNextInSection(items []dto.ChantItem) {
+	for i := range items {
+		items[i].IsNext = false
+		if items[i].IsDone {
+			continue
+		}
+		allPrevDone := true
+		for j := 0; j < i; j++ {
+			if !items[j].IsDone {
+				allPrevDone = false
+				break
+			}
+		}
+		if allPrevDone {
+			items[i].IsNext = true
+			return
+		}
+	}
 }
