@@ -71,7 +71,7 @@ FROM (
             't-shirts',
             3250::bigint,
             3250,
-            'https://cdn.smartklap.com/store/shirt.png',
+            'https://picsum.photos/seed/migration-shirt/400/400',
             'Sport Mall 2',
             '["M","L","XL","XXL"]'::jsonb
         ),
@@ -82,7 +82,7 @@ FROM (
             'balls',
             4500::bigint,
             4500,
-            'https://cdn.smartklap.com/store/ball.png',
+            'https://picsum.photos/seed/migration-ball/400/400',
             'Sport Mall 2',
             '[]'::jsonb
         ),
@@ -93,7 +93,7 @@ FROM (
             'stickers',
             500::bigint,
             500,
-            'https://cdn.smartklap.com/store/stickers.png',
+            'https://picsum.photos/seed/migration-stickers/400/400',
             'Fan Shop',
             '[]'::jsonb
         ),
@@ -104,7 +104,7 @@ FROM (
             'sport-suits',
             8900::bigint,
             8900,
-            'https://cdn.smartklap.com/store/suit.png',
+            'https://picsum.photos/seed/migration-suit/400/400',
             'Sport Mall 2',
             '["M","L","XL"]'::jsonb
         )

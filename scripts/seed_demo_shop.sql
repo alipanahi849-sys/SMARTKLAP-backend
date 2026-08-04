@@ -1,5 +1,5 @@
 -- Demo seed: fake shop products for mobile API testing (food + merch).
--- Safe to re-run: uses fixed UUIDs with ON CONFLICT DO NOTHING.
+-- Safe to re-run: upserts fixed UUIDs and refreshes image URLs.
 
 BEGIN;
 
@@ -16,7 +16,7 @@ INSERT INTO products (
     'Official club home kit jersey.',
     't-shirts',
     3250, 3250,
-    'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400',
+    'https://picsum.photos/seed/shop-merch-shirt-home/400/400',
     'Sport Mall 2',
     '["M","L","XL","XXL"]'::jsonb,
     true,
@@ -30,7 +30,7 @@ INSERT INTO products (
     'Lightweight away jersey for match days.',
     't-shirts',
     3250, 3250,
-    'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=400',
+    'https://picsum.photos/seed/shop-merch-shirt-away/400/400',
     'Sport Mall 2',
     '["S","M","L","XL"]'::jsonb,
     true,
@@ -44,7 +44,7 @@ INSERT INTO products (
     'Premium match ball used on the pitch.',
     'balls',
     4500, 4500,
-    'https://images.unsplash.com/photo-1614632537423-1e6c2d9eef36?w=400',
+    'https://picsum.photos/seed/shop-merch-ball/400/400',
     'Sport Mall 2',
     '[]'::jsonb,
     true,
@@ -58,7 +58,7 @@ INSERT INTO products (
     'Collectible club logo stickers.',
     'stickers',
     500, 500,
-    'https://images.unsplash.com/photo-1611532736597-de2d4265c3a4?w=400',
+    'https://picsum.photos/seed/shop-merch-stickers/400/400',
     'Fan Shop',
     '[]'::jsonb,
     true,
@@ -72,7 +72,7 @@ INSERT INTO products (
     'Lightweight training tracksuit.',
     'sport-suits',
     8900, 8900,
-    'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400',
+    'https://picsum.photos/seed/shop-merch-suit/400/400',
     'Sport Mall 2',
     '["M","L","XL"]'::jsonb,
     true,
@@ -86,7 +86,7 @@ INSERT INTO products (
     'Warm hoodie with embroidered club crest.',
     't-shirts',
     5500, 5500,
-    'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=400',
+    'https://picsum.photos/seed/shop-merch-hoodie/400/400',
     'Fan Shop',
     '["M","L","XL","XXL"]'::jsonb,
     true,
@@ -100,7 +100,7 @@ INSERT INTO products (
     'Double beef patty with cheese, lettuce and house sauce.',
     'sandwiches',
     820, 820,
-    'https://images.unsplash.com/photo-1568901347635-c0230d2f4bda?w=400',
+    'https://picsum.photos/seed/shop-food-burger/400/400',
     'Stadium Snacks',
     '[]'::jsonb,
     true,
@@ -114,7 +114,7 @@ INSERT INTO products (
     'Grilled sausage in a brioche bun with mustard.',
     'sandwiches',
     650, 650,
-    'https://images.unsplash.com/photo-1612392062631-94d5a0909a6c?w=400',
+    'https://picsum.photos/seed/shop-food-hotdog/400/400',
     'Stadium Snacks',
     '[]'::jsonb,
     true,
@@ -128,7 +128,7 @@ INSERT INTO products (
     'Crispy nachos with melted cheese and jalapeños.',
     'snacks',
     590, 590,
-    'https://images.unsplash.com/photo-1513456852971-3ed119316877?w=400',
+    'https://picsum.photos/seed/shop-food-nachos/400/400',
     'Stadium Snacks',
     '[]'::jsonb,
     true,
@@ -142,7 +142,7 @@ INSERT INTO products (
     'Large bucket of fresh stadium popcorn.',
     'snacks',
     350, 350,
-    'https://images.unsplash.com/photo-1578849278619-e73505e9610f?w=400',
+    'https://picsum.photos/seed/shop-food-popcorn/400/400',
     'Stadium Snacks',
     '[]'::jsonb,
     true,
@@ -156,7 +156,7 @@ INSERT INTO products (
     'Chilled sugar-free cola.',
     'drinks',
     320, 320,
-    'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=400',
+    'https://picsum.photos/seed/shop-food-cola/400/400',
     'Stadium Bar',
     '[]'::jsonb,
     true,
@@ -170,7 +170,7 @@ INSERT INTO products (
     'Still mineral water.',
     'drinks',
     250, 250,
-    'https://images.unsplash.com/photo-1548839140-29a7492991bd?w=400',
+    'https://picsum.photos/seed/shop-food-water/400/400',
     'Stadium Bar',
     '[]'::jsonb,
     true,
@@ -184,7 +184,7 @@ INSERT INTO products (
     'Size 1 souvenir ball for kids.',
     'balls',
     1800, 1800,
-    'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400',
+    'https://picsum.photos/seed/shop-merch-mini-ball/400/400',
     'Fan Shop',
     '[]'::jsonb,
     true,
@@ -198,7 +198,7 @@ INSERT INTO products (
     'Knitted supporter scarf in club colors.',
     'stickers',
     2200, 2200,
-    'https://images.unsplash.com/photo-1601925260368-ae2f83cf8b7f?w=400',
+    'https://picsum.photos/seed/shop-merch-scarf/400/400',
     'Fan Shop',
     '[]'::jsonb,
     true,
@@ -212,12 +212,33 @@ INSERT INTO products (
     'Grilled chicken wrap with fresh vegetables.',
     'sandwiches',
     780, 780,
-    'https://images.unsplash.com/photo-1626700051175-6818013e5781?w=400',
+    'https://picsum.photos/seed/shop-food-wrap/400/400',
     'Stadium Snacks',
     '[]'::jsonb,
     true,
     NOW() - INTERVAL '1 minute'
   )
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+    image_key = EXCLUDED.image_key,
+    updated_at = NOW();
+
+-- Fix legacy migration seed rows (broken cdn.smartklap.com URLs).
+UPDATE products SET image_key = 'https://picsum.photos/seed/shop-legacy-shirt/400/400', updated_at = NOW()
+WHERE deleted_at IS NULL AND name = 'Sport T-shirt' AND image_key LIKE '%cdn.smartklap.com%';
+
+UPDATE products SET image_key = 'https://picsum.photos/seed/shop-legacy-ball/400/400', updated_at = NOW()
+WHERE deleted_at IS NULL AND name = 'Match Ball' AND image_key LIKE '%cdn.smartklap.com%';
+
+UPDATE products SET image_key = 'https://picsum.photos/seed/shop-legacy-stickers/400/400', updated_at = NOW()
+WHERE deleted_at IS NULL AND name = 'Club Sticker Pack' AND image_key LIKE '%cdn.smartklap.com%';
+
+UPDATE products SET image_key = 'https://picsum.photos/seed/shop-legacy-suit/400/400', updated_at = NOW()
+WHERE deleted_at IS NULL AND name = 'Training Suit' AND image_key LIKE '%cdn.smartklap.com%';
+
+-- Ensure any active product without an image gets a placeholder.
+UPDATE products SET
+    image_key = 'https://picsum.photos/seed/shop-default-' || replace(id::text, '-', '') || '/400/400',
+    updated_at = NOW()
+WHERE deleted_at IS NULL AND (image_key IS NULL OR trim(image_key) = '');
 
 COMMIT;
