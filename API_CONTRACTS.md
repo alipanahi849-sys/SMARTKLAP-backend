@@ -208,7 +208,7 @@ Removed — `/api/v1/mobile/home/*` (stadium / club) is no longer exposed.
     {
       "title": "Todays chants",
       "items": [
-        { "id": 1, "title": "We will rock you", "song_points": 200, "duration_seconds": 120, "is_done": true, "is_next": false, "is_liked": false, "is_preview": false }
+        { "id": 1, "title": "We will rock you", "song_points": 200, "duration_seconds": 120, "is_done": true, "is_next": false, "is_preview": false }
       ]
     }
   ]

@@ -10,7 +10,6 @@ type ChantItem struct {
 	DurationSeconds int       `json:"duration_seconds"`
 	IsDone          bool      `json:"is_done"`
 	IsNext          bool      `json:"is_next"`
-	IsLiked         bool      `json:"is_liked"`
 	IsPreview       bool      `json:"is_preview"`
 }
 

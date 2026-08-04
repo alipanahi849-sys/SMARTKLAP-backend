@@ -115,10 +115,7 @@ func (s *chantService) List(ctx context.Context, userID uuid.UUID, matchID *uuid
 			DurationSeconds: chantDuration(&c),
 			IsDone:          done[c.ID],
 			IsNext:          c.ID == nextID,
-			// The contract exposes is_liked but defines no like/unlike endpoint
-			// for chants; it stays false until the contract adds one.
-			IsLiked:   false,
-			IsPreview: c.IsPreview,
+			IsPreview:       c.IsPreview,
 		}
 		switch {
 		case c.ScheduledAt.Before(today):
