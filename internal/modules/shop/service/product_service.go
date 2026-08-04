@@ -6,9 +6,9 @@ import (
 	"time"
 
 	authrepo "clap/internal/modules/auth/repository"
-	"clap/internal/modules/product/dto"
-	"clap/internal/modules/product/models"
-	"clap/internal/modules/product/repository"
+	"clap/internal/modules/shop/dto"
+	"clap/internal/modules/shop/models"
+	"clap/internal/modules/shop/repository"
 	"clap/internal/shared/errors"
 	"clap/internal/shared/utils"
 	"clap/pkg/storage"

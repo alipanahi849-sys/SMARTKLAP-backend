@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"clap/internal/modules/product/models"
+	"clap/internal/modules/shop/models"
 	"clap/internal/shared/errors"
 	"clap/internal/shared/utils"
 

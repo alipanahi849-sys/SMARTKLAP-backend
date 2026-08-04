@@ -370,14 +370,14 @@ Removed — `/api/v1/guess/*` is no longer exposed.
 
 ---
 
-## 7. Store Module (Merch)
+## 7. Shop Module (Merch)
 
 ### 7.1 Store Screen
 
 | Field | Value |
 |---|---|
 | **Screen Name** | Store Screen |
-| **Endpoint** | `/api/v1/products` |
+| **Endpoint** | `/api/v1/shop` |
 | **HTTP Method** | GET |
 | **Request** | Query: `search?`, `category?: "t-shirts"\|"balls"\|"stickers"\|"sport-suits"`, `currency?: "EUR"\|"POINT"`, `page?`, `limit?` |
 | **Response** | `200 OK` — `{ "items": [{ "id","name","description","price","image_url" }], "cart_count", "meta" }` |
@@ -400,7 +400,7 @@ Removed — `/api/v1/guess/*` is no longer exposed.
 | Field | Value |
 |---|---|
 | **Screen Name** | Product Detail Screen |
-| **Endpoint** | `/api/v1/products/{product_id}` |
+| **Endpoint** | `/api/v1/shop/{product_id}` |
 | **HTTP Method** | GET |
 | **Request** | Path param `product_id`; query `size?: "M"\|"L"\|"XL"\|"XXL"` (فقط برای برگرداندن موجودی همون سایز) |
 | **Response** | `200 OK` — `{ "id","name","seller_name","description","price","image_url","available_sizes":["M","L","XL","XXL"] }` |

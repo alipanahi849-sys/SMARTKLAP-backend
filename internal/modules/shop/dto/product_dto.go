@@ -12,7 +12,7 @@ const (
 	CurrencyPoint = "POINT"
 )
 
-// ProductListFilters are query params for GET /api/v1/products.
+// ProductListFilters are query params for GET /api/v1/shop.
 type ProductListFilters struct {
 	Search   string
 	Category string

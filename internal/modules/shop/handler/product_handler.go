@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"clap/internal/modules/product/dto"
-	"clap/internal/modules/product/service"
+	"clap/internal/modules/shop/dto"
+	"clap/internal/modules/shop/service"
 	"clap/internal/shared/middleware"
 	"clap/internal/shared/response"
 	"clap/internal/shared/utils"
@@ -24,10 +24,10 @@ func NewProductHandler(svc service.ProductService) ProductHandler {
 	return &productHandler{svc: svc}
 }
 
-// List products godoc
+// List shop products godoc
 //
-//	@Summary		List store products
-//	@Tags			products
+//	@Summary		List shop products
+//	@Tags			shop
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Param			search		query	string	false	"Search by name, subname or description"
@@ -38,7 +38,7 @@ func NewProductHandler(svc service.ProductService) ProductHandler {
 //	@Success		200	{object}	response.Response
 //	@Failure		401	{object}	response.Response
 //	@Failure		400	{object}	response.Response
-//	@Router			/api/v1/products [get]
+//	@Router			/api/v1/shop [get]
 func (h *productHandler) List(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == uuid.Nil {
