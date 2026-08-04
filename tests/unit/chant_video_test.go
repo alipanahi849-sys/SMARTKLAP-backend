@@ -163,31 +163,6 @@ func (r *stubChantRepo) TodayCompletions(_ context.Context, _ uuid.UUID, _ int) 
 
 // ─── chant tests ──────────────────────────────────────────────────────────────
 
-func TestChant_CountdownReportsProgress(t *testing.T) {
-	chantRepo := newStubChantRepo()
-	svc := chantsvc.NewChantService(chantRepo, newStubMatchRepo(), nil, nil)
-
-	chant := &chantmodels.Chant{
-		ID:          uuid.New(),
-		MatchID:     uuid.New(),
-		Title:       "Kickoff chant",
-		Points:      150,
-		ScheduledAt: time.Now().Add(90 * time.Second),
-	}
-	chantRepo.chants[chant.ID] = chant
-
-	resp, err := svc.Countdown(context.Background(), uuid.New(), chant.ID)
-	if err != nil {
-		t.Fatalf("Countdown failed: %v", err)
-	}
-	if resp.CountdownSeconds <= 0 || resp.CountdownSeconds > 90 {
-		t.Fatalf("unexpected countdown: %d", resp.CountdownSeconds)
-	}
-	if resp.TodayTarget != chantsvc.DefaultDailyTarget {
-		t.Fatalf("expected default target %d, got %d", chantsvc.DefaultDailyTarget, resp.TodayTarget)
-	}
-}
-
 func TestChant_ListGroupsIntoSections(t *testing.T) {
 	chantRepo := newStubChantRepo()
 	matchRepo := newStubMatchRepo()

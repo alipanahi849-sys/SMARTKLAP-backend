@@ -12,7 +12,6 @@ import (
 // ChantHandler serves the mobile Chants screens (contract §4).
 type ChantHandler interface {
 	List(c *gin.Context)
-	Countdown(c *gin.Context)
 	Lyrics(c *gin.Context)
 }
 
@@ -55,38 +54,6 @@ func (h *chantHandler) List(c *gin.Context) {
 	result, err := h.svc.List(c.Request.Context(), userID, matchID, c.Query("search"))
 	if err != nil {
 		response.Error(c, err)
-		return
-	}
-	response.Success(c, result)
-}
-
-// Chant countdown godoc
-//
-//	@Summary		Chant countdown
-//	@Tags			chants
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Param			chant_id	path	string	true	"Chant ID"
-//	@Success		200	{object}	response.Response
-//	@Failure		401	{object}	response.Response
-//	@Failure		400	{object}	response.Response
-//	@Router			/api/v1/chants/{chant_id}/countdown [get]
-func (h *chantHandler) Countdown(c *gin.Context) {
-	userID := middleware.GetUserID(c)
-	if userID == uuid.Nil {
-		response.Unauthorized(c, "Invalid user")
-		return
-	}
-
-	chantID, err := uuid.Parse(c.Param("chant_id"))
-	if err != nil {
-		response.BadRequest(c, "Invalid chant ID")
-		return
-	}
-
-	result, svcErr := h.svc.Countdown(c.Request.Context(), userID, chantID)
-	if svcErr != nil {
-		response.Error(c, svcErr)
 		return
 	}
 	response.Success(c, result)

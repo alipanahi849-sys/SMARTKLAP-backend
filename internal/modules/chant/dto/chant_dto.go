@@ -26,15 +26,6 @@ type ChantListResponse struct {
 	Sections   []ChantSection `json:"sections"`
 }
 
-// ChantCountdownResponse is GET /chants/{id}/countdown (contract §4.2).
-type ChantCountdownResponse struct {
-	Title            string `json:"title"`
-	Points           int    `json:"points"`
-	TodayPoints      int    `json:"today_points"`
-	TodayTarget      int    `json:"today_target"`
-	CountdownSeconds int64  `json:"countdown_seconds"`
-}
-
 // ChantLyricLine is one synced lyric line (contract §4.3).
 type ChantLyricLine struct {
 	ID                  int    `json:"id"`

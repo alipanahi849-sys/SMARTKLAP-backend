@@ -19,8 +19,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// DefaultDailyTarget is the "today_target" points goal shown on countdown and
-// home screens. Configurable per deployment via NewChantServiceWithTarget.
+// DefaultDailyTarget is the "today_target" points goal shown on the home screen.
+// Configurable per deployment via NewChantServiceWithTarget.
 const DefaultDailyTarget = 500
 
 const audioURLExpiry = 2 * time.Hour
@@ -28,7 +28,6 @@ const audioURLExpiry = 2 * time.Hour
 // ChantService implements the mobile Chants screens (contract §4).
 type ChantService interface {
 	List(ctx context.Context, userID uuid.UUID, matchID *uuid.UUID, search string) (*dto.ChantListResponse, error)
-	Countdown(ctx context.Context, userID, chantID uuid.UUID) (*dto.ChantCountdownResponse, error)
 	Lyrics(ctx context.Context, chantID uuid.UUID, mode string) (*dto.ChantLyricsResponse, error)
 	// TodayProgram powers the Home "chant program" card (contract §3.1).
 	TodayProgram(ctx context.Context, userID uuid.UUID, recentLimit int) (todayPoints, todayTarget int, recent []models.ChantCompletion, chants map[uuid.UUID]models.Chant, err error)
@@ -144,31 +143,6 @@ func (s *chantService) List(ctx context.Context, userID uuid.UUID, matchID *uuid
 	title := match.HomeClub.Name + " - " + match.AwayClub.Name + "'s chants"
 
 	return &dto.ChantListResponse{MatchTitle: title, Sections: sections}, nil
-}
-
-func (s *chantService) Countdown(ctx context.Context, userID, chantID uuid.UUID) (*dto.ChantCountdownResponse, error) {
-	chant, err := s.chantRepo.FindByID(ctx, chantID)
-	if err != nil {
-		return nil, err
-	}
-
-	todayPoints, err := s.chantRepo.TodayPoints(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	countdown := int64(time.Until(chant.ScheduledAt).Seconds())
-	if countdown < 0 {
-		countdown = 0
-	}
-
-	return &dto.ChantCountdownResponse{
-		Title:            chant.Title,
-		Points:           chant.Points,
-		TodayPoints:      todayPoints,
-		TodayTarget:      s.dailyTarget,
-		CountdownSeconds: countdown,
-	}, nil
 }
 
 func (s *chantService) Lyrics(ctx context.Context, chantID uuid.UUID, mode string) (*dto.ChantLyricsResponse, error) {
