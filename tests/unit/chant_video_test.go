@@ -161,7 +161,64 @@ func (r *stubChantRepo) TodayCompletions(_ context.Context, _ uuid.UUID, _ int) 
 	return nil, map[uuid.UUID]chantmodels.Chant{}, nil
 }
 
+func (r *stubChantRepo) Complete(_ context.Context, chantID, userID uuid.UUID, points int) (int, bool, error) {
+	if users, ok := r.completions[chantID]; ok {
+		if _, completed := users[userID]; completed {
+			return r.userPoints[userID], false, nil
+		}
+	}
+	if r.completions[chantID] == nil {
+		r.completions[chantID] = map[uuid.UUID]int{}
+	}
+	r.completions[chantID][userID] = points
+	r.userPoints[userID] += points
+	return r.userPoints[userID], true, nil
+}
+
 // ─── chant tests ──────────────────────────────────────────────────────────────
+
+func TestChant_CompleteAwardsPointsOnce(t *testing.T) {
+	chantRepo := newStubChantRepo()
+	matchRepo := newStubMatchRepo()
+	svc := chantsvc.NewChantService(chantRepo, matchRepo, nil, nil)
+
+	chant := &chantmodels.Chant{
+		ID:      uuid.New(),
+		MatchID: uuid.New(),
+		Title:   "Chant number 1",
+		Points:  100,
+	}
+	chantRepo.chants[chant.ID] = chant
+	userID := uuid.New()
+
+	resp, err := svc.Complete(context.Background(), userID, chant.ID)
+	if err != nil {
+		t.Fatalf("Complete failed: %v", err)
+	}
+	if !resp.IsDone || resp.PointsEarned != 100 || resp.TotalPoints != 100 {
+		t.Fatalf("unexpected response: %+v", resp)
+	}
+
+	resp, err = svc.Complete(context.Background(), userID, chant.ID)
+	if err != nil {
+		t.Fatalf("second Complete failed: %v", err)
+	}
+	if !resp.IsDone || resp.PointsEarned != 0 || resp.TotalPoints != 100 {
+		t.Fatalf("unexpected idempotent response: %+v", resp)
+	}
+}
+
+func TestChant_CompleteUnknownChantNotFound(t *testing.T) {
+	svc := chantsvc.NewChantService(newStubChantRepo(), newStubMatchRepo(), nil, nil)
+
+	_, err := svc.Complete(context.Background(), uuid.New(), uuid.New())
+	if err == nil {
+		t.Fatal("expected not-found error")
+	}
+	if status := appErrorStatus(t, err); status != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", status)
+	}
+}
 
 func TestChant_ListGroupsIntoSections(t *testing.T) {
 	chantRepo := newStubChantRepo()

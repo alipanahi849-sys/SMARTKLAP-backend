@@ -13,6 +13,7 @@ import (
 type ChantHandler interface {
 	List(c *gin.Context)
 	Lyrics(c *gin.Context)
+	Complete(c *gin.Context)
 }
 
 type chantHandler struct {
@@ -89,4 +90,37 @@ func (h *chantHandler) Lyrics(c *gin.Context) {
 		return
 	}
 	response.Success(c, result)
+}
+
+// Complete chant godoc
+//
+//	@Summary		Complete chant
+//	@Tags			chants
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			chant_id	path	string	true	"Chant ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Failure		404	{object}	response.Response
+//	@Router			/api/v1/chants/{chant_id}/complete [post]
+func (h *chantHandler) Complete(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == uuid.Nil {
+		response.Unauthorized(c, "Invalid user")
+		return
+	}
+
+	chantID, err := uuid.Parse(c.Param("chant_id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid chant ID")
+		return
+	}
+
+	result, svcErr := h.svc.Complete(c.Request.Context(), userID, chantID)
+	if svcErr != nil {
+		response.Error(c, svcErr)
+		return
+	}
+	response.SuccessWithMessage(c, result, "Chant completed successfully")
 }

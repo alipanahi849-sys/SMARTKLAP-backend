@@ -29,6 +29,7 @@ const audioURLExpiry = 2 * time.Hour
 type ChantService interface {
 	List(ctx context.Context, userID uuid.UUID, matchID *uuid.UUID, search string) (*dto.ChantListResponse, error)
 	Lyrics(ctx context.Context, chantID uuid.UUID, mode string) (*dto.ChantLyricsResponse, error)
+	Complete(ctx context.Context, userID, chantID uuid.UUID) (*dto.ChantCompleteResponse, error)
 	// TodayProgram powers the Home "chant program" card (contract §3.1).
 	TodayProgram(ctx context.Context, userID uuid.UUID, recentLimit int) (todayPoints, todayTarget int, recent []models.ChantCompletion, chants map[uuid.UUID]models.Chant, err error)
 }
@@ -177,6 +178,35 @@ func (s *chantService) Lyrics(ctx context.Context, chantID uuid.UUID, mode strin
 		Title:    chant.Title,
 		AudioURL: s.resolveAudioURL(ctx, &chant.Song),
 		Lyrics:   lines,
+	}, nil
+}
+
+func (s *chantService) Complete(ctx context.Context, userID, chantID uuid.UUID) (*dto.ChantCompleteResponse, error) {
+	chant, err := s.chantRepo.FindByID(ctx, chantID)
+	if err != nil {
+		return nil, err
+	}
+
+	totalPoints, created, err := s.chantRepo.Complete(ctx, chantID, userID, chant.Points)
+	if err != nil {
+		return nil, err
+	}
+
+	pointsEarned := 0
+	if created {
+		pointsEarned = chant.Points
+		logger.Info().
+			Str("user_id", userID.String()).
+			Str("chant_id", chantID.String()).
+			Str("match_id", chant.MatchID.String()).
+			Int("points_earned", chant.Points).
+			Msg("chant_completed")
+	}
+
+	return &dto.ChantCompleteResponse{
+		IsDone:       true,
+		PointsEarned: pointsEarned,
+		TotalPoints:  totalPoints,
 	}, nil
 }
 

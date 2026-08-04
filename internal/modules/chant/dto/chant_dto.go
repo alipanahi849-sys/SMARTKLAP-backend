@@ -26,6 +26,13 @@ type ChantListResponse struct {
 	Sections   []ChantSection `json:"sections"`
 }
 
+// ChantCompleteResponse is POST /chants/{id}/complete.
+type ChantCompleteResponse struct {
+	IsDone       bool `json:"is_done"`
+	PointsEarned int  `json:"points_earned"`
+	TotalPoints  int  `json:"total_points"`
+}
+
 // ChantLyricLine is one synced lyric line (contract §4.3).
 type ChantLyricLine struct {
 	ID                  int    `json:"id"`

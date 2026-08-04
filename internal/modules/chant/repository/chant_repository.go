@@ -5,11 +5,13 @@ import (
 	"strings"
 	"time"
 
+	authmodels "clap/internal/modules/auth/models"
 	"clap/internal/modules/chant/models"
 	"clap/internal/shared/errors"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type ChantRepository interface {
@@ -24,6 +26,9 @@ type ChantRepository interface {
 	// TodayCompletions returns the user's most recent completions today with
 	// their chants preloaded (Home "chant program" card).
 	TodayCompletions(ctx context.Context, userID uuid.UUID, limit int) ([]models.ChantCompletion, map[uuid.UUID]models.Chant, error)
+	// Complete records a completion and atomically credits the user's points.
+	// Returns created=false when the chant was already completed (idempotent).
+	Complete(ctx context.Context, chantID, userID uuid.UUID, points int) (totalPoints int, created bool, err error)
 }
 
 type chantRepository struct {
@@ -118,4 +123,50 @@ func (r *chantRepository) TodayCompletions(ctx context.Context, userID uuid.UUID
 		}
 	}
 	return completions, chantByID, nil
+}
+
+func (r *chantRepository) Complete(ctx context.Context, chantID, userID uuid.UUID, points int) (int, bool, error) {
+	var totalPoints int
+	created := false
+
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		completion := models.ChantCompletion{
+			ChantID:      chantID,
+			UserID:       userID,
+			PointsEarned: points,
+		}
+		res := tx.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "chant_id"}, {Name: "user_id"}},
+			DoNothing: true,
+		}).Create(&completion)
+		if res.Error != nil {
+			return errors.NewInternal("Failed to record completion", res.Error)
+		}
+		if res.RowsAffected == 0 {
+			if err := tx.Model(&authmodels.User{}).
+				Where("id = ?", userID).
+				Pluck("points", &totalPoints).Error; err != nil {
+				return errors.NewInternal("Failed to read points balance", err)
+			}
+			return nil
+		}
+
+		created = true
+		if err := tx.Model(&authmodels.User{}).
+			Where("id = ?", userID).
+			UpdateColumn("points", gorm.Expr("points + ?", points)).Error; err != nil {
+			return errors.NewInternal("Failed to award points", err)
+		}
+
+		if err := tx.Model(&authmodels.User{}).
+			Where("id = ?", userID).
+			Pluck("points", &totalPoints).Error; err != nil {
+			return errors.NewInternal("Failed to read points balance", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, false, err
+	}
+	return totalPoints, created, nil
 }

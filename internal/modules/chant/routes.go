@@ -30,6 +30,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	{
 		chants.GET("", h.List)
 		chants.GET("/:chant_id/lyrics", h.Lyrics)
+		chants.POST("/:chant_id/complete", h.Complete)
 	}
 }
 
