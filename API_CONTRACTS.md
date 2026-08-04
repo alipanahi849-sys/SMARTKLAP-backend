@@ -379,11 +379,11 @@ Removed — `/api/v1/guess/*` is no longer exposed.
 | **Screen Name** | Shop / Store / Snacks Screen |
 | **Endpoint** | `/api/v1/shop` |
 | **HTTP Method** | GET |
-| **Request** | Query: `search?`, `product_type?: "food"\|"merch"`, `category?`, `currency?: "EUR"\|"POINT"`, `page?`, `limit?` |
+| **Request** | Query: `search?`, `product_type?: "food"\|"merch"`, `category?`, `currency?: "EUR"\|"POINT"`, `cursor?`, `limit?` |
 | **Response** | `200 OK` — `{ "items": [{ "id","product_type","name","description","price","image_url" }], "cart_count", "user_points", "meta" }` |
 | **Authentication** | Bearer |
-| **Error Codes** | استاندارد |
-| **Pagination** | بله |
+| **Error Codes** | `400` (cursor نامعتبر) · استاندارد |
+| **Pagination** | Cursor-based — `cursor` = آیدی آخرین آیتم صفحه قبل؛ `limit` پیش‌فرض ۲۰ |
 
 **Categories by type:**
 - `food`: `sandwiches`, `snacks`, `drinks` — بدون سایز
@@ -397,8 +397,13 @@ Removed — `/api/v1/guess/*` is no longer exposed.
   ],
   "cart_count": 2,
   "user_points": 960,
-  "meta": { "page": 1, "limit": 20, "total": 10, "total_pages": 1 }
+  "meta": { "limit": 10, "has_more": true, "next_cursor": "b2000000-0000-4000-8000-000000000010" }
 }
+```
+
+**صفحه بعد:**
+```
+GET /api/v1/shop?limit=10&cursor=b2000000-0000-4000-8000-000000000010
 ```
 
 ### 7.2 Product Detail

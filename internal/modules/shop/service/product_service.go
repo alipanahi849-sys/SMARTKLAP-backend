@@ -49,7 +49,7 @@ var foodCategories = map[string]bool{
 
 // ProductService implements the mobile Shop screens (contract §6–§7).
 type ProductService interface {
-	List(ctx context.Context, userID uuid.UUID, page, limit int, filters dto.ProductListFilters) (*dto.ProductListResponse, error)
+	List(ctx context.Context, userID uuid.UUID, filters dto.ProductListFilters) (*dto.ProductListResponse, error)
 	GetByID(ctx context.Context, id uuid.UUID, filters dto.ProductDetailFilters) (*dto.ProductDetailResponse, error)
 	Create(ctx context.Context, req *dto.CreateProductRequest, authCtx *utils.AuthorizationContext) (*dto.ProductDetailResponse, error)
 	Update(ctx context.Context, id uuid.UUID, req *dto.UpdateProductRequest, authCtx *utils.AuthorizationContext) (*dto.ProductDetailResponse, error)
@@ -75,7 +75,7 @@ func NewProductService(
 	}
 }
 
-func (s *productService) List(ctx context.Context, userID uuid.UUID, page, limit int, filters dto.ProductListFilters) (*dto.ProductListResponse, error) {
+func (s *productService) List(ctx context.Context, userID uuid.UUID, filters dto.ProductListFilters) (*dto.ProductListResponse, error) {
 	currency, err := parseCurrency(filters.Currency)
 	if err != nil {
 		return nil, err
@@ -93,18 +93,42 @@ func (s *productService) List(ctx context.Context, userID uuid.UUID, page, limit
 		}
 	}
 
+	limit := filters.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+
+	var after *repository.CursorAnchor
+	if filters.Cursor != nil {
+		cursorProduct, err := s.productRepo.FindByID(ctx, *filters.Cursor)
+		if err != nil {
+			return nil, errors.NewBadRequest("Invalid cursor", nil)
+		}
+		after = &repository.CursorAnchor{
+			CreatedAt: cursorProduct.CreatedAt,
+			ID:        cursorProduct.ID,
+		}
+	}
+
 	user, err := s.userRepo.FindByID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	products, total, err := s.productRepo.List(ctx, page, limit, repository.ProductFilters{
+	repoFilters := repository.ProductFilters{
 		Search:      filters.Search,
 		Category:    category,
 		ProductType: productType,
-	})
+	}
+
+	products, err := s.productRepo.List(ctx, limit+1, repoFilters, after)
 	if err != nil {
 		return nil, err
+	}
+
+	hasMore := len(products) > limit
+	if hasMore {
+		products = products[:limit]
 	}
 
 	items := make([]dto.ProductItem, len(products))
@@ -120,11 +144,20 @@ func (s *productService) List(ctx context.Context, userID uuid.UUID, page, limit
 		}
 	}
 
+	meta := dto.CursorListMeta{
+		Limit:   limit,
+		HasMore: hasMore,
+	}
+	if hasMore && len(products) > 0 {
+		lastID := products[len(products)-1].ID
+		meta.NextCursor = &lastID
+	}
+
 	return &dto.ProductListResponse{
 		Items:      items,
 		CartCount:  0,
 		UserPoints: user.Points,
-		Meta:       utils.NewListMeta(total, page, limit),
+		Meta:       meta,
 	}, nil
 }
 

@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strings"
+
 	"clap/internal/modules/shop/dto"
 	"clap/internal/modules/shop/service"
 	"clap/internal/shared/middleware"
@@ -39,8 +41,8 @@ func NewProductHandler(svc service.ProductService) ProductHandler {
 //	@Param			product_type	query	string	false	"Product type filter (food or merch)"
 //	@Param			category		query	string	false	"Category filter"
 //	@Param			currency		query	string	false	"Price display currency (EUR or POINT)"
-//	@Param			page		query	int		false	"Page number"
-//	@Param			limit		query	int		false	"Items per page"
+//	@Param			cursor			query	string	false	"Product ID of the last item from the previous page"
+//	@Param			limit			query	int		false	"Items per page (default 20, max 100)"
 //	@Success		200	{object}	response.Response
 //	@Failure		401	{object}	response.Response
 //	@Failure		400	{object}	response.Response
@@ -52,15 +54,28 @@ func (h *productHandler) List(c *gin.Context) {
 		return
 	}
 
-	page, limit := utils.GetMobilePagination(c)
+	limit := utils.GetMobileCursorLimit(c)
+
+	var cursor *uuid.UUID
+	if raw := strings.TrimSpace(c.Query("cursor")); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			response.BadRequest(c, "Invalid cursor")
+			return
+		}
+		cursor = &id
+	}
+
 	filters := dto.ProductListFilters{
 		Search:      c.Query("search"),
 		Category:    c.Query("category"),
 		Currency:    c.DefaultQuery("currency", dto.CurrencyEUR),
 		ProductType: c.Query("product_type"),
+		Cursor:      cursor,
+		Limit:       limit,
 	}
 
-	result, err := h.svc.List(c.Request.Context(), userID, page, limit, filters)
+	result, err := h.svc.List(c.Request.Context(), userID, filters)
 	if err != nil {
 		response.Error(c, err)
 		return

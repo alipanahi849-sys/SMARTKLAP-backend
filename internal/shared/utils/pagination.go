@@ -77,6 +77,20 @@ func GetMobilePagination(c *gin.Context) (int, int) {
 	return page, limit
 }
 
+// GetMobileCursorLimit reads ?limit= for cursor-based mobile lists
+// (defaults to 20, capped at 100).
+func GetMobileCursorLimit(c *gin.Context) int {
+	limit := 20
+
+	if l, ok := c.GetQuery("limit"); ok {
+		if parsed := parseInt(l); parsed > 0 && parsed <= 100 {
+			limit = parsed
+		}
+	}
+
+	return limit
+}
+
 func parseInt(s string) int {
 	var i int
 	if _, err := fmt.Sscanf(s, "%d", &i); err == nil {

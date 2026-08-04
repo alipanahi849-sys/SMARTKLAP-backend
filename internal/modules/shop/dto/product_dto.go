@@ -1,8 +1,6 @@
 package dto
 
 import (
-	"clap/internal/shared/utils"
-
 	"github.com/google/uuid"
 )
 
@@ -18,6 +16,15 @@ type ProductListFilters struct {
 	Category    string
 	Currency    string
 	ProductType string
+	Cursor      *uuid.UUID
+	Limit       int
+}
+
+// CursorListMeta is cursor pagination meta for GET /api/v1/shop.
+type CursorListMeta struct {
+	Limit      int        `json:"limit"`
+	HasMore    bool       `json:"has_more"`
+	NextCursor *uuid.UUID `json:"next_cursor,omitempty"`
 }
 
 // ProductDetailFilters are query params for GET /api/v1/shop/{id}.
@@ -72,7 +79,7 @@ type ProductListResponse struct {
 	Items      []ProductItem  `json:"items"`
 	CartCount  int            `json:"cart_count"`
 	UserPoints int            `json:"user_points"`
-	Meta       utils.ListMeta `json:"meta"`
+	Meta       CursorListMeta `json:"meta"`
 }
 
 // ProductDetailResponse is GET /api/v1/shop/{id}.

@@ -3,10 +3,10 @@ package repository
 import (
 	"context"
 	"strings"
+	"time"
 
 	"clap/internal/modules/shop/models"
 	"clap/internal/shared/errors"
-	"clap/internal/shared/utils"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -19,8 +19,14 @@ type ProductFilters struct {
 	ProductType string
 }
 
+// CursorAnchor is the list position after which the next page is fetched.
+type CursorAnchor struct {
+	CreatedAt time.Time
+	ID        uuid.UUID
+}
+
 type ProductRepository interface {
-	List(ctx context.Context, page, limit int, filters ProductFilters) ([]models.Product, int64, error)
+	List(ctx context.Context, limit int, filters ProductFilters, after *CursorAnchor) ([]models.Product, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*models.Product, error)
 	FindByIDAdmin(ctx context.Context, id uuid.UUID) (*models.Product, error)
 	Create(ctx context.Context, product *models.Product) error
@@ -37,7 +43,7 @@ func NewProductRepository(db *gorm.DB) ProductRepository {
 	return &productRepository{db: db}
 }
 
-func (r *productRepository) List(ctx context.Context, page, limit int, filters ProductFilters) ([]models.Product, int64, error) {
+func (r *productRepository) List(ctx context.Context, limit int, filters ProductFilters, after *CursorAnchor) ([]models.Product, error) {
 	q := r.db.WithContext(ctx).Model(&models.Product{}).Where("is_active = ?", true)
 
 	if cat := strings.TrimSpace(filters.Category); cat != "" {
@@ -56,20 +62,21 @@ func (r *productRepository) List(ctx context.Context, page, limit int, filters P
 		)
 	}
 
-	var total int64
-	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, errors.NewInternal("Failed to count products", err)
+	if after != nil {
+		q = q.Where(
+			"(created_at < ?) OR (created_at = ? AND id < ?)",
+			after.CreatedAt, after.CreatedAt, after.ID,
+		)
 	}
 
 	var products []models.Product
-	if err := q.Order("created_at DESC").
-		Offset(utils.GetOffset(page, limit)).
+	if err := q.Order("created_at DESC, id DESC").
 		Limit(limit).
 		Find(&products).Error; err != nil {
-		return nil, 0, errors.NewInternal("Failed to load products", err)
+		return nil, errors.NewInternal("Failed to load products", err)
 	}
 
-	return products, total, nil
+	return products, nil
 }
 
 func (r *productRepository) FindByID(ctx context.Context, id uuid.UUID) (*models.Product, error) {
