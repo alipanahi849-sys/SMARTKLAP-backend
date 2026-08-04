@@ -71,7 +71,7 @@ FROM (
             't-shirts',
             3250::bigint,
             3250,
-            'https://picsum.photos/seed/migration-shirt/400/400',
+            'https://loremflickr.com/400/400/shirt,jersey,sport/all',
             'Sport Mall 2',
             '["M","L","XL","XXL"]'::jsonb
         ),
@@ -82,7 +82,7 @@ FROM (
             'balls',
             4500::bigint,
             4500,
-            'https://picsum.photos/seed/migration-ball/400/400',
+            'https://loremflickr.com/400/400/soccer,ball/all',
             'Sport Mall 2',
             '[]'::jsonb
         ),
@@ -93,7 +93,7 @@ FROM (
             'stickers',
             500::bigint,
             500,
-            'https://picsum.photos/seed/migration-stickers/400/400',
+            'https://loremflickr.com/400/400/sticker,sheet/all',
             'Fan Shop',
             '[]'::jsonb
         ),
@@ -104,7 +104,7 @@ FROM (
             'sport-suits',
             8900::bigint,
             8900,
-            'https://picsum.photos/seed/migration-suit/400/400',
+            'https://loremflickr.com/400/400/tracksuit,sport/all',
             'Sport Mall 2',
             '["M","L","XL"]'::jsonb
         )

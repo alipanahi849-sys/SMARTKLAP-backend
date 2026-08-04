@@ -1,5 +1,5 @@
 -- Demo seed: fake shop products for mobile API testing (food + merch).
--- Safe to re-run: upserts fixed UUIDs and refreshes image URLs.
+-- Safe to re-run: upserts fixed UUIDs and refreshes category-relevant image URLs.
 
 BEGIN;
 
@@ -16,7 +16,7 @@ INSERT INTO products (
     'Official club home kit jersey.',
     't-shirts',
     3250, 3250,
-    'https://picsum.photos/seed/shop-merch-shirt-home/400/400',
+    'https://loremflickr.com/400/400/shirt,jersey,sport/all',
     'Sport Mall 2',
     '["M","L","XL","XXL"]'::jsonb,
     true,
@@ -30,7 +30,7 @@ INSERT INTO products (
     'Lightweight away jersey for match days.',
     't-shirts',
     3250, 3250,
-    'https://picsum.photos/seed/shop-merch-shirt-away/400/400',
+    'https://loremflickr.com/400/400/shirt,jersey,football/all',
     'Sport Mall 2',
     '["S","M","L","XL"]'::jsonb,
     true,
@@ -44,7 +44,7 @@ INSERT INTO products (
     'Premium match ball used on the pitch.',
     'balls',
     4500, 4500,
-    'https://picsum.photos/seed/shop-merch-ball/400/400',
+    'https://loremflickr.com/400/400/soccer,ball/all',
     'Sport Mall 2',
     '[]'::jsonb,
     true,
@@ -58,7 +58,7 @@ INSERT INTO products (
     'Collectible club logo stickers.',
     'stickers',
     500, 500,
-    'https://picsum.photos/seed/shop-merch-stickers/400/400',
+    'https://loremflickr.com/400/400/sticker,sheet/all',
     'Fan Shop',
     '[]'::jsonb,
     true,
@@ -72,7 +72,7 @@ INSERT INTO products (
     'Lightweight training tracksuit.',
     'sport-suits',
     8900, 8900,
-    'https://picsum.photos/seed/shop-merch-suit/400/400',
+    'https://loremflickr.com/400/400/tracksuit,sport/all',
     'Sport Mall 2',
     '["M","L","XL"]'::jsonb,
     true,
@@ -86,7 +86,7 @@ INSERT INTO products (
     'Warm hoodie with embroidered club crest.',
     't-shirts',
     5500, 5500,
-    'https://picsum.photos/seed/shop-merch-hoodie/400/400',
+    'https://loremflickr.com/400/400/hoodie,sport/all',
     'Fan Shop',
     '["M","L","XL","XXL"]'::jsonb,
     true,
@@ -100,7 +100,7 @@ INSERT INTO products (
     'Double beef patty with cheese, lettuce and house sauce.',
     'sandwiches',
     820, 820,
-    'https://picsum.photos/seed/shop-food-burger/400/400',
+    'https://loremflickr.com/400/400/burger,food/all',
     'Stadium Snacks',
     '[]'::jsonb,
     true,
@@ -114,7 +114,7 @@ INSERT INTO products (
     'Grilled sausage in a brioche bun with mustard.',
     'sandwiches',
     650, 650,
-    'https://picsum.photos/seed/shop-food-hotdog/400/400',
+    'https://loremflickr.com/400/400/hotdog,food/all',
     'Stadium Snacks',
     '[]'::jsonb,
     true,
@@ -128,7 +128,7 @@ INSERT INTO products (
     'Crispy nachos with melted cheese and jalapeños.',
     'snacks',
     590, 590,
-    'https://picsum.photos/seed/shop-food-nachos/400/400',
+    'https://loremflickr.com/400/400/nachos,food/all',
     'Stadium Snacks',
     '[]'::jsonb,
     true,
@@ -142,7 +142,7 @@ INSERT INTO products (
     'Large bucket of fresh stadium popcorn.',
     'snacks',
     350, 350,
-    'https://picsum.photos/seed/shop-food-popcorn/400/400',
+    'https://loremflickr.com/400/400/popcorn,food/all',
     'Stadium Snacks',
     '[]'::jsonb,
     true,
@@ -156,7 +156,7 @@ INSERT INTO products (
     'Chilled sugar-free cola.',
     'drinks',
     320, 320,
-    'https://picsum.photos/seed/shop-food-cola/400/400',
+    'https://loremflickr.com/400/400/cola,drink/all',
     'Stadium Bar',
     '[]'::jsonb,
     true,
@@ -170,7 +170,7 @@ INSERT INTO products (
     'Still mineral water.',
     'drinks',
     250, 250,
-    'https://picsum.photos/seed/shop-food-water/400/400',
+    'https://loremflickr.com/400/400/water,bottle/all',
     'Stadium Bar',
     '[]'::jsonb,
     true,
@@ -184,7 +184,7 @@ INSERT INTO products (
     'Size 1 souvenir ball for kids.',
     'balls',
     1800, 1800,
-    'https://picsum.photos/seed/shop-merch-mini-ball/400/400',
+    'https://loremflickr.com/400/400/football,mini/all',
     'Fan Shop',
     '[]'::jsonb,
     true,
@@ -198,7 +198,7 @@ INSERT INTO products (
     'Knitted supporter scarf in club colors.',
     'stickers',
     2200, 2200,
-    'https://picsum.photos/seed/shop-merch-scarf/400/400',
+    'https://loremflickr.com/400/400/scarf,football/all',
     'Fan Shop',
     '[]'::jsonb,
     true,
@@ -212,7 +212,7 @@ INSERT INTO products (
     'Grilled chicken wrap with fresh vegetables.',
     'sandwiches',
     780, 780,
-    'https://picsum.photos/seed/shop-food-wrap/400/400',
+    'https://loremflickr.com/400/400/wrap,food/all',
     'Stadium Snacks',
     '[]'::jsonb,
     true,
@@ -222,23 +222,43 @@ ON CONFLICT (id) DO UPDATE SET
     image_key = EXCLUDED.image_key,
     updated_at = NOW();
 
--- Fix legacy migration seed rows (broken cdn.smartklap.com URLs).
-UPDATE products SET image_key = 'https://picsum.photos/seed/shop-legacy-shirt/400/400', updated_at = NOW()
-WHERE deleted_at IS NULL AND name = 'Sport T-shirt' AND image_key LIKE '%cdn.smartklap.com%';
+-- Refresh legacy migration rows and any leftover random/picsum/cdn URLs.
+UPDATE products SET image_key = 'https://loremflickr.com/400/400/shirt,jersey,sport/all', updated_at = NOW()
+WHERE deleted_at IS NULL AND name = 'Sport T-shirt' AND id::text NOT LIKE 'c2000000%';
 
-UPDATE products SET image_key = 'https://picsum.photos/seed/shop-legacy-ball/400/400', updated_at = NOW()
-WHERE deleted_at IS NULL AND name = 'Match Ball' AND image_key LIKE '%cdn.smartklap.com%';
+UPDATE products SET image_key = 'https://loremflickr.com/400/400/soccer,ball/all', updated_at = NOW()
+WHERE deleted_at IS NULL AND name = 'Match Ball' AND id::text NOT LIKE 'c2000000%';
 
-UPDATE products SET image_key = 'https://picsum.photos/seed/shop-legacy-stickers/400/400', updated_at = NOW()
-WHERE deleted_at IS NULL AND name = 'Club Sticker Pack' AND image_key LIKE '%cdn.smartklap.com%';
+UPDATE products SET image_key = 'https://loremflickr.com/400/400/sticker,sheet/all', updated_at = NOW()
+WHERE deleted_at IS NULL AND name = 'Club Sticker Pack' AND id::text NOT LIKE 'c2000000%';
 
-UPDATE products SET image_key = 'https://picsum.photos/seed/shop-legacy-suit/400/400', updated_at = NOW()
-WHERE deleted_at IS NULL AND name = 'Training Suit' AND image_key LIKE '%cdn.smartklap.com%';
+UPDATE products SET image_key = 'https://loremflickr.com/400/400/tracksuit,sport/all', updated_at = NOW()
+WHERE deleted_at IS NULL AND name = 'Training Suit' AND id::text NOT LIKE 'c2000000%';
 
--- Ensure any active product without an image gets a placeholder.
-UPDATE products SET
-    image_key = 'https://picsum.photos/seed/shop-default-' || replace(id::text, '-', '') || '/400/400',
-    updated_at = NOW()
-WHERE deleted_at IS NULL AND (image_key IS NULL OR trim(image_key) = '');
+UPDATE products SET image_key = CASE name
+    WHEN 'Sport T-shirt'     THEN 'https://loremflickr.com/400/400/shirt,jersey,sport/all'
+    WHEN 'Away T-shirt'      THEN 'https://loremflickr.com/400/400/shirt,jersey,football/all'
+    WHEN 'Match Ball'        THEN 'https://loremflickr.com/400/400/soccer,ball/all'
+    WHEN 'Club Sticker Pack' THEN 'https://loremflickr.com/400/400/sticker,sheet/all'
+    WHEN 'Training Suit'     THEN 'https://loremflickr.com/400/400/tracksuit,sport/all'
+    WHEN 'Winter Hoodie'     THEN 'https://loremflickr.com/400/400/hoodie,sport/all'
+    WHEN 'Double Burger'     THEN 'https://loremflickr.com/400/400/burger,food/all'
+    WHEN 'Club Hot Dog'      THEN 'https://loremflickr.com/400/400/hotdog,food/all'
+    WHEN 'Loaded Nachos'     THEN 'https://loremflickr.com/400/400/nachos,food/all'
+    WHEN 'Salted Popcorn'    THEN 'https://loremflickr.com/400/400/popcorn,food/all'
+    WHEN 'Cola Zero'         THEN 'https://loremflickr.com/400/400/cola,drink/all'
+    WHEN 'Mineral Water'     THEN 'https://loremflickr.com/400/400/water,bottle/all'
+    WHEN 'Mini Ball'         THEN 'https://loremflickr.com/400/400/football,mini/all'
+    WHEN 'Scarf'             THEN 'https://loremflickr.com/400/400/scarf,football/all'
+    WHEN 'Chicken Wrap'      THEN 'https://loremflickr.com/400/400/wrap,food/all'
+    ELSE image_key
+END,
+updated_at = NOW()
+WHERE deleted_at IS NULL
+  AND (
+    image_key LIKE '%picsum.photos%'
+    OR image_key LIKE '%cdn.smartklap.com%'
+    OR image_key LIKE '%unsplash.com%'
+  );
 
 COMMIT;
