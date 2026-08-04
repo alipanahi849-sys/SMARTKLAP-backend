@@ -42,6 +42,7 @@ import (
 	"clap/internal/modules/playback"
 	playbackrepo "clap/internal/modules/playback/repository"
 	playbacksvc "clap/internal/modules/playback/service"
+	"clap/internal/modules/product"
 	"clap/internal/modules/realtime"
 	realtimegw "clap/internal/modules/realtime/gateway"
 	realtimemetrics "clap/internal/modules/realtime/metrics"
@@ -318,6 +319,7 @@ func setupRouter(deps routerDeps) *gin.Engine {
 		// Phase 4.3: Mobile API Contract modules
 		chant.RegisterRoutes(v1)
 		video.RegisterRoutes(v1)
+		product.RegisterRoutes(v1)
 		// Phase 4 + 4.2: Realtime Engine Foundation + WebSocket Delivery Layer
 		realtime.RegisterRoutesWithWS(v1, realtime.WSConfig{
 			CM:           deps.cm,
