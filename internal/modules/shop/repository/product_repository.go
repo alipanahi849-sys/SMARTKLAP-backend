@@ -24,7 +24,9 @@ type ProductRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*models.Product, error)
 	FindByIDAdmin(ctx context.Context, id uuid.UUID) (*models.Product, error)
 	Create(ctx context.Context, product *models.Product) error
+	Update(ctx context.Context, product *models.Product) error
 	UpdateImageKey(ctx context.Context, id uuid.UUID, imageKey string) error
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 type productRepository struct {
@@ -110,6 +112,20 @@ func (r *productRepository) UpdateImageKey(ctx context.Context, id uuid.UUID, im
 func (r *productRepository) Create(ctx context.Context, product *models.Product) error {
 	if err := r.db.WithContext(ctx).Create(product).Error; err != nil {
 		return errors.NewInternal("Failed to create product", err)
+	}
+	return nil
+}
+
+func (r *productRepository) Update(ctx context.Context, product *models.Product) error {
+	if err := r.db.WithContext(ctx).Save(product).Error; err != nil {
+		return errors.NewInternal("Failed to update product", err)
+	}
+	return nil
+}
+
+func (r *productRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	if err := r.db.WithContext(ctx).Delete(&models.Product{}, id).Error; err != nil {
+		return errors.NewInternal("Failed to delete product", err)
 	}
 	return nil
 }

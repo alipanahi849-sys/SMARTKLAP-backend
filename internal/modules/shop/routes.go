@@ -29,6 +29,8 @@ func RegisterRoutes(r *gin.RouterGroup) {
 		shop.GET("", h.List)
 		shop.POST("", h.Create)
 		shop.GET("/:id", h.GetByID)
+		shop.PUT("/:id", h.Update)
+		shop.DELETE("/:id", h.Delete)
 		shop.POST("/:id/image", h.UploadProductImage)
 	}
 }

@@ -52,6 +52,8 @@ type ProductService interface {
 	List(ctx context.Context, userID uuid.UUID, page, limit int, filters dto.ProductListFilters) (*dto.ProductListResponse, error)
 	GetByID(ctx context.Context, id uuid.UUID, filters dto.ProductDetailFilters) (*dto.ProductDetailResponse, error)
 	Create(ctx context.Context, req *dto.CreateProductRequest, authCtx *utils.AuthorizationContext) (*dto.ProductDetailResponse, error)
+	Update(ctx context.Context, id uuid.UUID, req *dto.UpdateProductRequest, authCtx *utils.AuthorizationContext) (*dto.ProductDetailResponse, error)
+	Delete(ctx context.Context, id uuid.UUID, authCtx *utils.AuthorizationContext) error
 	UploadProductImage(ctx context.Context, productID uuid.UUID, file *multipart.FileHeader, authCtx *utils.AuthorizationContext) (*dto.ImageUploadResponse, error)
 }
 
@@ -198,6 +200,80 @@ func (s *productService) Create(ctx context.Context, req *dto.CreateProductReque
 	return toProductDetail(product, dto.CurrencyEUR, sizesForResponse(product, sizes), s.resolveURL(ctx, product.ImageKey)), nil
 }
 
+func (s *productService) Update(ctx context.Context, id uuid.UUID, req *dto.UpdateProductRequest, authCtx *utils.AuthorizationContext) (*dto.ProductDetailResponse, error) {
+	if err := authCtx.RequireAdmin(); err != nil {
+		return nil, err
+	}
+
+	product, err := s.productRepo.FindByIDAdmin(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	productType, err := normalizeProductType(req.ProductType, true)
+	if err != nil {
+		return nil, err
+	}
+
+	category := strings.TrimSpace(req.Category)
+	if err := validateCategory(category, productType); err != nil {
+		return nil, err
+	}
+
+	sizes, err := validateCreateSizes(productType, req.AvailableSizes)
+	if err != nil {
+		return nil, err
+	}
+
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		return nil, errors.NewBadRequest("name is required", nil)
+	}
+
+	if imageURL := strings.TrimSpace(req.ImageURL); imageURL != "" {
+		oldKey := product.ImageKey
+		product.ImageKey = imageURL
+		s.deleteStoredImage(ctx, oldKey, imageURL)
+	}
+
+	product.ProductType = productType
+	product.Name = name
+	product.Subname = strings.TrimSpace(req.Subname)
+	product.Description = strings.TrimSpace(req.Description)
+	product.Category = category
+	product.PriceCents = req.PriceCents
+	product.PricePoints = req.PricePoints
+	product.SellerName = strings.TrimSpace(req.SellerName)
+	product.AvailableSizes = marshalAvailableSizes(sizes)
+	if req.IsActive != nil {
+		product.IsActive = *req.IsActive
+	}
+
+	if err := s.productRepo.Update(ctx, product); err != nil {
+		return nil, err
+	}
+
+	return toProductDetail(product, dto.CurrencyEUR, sizesForResponse(product, sizes), s.resolveURL(ctx, product.ImageKey)), nil
+}
+
+func (s *productService) Delete(ctx context.Context, id uuid.UUID, authCtx *utils.AuthorizationContext) error {
+	if err := authCtx.RequireAdmin(); err != nil {
+		return err
+	}
+
+	product, err := s.productRepo.FindByIDAdmin(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if err := s.productRepo.Delete(ctx, id); err != nil {
+		return err
+	}
+
+	s.deleteStoredImage(ctx, product.ImageKey, "")
+	return nil
+}
+
 func (s *productService) UploadProductImage(ctx context.Context, productID uuid.UUID, file *multipart.FileHeader, authCtx *utils.AuthorizationContext) (*dto.ImageUploadResponse, error) {
 	if err := authCtx.RequireAdmin(); err != nil {
 		return nil, err
@@ -241,11 +317,7 @@ func (s *productService) UploadProductImage(ctx context.Context, productID uuid.
 		return nil, err
 	}
 
-	oldKey := product.ImageKey
-	if oldKey != "" && oldKey != key &&
-		!strings.HasPrefix(oldKey, "http://") && !strings.HasPrefix(oldKey, "https://") {
-		_ = s.storage.Delete(ctx, oldKey)
-	}
+	s.deleteStoredImage(ctx, product.ImageKey, key)
 
 	logger.Info().
 		Str("product_id", productID.String()).
@@ -403,6 +475,19 @@ func formatPrice(p models.Product, currency string) string {
 		return utils.FormatPoints(p.PricePoints)
 	}
 	return utils.FormatEuro(p.PriceCents)
+}
+
+func (s *productService) deleteStoredImage(ctx context.Context, oldKey, newKey string) {
+	if oldKey == "" || oldKey == newKey {
+		return
+	}
+	if strings.HasPrefix(oldKey, "http://") || strings.HasPrefix(oldKey, "https://") {
+		return
+	}
+	if s.storage == nil {
+		return
+	}
+	_ = s.storage.Delete(ctx, oldKey)
 }
 
 func (s *productService) resolveURL(ctx context.Context, stored string) string {

@@ -41,6 +41,21 @@ type CreateProductRequest struct {
 	IsActive       *bool    `json:"is_active"`
 }
 
+// UpdateProductRequest is the body for PUT /api/v1/shop/{id}.
+type UpdateProductRequest struct {
+	ProductType    string   `json:"product_type" binding:"required"`
+	Name           string   `json:"name" binding:"required"`
+	Subname        string   `json:"subname"`
+	Description    string   `json:"description"`
+	Category       string   `json:"category" binding:"required"`
+	PriceCents     int64    `json:"price_cents" binding:"required,min=0"`
+	PricePoints    int      `json:"price_points" binding:"required,min=0"`
+	ImageURL       string   `json:"image_url"`
+	SellerName     string   `json:"seller_name"`
+	AvailableSizes []string `json:"available_sizes"`
+	IsActive       *bool    `json:"is_active"`
+}
+
 // ProductItem is a single row on the shop list screen.
 type ProductItem struct {
 	ID          uuid.UUID `json:"id"`

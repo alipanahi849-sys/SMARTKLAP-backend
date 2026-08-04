@@ -16,6 +16,8 @@ type ProductHandler interface {
 	List(c *gin.Context)
 	GetByID(c *gin.Context)
 	Create(c *gin.Context)
+	Update(c *gin.Context)
+	Delete(c *gin.Context)
 	UploadProductImage(c *gin.Context)
 }
 
@@ -133,6 +135,70 @@ func (h *productHandler) Create(c *gin.Context) {
 		return
 	}
 	response.Created(c, result)
+}
+
+// Update shop product godoc
+//
+//	@Summary		Update shop product
+//	@Tags			shop
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path	string	true	"Product ID"
+//	@Param			body	body	dto.UpdateProductRequest	true	"Request body"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		403	{object}	response.Response
+//	@Failure		404	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/shop/{id} [put]
+func (h *productHandler) Update(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid product ID")
+		return
+	}
+
+	var req dto.UpdateProductRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	authCtx := getAuthContext(c)
+	result, err := h.svc.Update(c.Request.Context(), id, &req, authCtx)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+// Delete shop product godoc
+//
+//	@Summary		Delete shop product
+//	@Tags			shop
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"Product ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		403	{object}	response.Response
+//	@Failure		404	{object}	response.Response
+//	@Router			/api/v1/shop/{id} [delete]
+func (h *productHandler) Delete(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid product ID")
+		return
+	}
+
+	authCtx := getAuthContext(c)
+	if err := h.svc.Delete(c.Request.Context(), id, authCtx); err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.SuccessWithMessage(c, nil, "Product deleted successfully")
 }
 
 // Upload product image godoc

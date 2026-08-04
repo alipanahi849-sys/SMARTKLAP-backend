@@ -471,6 +471,32 @@ Removed — `/api/v1/guess/*` is no longer exposed.
 }
 ```
 
+### 7.5 Update Product (admin)
+
+| Field | Value |
+|---|---|
+| **Endpoint** | `/api/v1/shop/{product_id}` |
+| **HTTP Method** | PUT |
+| **Request** | همان فیلدهای create؛ `image_url` اختیاری — اگر ارسال شود جایگزین تصویر فعلی می‌شود، اگر خالی باشد تصویر قبلی حفظ می‌شود |
+| **Response** | `200 OK` — product detail object |
+| **Authentication** | Bearer (admin) |
+| **Error Codes** | `403` · `404` · `400` · استاندارد |
+| **Pagination** | ندارد |
+
+### 7.6 Delete Product (admin)
+
+| Field | Value |
+|---|---|
+| **Endpoint** | `/api/v1/shop/{product_id}` |
+| **HTTP Method** | DELETE |
+| **Request** | Path param `product_id` |
+| **Response** | `200 OK` — `{ "message": "Product deleted successfully" }` |
+| **Authentication** | Bearer (admin) |
+| **Error Codes** | `403` · `404` · استاندارد |
+| **Pagination** | ندارد |
+
+محصول soft-delete می‌شود و از لیست موبایل حذف می‌گردد.
+
 خرید: همان `POST /api/v1/cart/items` با `product_type: "merch"`، `size` هم در body ارسال شود.
 
 ```json
