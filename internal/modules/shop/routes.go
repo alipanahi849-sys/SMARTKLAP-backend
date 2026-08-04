@@ -28,6 +28,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	{
 		shop.GET("", h.List)
 		shop.POST("", h.Create)
+		shop.POST("/image", h.UploadImage)
 		shop.GET("/:id", h.GetByID)
 	}
 }

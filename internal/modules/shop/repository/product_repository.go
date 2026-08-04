@@ -14,8 +14,9 @@ import (
 
 // ProductFilters mirrors the list query params at the repository layer.
 type ProductFilters struct {
-	Search   string
-	Category string
+	Search      string
+	Category    string
+	ProductType string
 }
 
 type ProductRepository interface {
@@ -37,6 +38,10 @@ func (r *productRepository) List(ctx context.Context, page, limit int, filters P
 
 	if cat := strings.TrimSpace(filters.Category); cat != "" {
 		q = q.Where("category = ?", cat)
+	}
+
+	if pt := strings.TrimSpace(filters.ProductType); pt != "" {
+		q = q.Where("product_type = ?", pt)
 	}
 
 	if s := strings.TrimSpace(filters.Search); s != "" {

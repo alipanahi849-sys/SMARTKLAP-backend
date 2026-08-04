@@ -370,67 +370,101 @@ Removed — `/api/v1/guess/*` is no longer exposed.
 
 ---
 
-## 7. Shop Module (Merch)
+## 7. Shop Module (Food + Merch)
 
-### 7.1 Store Screen
+### 7.1 Shop List
 
 | Field | Value |
 |---|---|
-| **Screen Name** | Store Screen |
+| **Screen Name** | Shop / Store / Snacks Screen |
 | **Endpoint** | `/api/v1/shop` |
 | **HTTP Method** | GET |
-| **Request** | Query: `search?`, `category?: "t-shirts"\|"balls"\|"stickers"\|"sport-suits"`, `currency?: "EUR"\|"POINT"`, `page?`, `limit?` |
-| **Response** | `200 OK` — `{ "items": [{ "id","name","description","price","image_url" }], "cart_count", "meta" }` |
+| **Request** | Query: `search?`, `product_type?: "food"\|"merch"`, `category?`, `currency?: "EUR"\|"POINT"`, `page?`, `limit?` |
+| **Response** | `200 OK` — `{ "items": [{ "id","product_type","name","description","price","image_url" }], "cart_count", "user_points", "meta" }` |
 | **Authentication** | Bearer |
 | **Error Codes** | استاندارد |
 | **Pagination** | بله |
 
+**Categories by type:**
+- `food`: `sandwiches`, `snacks`, `drinks` — بدون سایز
+- `merch`: `t-shirts`, `balls`, `stickers`, `sport-suits` — سایز اختیاری
+
 ```json
 {
   "items": [
-    { "id": "1", "name": "Sport T-shirt", "description": "Home kit", "price": "32,50 €", "image_url": "https://cdn.smartklap.com/store/shirt.png" }
+    { "id": "1", "product_type": "merch", "name": "Sport T-shirt", "description": "Home kit", "price": "32,50 €", "image_url": "https://cdn.smartklap.com/store/shirt.png" },
+    { "id": "2", "product_type": "food", "name": "Double Berger", "description": "With onions", "price": "8,20 €", "image_url": "https://cdn.smartklap.com/foods/berger.png" }
   ],
   "cart_count": 2,
+  "user_points": 960,
   "meta": { "page": 1, "limit": 20, "total": 10, "total_pages": 1 }
 }
 ```
 
-### 7.2 Product Detail Screen
+### 7.2 Product Detail
 
 | Field | Value |
 |---|---|
-| **Screen Name** | Product Detail Screen |
+| **Screen Name** | Product / Snack Detail Screen |
 | **Endpoint** | `/api/v1/shop/{product_id}` |
 | **HTTP Method** | GET |
-| **Request** | Path param `product_id`; query `currency?: "EUR"\|"POINT"`, `size?: "M"\|"L"\|"XL"\|"XXL"` |
-| **Response** | `200 OK` — `{ "id","name","seller_name","description","price","image_url","available_sizes":["M","L","XL","XXL"] }` |
+| **Request** | Path param `product_id`; query `currency?: "EUR"\|"POINT"`, `size?` (فقط برای `product_type=merch`) |
+| **Response** | `200 OK` — food: `{ "id","product_type","name","description","price","image_url" }` · merch: `{ ...,"available_sizes":["M","L"] }` |
 | **Authentication** | Bearer |
 | **Error Codes** | `404` · استاندارد |
 | **Pagination** | ندارد |
 
-### 7.3 Create Product (admin)
+### 7.3 Upload Image (admin)
+
+| Field | Value |
+|---|---|
+| **Endpoint** | `/api/v1/shop/image` |
+| **HTTP Method** | POST |
+| **Request** | `multipart/form-data` — field `file` (JPEG/PNG/WebP, max 5 MB) |
+| **Response** | `201 Created` — `{ "image_key", "image_url" }` |
+| **Authentication** | Bearer (admin) |
+| **Error Codes** | `403` · `415` · `413` · استاندارد |
+
+`image_key` را در body ساخت محصول (`POST /shop`) بفرست.
+
+### 7.4 Create Product (admin)
 
 | Field | Value |
 |---|---|
 | **Endpoint** | `/api/v1/shop` |
 | **HTTP Method** | POST |
-| **Request** | `{ "name","subname?","description?","category","price_cents","price_points","image_url?","seller_name?","available_sizes?","is_active?" }` |
+| **Request** | `{ "product_type","name","subname?","description?","category","price_cents","price_points","image_key?","seller_name?","available_sizes?","is_active?" }` |
 | **Response** | `201 Created` — product detail object |
 | **Authentication** | Bearer (admin) |
 | **Error Codes** | `403` · `400` · استاندارد |
 | **Pagination** | ندارد |
 
+**Merch example:**
 ```json
 {
+  "product_type": "merch",
   "name": "Sport T-shirt",
   "subname": "Home kit",
   "description": "Official club home kit jersey.",
   "category": "t-shirts",
   "price_cents": 3250,
   "price_points": 3250,
-  "image_url": "https://cdn.smartklap.com/store/shirt.png",
+  "image_key": "shop/images/abc.jpg",
   "seller_name": "Sport Mall 2",
   "available_sizes": ["M", "L", "XL", "XXL"]
+}
+```
+
+**Food example:**
+```json
+{
+  "product_type": "food",
+  "name": "Double Berger",
+  "description": "With onions",
+  "category": "sandwiches",
+  "price_cents": 820,
+  "price_points": 820,
+  "image_key": "shop/images/def.jpg"
 }
 ```
 

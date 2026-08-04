@@ -7,7 +7,13 @@ import (
 	"gorm.io/gorm"
 )
 
-// Product categories (Mobile API Contract §7.1).
+// Product types (Mobile API Contract §6–§7).
+const (
+	ProductTypeFood  = "food"
+	ProductTypeMerch = "merch"
+)
+
+// Merch categories (§7).
 const (
 	CategoryTShirts   = "t-shirts"
 	CategoryBalls     = "balls"
@@ -15,9 +21,17 @@ const (
 	CategorySportSuit = "sport-suits"
 )
 
-// Product is a merch catalog item (Mobile API Contract §7).
+// Food categories (§6).
+const (
+	CategorySandwiches = "sandwiches"
+	CategoryFoodSnacks = "snacks"
+	CategoryDrinks     = "drinks"
+)
+
+// Product is a shop catalog item (food or merch).
 type Product struct {
 	ID             uuid.UUID      `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	ProductType    string         `gorm:"type:varchar(20);not null;default:merch" json:"product_type"`
 	Name           string         `gorm:"type:varchar(200);not null" json:"name"`
 	Subname        string         `gorm:"type:varchar(200);not null;default:''" json:"subname"`
 	Description    string         `gorm:"type:text;not null;default:''" json:"description"`
@@ -35,4 +49,8 @@ type Product struct {
 
 func (Product) TableName() string {
 	return "products"
+}
+
+func (p Product) HasSizes() bool {
+	return p.ProductType == ProductTypeMerch
 }

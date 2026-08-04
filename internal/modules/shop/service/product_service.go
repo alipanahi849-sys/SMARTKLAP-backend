@@ -3,6 +3,10 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"mime"
+	"mime/multipart"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -11,26 +15,44 @@ import (
 	"clap/internal/modules/shop/models"
 	"clap/internal/modules/shop/repository"
 	"clap/internal/shared/errors"
+	"clap/internal/shared/logger"
 	"clap/internal/shared/utils"
 	"clap/pkg/storage"
 
 	"github.com/google/uuid"
 )
 
-const imageURLExpiry = 6 * time.Hour
+const (
+	imageURLExpiry      = 6 * time.Hour
+	maxShopImageBytes   = 5 * 1024 * 1024
+)
 
-var validCategories = map[string]bool{
+var allowedShopImageMimeTypes = map[string]string{
+	"image/jpeg": ".jpg",
+	"image/jpg":  ".jpg",
+	"image/png":  ".png",
+	"image/webp": ".webp",
+}
+
+var merchCategories = map[string]bool{
 	models.CategoryTShirts:   true,
 	models.CategoryBalls:     true,
 	models.CategoryStickers:  true,
 	models.CategorySportSuit: true,
 }
 
-// ProductService implements the mobile Shop screens (contract §7).
+var foodCategories = map[string]bool{
+	models.CategorySandwiches: true,
+	models.CategoryFoodSnacks: true,
+	models.CategoryDrinks:     true,
+}
+
+// ProductService implements the mobile Shop screens (contract §6–§7).
 type ProductService interface {
 	List(ctx context.Context, userID uuid.UUID, page, limit int, filters dto.ProductListFilters) (*dto.ProductListResponse, error)
 	GetByID(ctx context.Context, id uuid.UUID, filters dto.ProductDetailFilters) (*dto.ProductDetailResponse, error)
 	Create(ctx context.Context, req *dto.CreateProductRequest, authCtx *utils.AuthorizationContext) (*dto.ProductDetailResponse, error)
+	UploadImage(ctx context.Context, file *multipart.FileHeader, authCtx *utils.AuthorizationContext) (*dto.ImageUploadResponse, error)
 }
 
 type productService struct {
@@ -57,9 +79,16 @@ func (s *productService) List(ctx context.Context, userID uuid.UUID, page, limit
 		return nil, err
 	}
 
+	productType, err := normalizeProductType(filters.ProductType, false)
+	if err != nil {
+		return nil, err
+	}
+
 	category := strings.TrimSpace(filters.Category)
-	if category != "" && !validCategories[category] {
-		return nil, errors.NewBadRequest("Invalid category", nil)
+	if category != "" {
+		if err := validateCategory(category, productType); err != nil {
+			return nil, err
+		}
 	}
 
 	user, err := s.userRepo.FindByID(ctx, userID)
@@ -68,8 +97,9 @@ func (s *productService) List(ctx context.Context, userID uuid.UUID, page, limit
 	}
 
 	products, total, err := s.productRepo.List(ctx, page, limit, repository.ProductFilters{
-		Search:   filters.Search,
-		Category: category,
+		Search:      filters.Search,
+		Category:    category,
+		ProductType: productType,
 	})
 	if err != nil {
 		return nil, err
@@ -79,6 +109,7 @@ func (s *productService) List(ctx context.Context, userID uuid.UUID, page, limit
 	for i, p := range products {
 		items[i] = dto.ProductItem{
 			ID:          p.ID,
+			ProductType: p.ProductType,
 			Name:        p.Name,
 			Subname:     p.Subname,
 			Description: p.Description,
@@ -89,7 +120,7 @@ func (s *productService) List(ctx context.Context, userID uuid.UUID, page, limit
 
 	return &dto.ProductListResponse{
 		Items:      items,
-		CartCount:  0, // cart module not implemented yet
+		CartCount:  0,
 		UserPoints: user.Points,
 		Meta:       utils.NewListMeta(total, page, limit),
 	}, nil
@@ -106,7 +137,7 @@ func (s *productService) GetByID(ctx context.Context, id uuid.UUID, filters dto.
 		return nil, err
 	}
 
-	sizes, err := filterAvailableSizes(product.AvailableSizes, filters.Size)
+	sizes, err := resolveDetailSizes(product, filters.Size)
 	if err != nil {
 		return nil, err
 	}
@@ -119,9 +150,24 @@ func (s *productService) Create(ctx context.Context, req *dto.CreateProductReque
 		return nil, err
 	}
 
+	productType, err := normalizeProductType(req.ProductType, true)
+	if err != nil {
+		return nil, err
+	}
+
 	category := strings.TrimSpace(req.Category)
-	if !validCategories[category] {
-		return nil, errors.NewBadRequest("Invalid category", nil)
+	if err := validateCategory(category, productType); err != nil {
+		return nil, err
+	}
+
+	sizes, err := validateCreateSizes(productType, req.AvailableSizes)
+	if err != nil {
+		return nil, err
+	}
+
+	imageKey := strings.TrimSpace(req.ImageKey)
+	if imageKey == "" {
+		imageKey = strings.TrimSpace(req.ImageURL)
 	}
 
 	isActive := true
@@ -129,29 +175,147 @@ func (s *productService) Create(ctx context.Context, req *dto.CreateProductReque
 		isActive = *req.IsActive
 	}
 
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		return nil, errors.NewBadRequest("name is required", nil)
+	}
+
 	product := &models.Product{
-		Name:           strings.TrimSpace(req.Name),
+		ProductType:    productType,
+		Name:           name,
 		Subname:        strings.TrimSpace(req.Subname),
 		Description:    strings.TrimSpace(req.Description),
 		Category:       category,
 		PriceCents:     req.PriceCents,
 		PricePoints:    req.PricePoints,
-		ImageKey:       strings.TrimSpace(req.ImageURL),
+		ImageKey:       imageKey,
 		SellerName:     strings.TrimSpace(req.SellerName),
-		AvailableSizes: marshalAvailableSizes(req.AvailableSizes),
+		AvailableSizes: marshalAvailableSizes(sizes),
 		IsActive:       isActive,
-	}
-
-	if product.Name == "" {
-		return nil, errors.NewBadRequest("name is required", nil)
 	}
 
 	if err := s.productRepo.Create(ctx, product); err != nil {
 		return nil, err
 	}
 
-	sizes := parseAvailableSizes(product.AvailableSizes)
-	return toProductDetail(product, dto.CurrencyEUR, sizes, s.resolveURL(ctx, product.ImageKey)), nil
+	return toProductDetail(product, dto.CurrencyEUR, sizesForResponse(product, sizes), s.resolveURL(ctx, product.ImageKey)), nil
+}
+
+func (s *productService) UploadImage(ctx context.Context, file *multipart.FileHeader, authCtx *utils.AuthorizationContext) (*dto.ImageUploadResponse, error) {
+	if err := authCtx.RequireAdmin(); err != nil {
+		return nil, err
+	}
+
+	if file.Size > maxShopImageBytes {
+		return nil, errors.NewPayloadTooLarge("Image must be at most 5 MB", nil)
+	}
+
+	mimeType := file.Header.Get("Content-Type")
+	if mimeType == "" {
+		mimeType = mime.TypeByExtension(filepath.Ext(file.Filename))
+	}
+	ext, ok := allowedShopImageMimeTypes[strings.ToLower(mimeType)]
+	if !ok {
+		return nil, errors.NewUnsupportedMedia("Image must be a JPEG, PNG or WebP file", nil)
+	}
+
+	if s.storage == nil {
+		return nil, errors.NewInternal("Storage is not configured", nil)
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		return nil, errors.NewInternal("Failed to open uploaded file", err)
+	}
+	defer src.Close()
+
+	key := fmt.Sprintf("shop/images/%s%s", uuid.NewString(), ext)
+	if err := s.storage.Upload(ctx, key, src, mimeType, file.Size); err != nil {
+		logger.Error().Err(err).Str("key", key).Msg("shop_image_store_failed")
+		return nil, errors.NewInternal("Failed to store image", err)
+	}
+
+	logger.Info().Str("storage_key", key).Msg("shop_image_uploaded")
+
+	return &dto.ImageUploadResponse{
+		ImageKey: key,
+		ImageURL: s.resolveURL(ctx, key),
+	}, nil
+}
+
+func normalizeProductType(raw string, required bool) (string, error) {
+	pt := strings.ToLower(strings.TrimSpace(raw))
+	if pt == "" {
+		if required {
+			return "", errors.NewBadRequest("product_type is required", nil)
+		}
+		return "", nil
+	}
+	if pt != models.ProductTypeFood && pt != models.ProductTypeMerch {
+		return "", errors.NewBadRequest("product_type must be 'food' or 'merch'", nil)
+	}
+	return pt, nil
+}
+
+func validateCategory(category, productType string) error {
+	category = strings.TrimSpace(category)
+	if category == "" {
+		return errors.NewBadRequest("category is required", nil)
+	}
+
+	switch productType {
+	case models.ProductTypeFood:
+		if !foodCategories[category] {
+			return errors.NewBadRequest("Invalid food category", nil)
+		}
+	case models.ProductTypeMerch:
+		if !merchCategories[category] {
+			return errors.NewBadRequest("Invalid merch category", nil)
+		}
+	default:
+		if !foodCategories[category] && !merchCategories[category] {
+			return errors.NewBadRequest("Invalid category", nil)
+		}
+	}
+	return nil
+}
+
+func validateCreateSizes(productType string, sizes []string) ([]string, error) {
+	clean := make([]string, 0, len(sizes))
+	for _, size := range sizes {
+		size = strings.TrimSpace(size)
+		if size == "" {
+			continue
+		}
+		clean = append(clean, size)
+	}
+
+	if productType == models.ProductTypeFood {
+		if len(clean) > 0 {
+			return nil, errors.NewBadRequest("food products cannot have sizes", nil)
+		}
+		return nil, nil
+	}
+
+	return clean, nil
+}
+
+func resolveDetailSizes(product *models.Product, size string) ([]string, error) {
+	if product.ProductType == models.ProductTypeFood {
+		if strings.TrimSpace(size) != "" {
+			return nil, errors.NewBadRequest("size is only available for merch products", nil)
+		}
+		return nil, nil
+	}
+
+	return filterAvailableSizes(product.AvailableSizes, size)
+}
+
+func sizesForResponse(product *models.Product, sizes []string) []string {
+	if product.ProductType == models.ProductTypeFood {
+		return nil
+	}
+	return sizes
 }
 
 func parseCurrency(raw string) (string, error) {
@@ -166,24 +330,30 @@ func parseCurrency(raw string) (string, error) {
 }
 
 func toProductDetail(p *models.Product, currency string, sizes []string, imageURL string) *dto.ProductDetailResponse {
-	return &dto.ProductDetailResponse{
-		ID:             p.ID,
-		Name:           p.Name,
-		SellerName:     p.SellerName,
-		Description:    p.Description,
-		Price:          formatPrice(*p, currency),
-		ImageURL:       imageURL,
-		AvailableSizes: sizes,
+	resp := &dto.ProductDetailResponse{
+		ID:          p.ID,
+		ProductType: p.ProductType,
+		Name:        p.Name,
+		Description: p.Description,
+		Price:       formatPrice(*p, currency),
+		ImageURL:    imageURL,
 	}
+	if p.SellerName != "" {
+		resp.SellerName = p.SellerName
+	}
+	if len(sizes) > 0 {
+		resp.AvailableSizes = sizes
+	}
+	return resp
 }
 
 func parseAvailableSizes(raw string) []string {
 	if raw == "" {
-		return []string{}
+		return nil
 	}
 	var sizes []string
 	if err := json.Unmarshal([]byte(raw), &sizes); err != nil {
-		return []string{}
+		return nil
 	}
 	return sizes
 }

@@ -11,11 +11,12 @@ import (
 	"github.com/google/uuid"
 )
 
-// ProductHandler serves the mobile Shop screens (contract §7).
+// ProductHandler serves the mobile Shop screens (contract §6–§7).
 type ProductHandler interface {
 	List(c *gin.Context)
 	GetByID(c *gin.Context)
 	Create(c *gin.Context)
+	UploadImage(c *gin.Context)
 }
 
 type productHandler struct {
@@ -32,9 +33,10 @@ func NewProductHandler(svc service.ProductService) ProductHandler {
 //	@Tags			shop
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			search		query	string	false	"Search by name, subname or description"
-//	@Param			category	query	string	false	"Category filter (t-shirts, balls, stickers, sport-suits)"
-//	@Param			currency	query	string	false	"Price display currency (EUR or POINT)"
+//	@Param			search			query	string	false	"Search by name, subname or description"
+//	@Param			product_type	query	string	false	"Product type filter (food or merch)"
+//	@Param			category		query	string	false	"Category filter"
+//	@Param			currency		query	string	false	"Price display currency (EUR or POINT)"
 //	@Param			page		query	int		false	"Page number"
 //	@Param			limit		query	int		false	"Items per page"
 //	@Success		200	{object}	response.Response
@@ -50,9 +52,10 @@ func (h *productHandler) List(c *gin.Context) {
 
 	page, limit := utils.GetMobilePagination(c)
 	filters := dto.ProductListFilters{
-		Search:   c.Query("search"),
-		Category: c.Query("category"),
-		Currency: c.DefaultQuery("currency", dto.CurrencyEUR),
+		Search:      c.Query("search"),
+		Category:    c.Query("category"),
+		Currency:    c.DefaultQuery("currency", dto.CurrencyEUR),
+		ProductType: c.Query("product_type"),
 	}
 
 	result, err := h.svc.List(c.Request.Context(), userID, page, limit, filters)
@@ -71,7 +74,7 @@ func (h *productHandler) List(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Param			id			path	string	true	"Product ID"
 //	@Param			currency	query	string	false	"Price display currency (EUR or POINT)"
-//	@Param			size		query	string	false	"Filter available size (M, L, XL, XXL)"
+//	@Param			size		query	string	false	"Merch only: filter available size (M, L, XL, XXL)"
 //	@Success		200	{object}	response.Response
 //	@Failure		401	{object}	response.Response
 //	@Failure		404	{object}	response.Response
@@ -125,6 +128,35 @@ func (h *productHandler) Create(c *gin.Context) {
 
 	authCtx := getAuthContext(c)
 	result, err := h.svc.Create(c.Request.Context(), &req, authCtx)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.Created(c, result)
+}
+
+// Upload shop image godoc
+//
+//	@Summary		Upload shop product image
+//	@Tags			shop
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			file	formData	file	true	"Product image (JPEG, PNG or WebP)"
+//	@Success		201	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		403	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/shop/image [post]
+func (h *productHandler) UploadImage(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		response.BadRequest(c, "file is required")
+		return
+	}
+
+	authCtx := getAuthContext(c)
+	result, err := h.svc.UploadImage(c.Request.Context(), file, authCtx)
 	if err != nil {
 		response.Error(c, err)
 		return
