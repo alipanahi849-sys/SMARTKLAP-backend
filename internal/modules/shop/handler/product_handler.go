@@ -11,9 +11,11 @@ import (
 	"github.com/google/uuid"
 )
 
-// ProductHandler serves the mobile Store screens (contract §7).
+// ProductHandler serves the mobile Shop screens (contract §7).
 type ProductHandler interface {
 	List(c *gin.Context)
+	GetByID(c *gin.Context)
+	Create(c *gin.Context)
 }
 
 type productHandler struct {
@@ -59,4 +61,81 @@ func (h *productHandler) List(c *gin.Context) {
 		return
 	}
 	response.Success(c, result)
+}
+
+// Get shop product godoc
+//
+//	@Summary		Get shop product
+//	@Tags			shop
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id			path	string	true	"Product ID"
+//	@Param			currency	query	string	false	"Price display currency (EUR or POINT)"
+//	@Param			size		query	string	false	"Filter available size (M, L, XL, XXL)"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		404	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/shop/{id} [get]
+func (h *productHandler) GetByID(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == uuid.Nil {
+		response.Unauthorized(c, "Invalid user")
+		return
+	}
+
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid product ID")
+		return
+	}
+
+	filters := dto.ProductDetailFilters{
+		Currency: c.DefaultQuery("currency", dto.CurrencyEUR),
+		Size:     c.Query("size"),
+	}
+
+	result, err := h.svc.GetByID(c.Request.Context(), id, filters)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+// Create shop product godoc
+//
+//	@Summary		Create shop product
+//	@Tags			shop
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		dto.CreateProductRequest	true	"Request body"
+//	@Success		201	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		403	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Router			/api/v1/shop [post]
+func (h *productHandler) Create(c *gin.Context) {
+	var req dto.CreateProductRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	authCtx := getAuthContext(c)
+	result, err := h.svc.Create(c.Request.Context(), &req, authCtx)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.Created(c, result)
+}
+
+func getAuthContext(c *gin.Context) *utils.AuthorizationContext {
+	return utils.NewAuthorizationContext(
+		middleware.GetUserID(c),
+		middleware.GetUserRoles(c),
+		nil,
+	)
 }

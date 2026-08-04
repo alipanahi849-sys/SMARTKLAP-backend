@@ -8,6 +8,7 @@ import (
 	"clap/internal/shared/errors"
 	"clap/internal/shared/utils"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -19,6 +20,8 @@ type ProductFilters struct {
 
 type ProductRepository interface {
 	List(ctx context.Context, page, limit int, filters ProductFilters) ([]models.Product, int64, error)
+	FindByID(ctx context.Context, id uuid.UUID) (*models.Product, error)
+	Create(ctx context.Context, product *models.Product) error
 }
 
 type productRepository struct {
@@ -58,4 +61,23 @@ func (r *productRepository) List(ctx context.Context, page, limit int, filters P
 	}
 
 	return products, total, nil
+}
+
+func (r *productRepository) FindByID(ctx context.Context, id uuid.UUID) (*models.Product, error) {
+	var product models.Product
+	err := r.db.WithContext(ctx).First(&product, "id = ? AND is_active = ?", id, true).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, errors.NewNotFound("Product not found", nil)
+		}
+		return nil, errors.NewInternal("Failed to find product", err)
+	}
+	return &product, nil
+}
+
+func (r *productRepository) Create(ctx context.Context, product *models.Product) error {
+	if err := r.db.WithContext(ctx).Create(product).Error; err != nil {
+		return errors.NewInternal("Failed to create product", err)
+	}
+	return nil
 }

@@ -27,5 +27,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	shop.Use(middleware.Auth())
 	{
 		shop.GET("", h.List)
+		shop.POST("", h.Create)
+		shop.GET("/:id", h.GetByID)
 	}
 }

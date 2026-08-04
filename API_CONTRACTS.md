@@ -402,11 +402,37 @@ Removed — `/api/v1/guess/*` is no longer exposed.
 | **Screen Name** | Product Detail Screen |
 | **Endpoint** | `/api/v1/shop/{product_id}` |
 | **HTTP Method** | GET |
-| **Request** | Path param `product_id`; query `size?: "M"\|"L"\|"XL"\|"XXL"` (فقط برای برگرداندن موجودی همون سایز) |
+| **Request** | Path param `product_id`; query `currency?: "EUR"\|"POINT"`, `size?: "M"\|"L"\|"XL"\|"XXL"` |
 | **Response** | `200 OK` — `{ "id","name","seller_name","description","price","image_url","available_sizes":["M","L","XL","XXL"] }` |
 | **Authentication** | Bearer |
 | **Error Codes** | `404` · استاندارد |
 | **Pagination** | ندارد |
+
+### 7.3 Create Product (admin)
+
+| Field | Value |
+|---|---|
+| **Endpoint** | `/api/v1/shop` |
+| **HTTP Method** | POST |
+| **Request** | `{ "name","subname?","description?","category","price_cents","price_points","image_url?","seller_name?","available_sizes?","is_active?" }` |
+| **Response** | `201 Created` — product detail object |
+| **Authentication** | Bearer (admin) |
+| **Error Codes** | `403` · `400` · استاندارد |
+| **Pagination** | ندارد |
+
+```json
+{
+  "name": "Sport T-shirt",
+  "subname": "Home kit",
+  "description": "Official club home kit jersey.",
+  "category": "t-shirts",
+  "price_cents": 3250,
+  "price_points": 3250,
+  "image_url": "https://cdn.smartklap.com/store/shirt.png",
+  "seller_name": "Sport Mall 2",
+  "available_sizes": ["M", "L", "XL", "XXL"]
+}
+```
 
 خرید: همان `POST /api/v1/cart/items` با `product_type: "merch"`، `size` هم در body ارسال شود.
 
