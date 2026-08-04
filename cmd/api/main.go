@@ -2,7 +2,7 @@
 //
 //	@title						Clap Backend API
 //	@version					1.0
-//	@description				Clap match-day experience backend (auth, clubs, realtime, shop).
+//	@description				Clap match-day experience backend (auth, clubs, realtime).
 //	@termsOfService				http://swagger.io/terms/
 //
 //	@contact.name				Clap API Support
@@ -38,7 +38,6 @@ import (
 	lyricssvc "clap/internal/modules/lyricssync/service"
 	"clap/internal/modules/matchruntime"
 	matchruntimerepo "clap/internal/modules/matchruntime/repository"
-	"clap/internal/modules/matchsongschedule"
 	"clap/internal/modules/media"
 	"clap/internal/modules/playback"
 	playbackrepo "clap/internal/modules/playback/repository"
@@ -49,7 +48,6 @@ import (
 	realtimerepo "clap/internal/modules/realtime/repository"
 	realtimesvc "clap/internal/modules/realtime/service"
 	realtimews "clap/internal/modules/realtime/ws"
-	"clap/internal/modules/shop"
 	"clap/internal/modules/song"
 	"clap/internal/modules/songlyric"
 	"clap/internal/modules/user"
@@ -316,11 +314,9 @@ func setupRouter(deps routerDeps) *gin.Engine {
 		user.RegisterRoutes(v1)
 		song.RegisterRoutes(v1)
 		songlyric.RegisterRoutes(v1)
-		matchsongschedule.RegisterRoutes(v1)
 		media.RegisterRoutes(v1)
 		// Phase 4.3: Mobile API Contract modules
 		chant.RegisterRoutes(v1)
-		shop.RegisterRoutes(v1)
 		video.RegisterRoutes(v1)
 		// Phase 4 + 4.2: Realtime Engine Foundation + WebSocket Delivery Layer
 		realtime.RegisterRoutesWithWS(v1, realtime.WSConfig{

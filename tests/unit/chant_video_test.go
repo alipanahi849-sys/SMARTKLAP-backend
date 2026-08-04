@@ -161,64 +161,7 @@ func (r *stubChantRepo) TodayCompletions(_ context.Context, _ uuid.UUID, _ int) 
 	return nil, map[uuid.UUID]chantmodels.Chant{}, nil
 }
 
-func (r *stubChantRepo) Complete(_ context.Context, chantID, userID uuid.UUID, points int) (int, error) {
-	if users, ok := r.completions[chantID]; ok {
-		if _, completed := users[userID]; completed {
-			return 0, sharederrors.NewConflict("Chant already completed", nil)
-		}
-	}
-	if r.completions[chantID] == nil {
-		r.completions[chantID] = map[uuid.UUID]int{}
-	}
-	r.completions[chantID][userID] = points
-	r.userPoints[userID] += points
-	return r.userPoints[userID], nil
-}
-
 // ─── chant tests ──────────────────────────────────────────────────────────────
-
-func TestChant_CompleteAwardsPointsOnce(t *testing.T) {
-	chantRepo := newStubChantRepo()
-	matchRepo := newStubMatchRepo()
-	svc := chantsvc.NewChantService(chantRepo, matchRepo, nil, nil)
-
-	chant := &chantmodels.Chant{
-		ID:      uuid.New(),
-		MatchID: uuid.New(),
-		Title:   "Chant number 1",
-		Points:  100,
-	}
-	chantRepo.chants[chant.ID] = chant
-	userID := uuid.New()
-
-	resp, err := svc.Complete(context.Background(), userID, chant.ID)
-	if err != nil {
-		t.Fatalf("Complete failed: %v", err)
-	}
-	if resp.PointsEarned != 100 || resp.TotalPoints != 100 {
-		t.Fatalf("unexpected points: earned=%d total=%d", resp.PointsEarned, resp.TotalPoints)
-	}
-
-	_, err = svc.Complete(context.Background(), userID, chant.ID)
-	if err == nil {
-		t.Fatal("expected conflict for double completion")
-	}
-	if status := appErrorStatus(t, err); status != http.StatusConflict {
-		t.Fatalf("expected 409, got %d", status)
-	}
-}
-
-func TestChant_CompleteUnknownChantNotFound(t *testing.T) {
-	svc := chantsvc.NewChantService(newStubChantRepo(), newStubMatchRepo(), nil, nil)
-
-	_, err := svc.Complete(context.Background(), uuid.New(), uuid.New())
-	if err == nil {
-		t.Fatal("expected not-found error")
-	}
-	if status := appErrorStatus(t, err); status != http.StatusNotFound {
-		t.Fatalf("expected 404, got %d", status)
-	}
-}
 
 func TestChant_CountdownReportsProgress(t *testing.T) {
 	chantRepo := newStubChantRepo()

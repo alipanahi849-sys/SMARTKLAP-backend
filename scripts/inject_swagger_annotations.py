@@ -134,15 +134,6 @@ def build_catalog() -> dict[str, dict[str, str]]:
     add(C, f, "GetBySongID", summary="Get lyrics by language", method_path="get /api/v1/songs/{id}/lyrics/{language}", tags="song-lyrics", params=[("id", "string", "Song ID"), ("language", "string", "Language code")])
     add(C, f, "ImportLyrics", summary="Import lyrics", method_path="post /api/v1/songs/{id}/lyrics/import", tags="song-lyrics", auth=True, body="dto.ImportLyricsRequest", params=[("id", "string", "Song ID")])
 
-    f = "internal/modules/matchsongschedule/handler/match_song_schedule_handler.go"
-    add(C, f, "Create", summary="Create match song schedule", method_path="post /api/v1/match-song-schedules", tags="match-song-schedules", auth=True, body="dto.CreateMatchSongScheduleRequest", success="201")
-    add(C, f, "List", summary="List match song schedules", method_path="get /api/v1/match-song-schedules", tags="match-song-schedules", queries=page_q)
-    add(C, f, "GetByID", summary="Get match song schedule", method_path="get /api/v1/match-song-schedules/{id}", tags="match-song-schedules", params=[("id", "string", "Schedule ID")])
-    add(C, f, "Update", summary="Update match song schedule", method_path="put /api/v1/match-song-schedules/{id}", tags="match-song-schedules", auth=True, body="dto.UpdateMatchSongScheduleRequest", params=[("id", "string", "Schedule ID")])
-    add(C, f, "Delete", summary="Delete match song schedule", method_path="delete /api/v1/match-song-schedules/{id}", tags="match-song-schedules", auth=True, params=[("id", "string", "Schedule ID")])
-    add(C, f, "ListByMatchID", summary="List schedules by match", method_path="get /api/v1/matches/{id}/song-schedules", tags="match-song-schedules", params=[("id", "string", "Match ID")])
-    add(C, f, "ListBySongID", summary="List schedules by song", method_path="get /api/v1/songs/{id}/match-schedules", tags="match-song-schedules", params=[("id", "string", "Song ID")])
-
     f = "internal/modules/media/handler/media_handler.go"
     add(C, f, "Upload", summary="Upload media", method_path="post /api/v1/media/upload", tags="media", auth=True, form=True, form_fields=[("file", "file", True, "Media file"), ("type", "string", False, "Media type")])
     add(C, f, "GetPlaybackURL", summary="Get playback URL", method_path="get /api/v1/media/{id}/playback-url", tags="media", auth=True, params=[("id", "string", "Media ID")])
@@ -152,24 +143,11 @@ def build_catalog() -> dict[str, dict[str, str]]:
     add(C, f, "List", summary="List chants", method_path="get /api/v1/chants", tags="chants", auth=True, queries=[("search", "string", False, "Search query")])
     add(C, f, "Countdown", summary="Chant countdown", method_path="get /api/v1/chants/{chant_id}/countdown", tags="chants", auth=True, params=[("chant_id", "string", "Chant ID")])
     add(C, f, "Lyrics", summary="Chant lyrics", method_path="get /api/v1/chants/{chant_id}/lyrics", tags="chants", auth=True, params=[("chant_id", "string", "Chant ID")])
-    add(C, f, "Complete", summary="Complete chant", method_path="post /api/v1/chants/{chant_id}/complete", tags="chants", auth=True, params=[("chant_id", "string", "Chant ID")])
 
     f = "internal/modules/guess/handler/guess_handler.go"
     add(C, f, "MatchOverview", summary="Guess match overview", method_path="get /api/v1/guess/matches/{match_id}", tags="guess", auth=True, params=[("match_id", "string", "Match ID")])
     add(C, f, "QuizDetail", summary="Quiz detail", method_path="get /api/v1/guess/quizzes/{quiz_id}", tags="guess", auth=True, params=[("quiz_id", "string", "Quiz ID")])
     add(C, f, "Answer", summary="Answer quiz", method_path="post /api/v1/guess/quizzes/{quiz_id}/answer", tags="guess", auth=True, body="dto.AnswerQuizRequest", params=[("quiz_id", "string", "Quiz ID")])
-
-    f = "internal/modules/shop/handler/shop_handler.go"
-    add(C, f, "ListSnacks", summary="List snacks", method_path="get /api/v1/snacks", tags="shop", auth=True, queries=[("search", "string", False, "Search"), ("category", "string", False, "Category"), ("currency", "string", False, "Currency")])
-    add(C, f, "SnackDetail", summary="Snack detail", method_path="get /api/v1/snacks/{snack_id}", tags="shop", auth=True, params=[("snack_id", "string", "Snack ID")], queries=[("currency", "string", False, "Currency")])
-    add(C, f, "ListProducts", summary="List products", method_path="get /api/v1/products", tags="shop", auth=True, queries=[("search", "string", False, "Search"), ("category", "string", False, "Category"), ("currency", "string", False, "Currency")])
-    add(C, f, "ProductDetail", summary="Product detail", method_path="get /api/v1/products/{product_id}", tags="shop", auth=True, params=[("product_id", "string", "Product ID")], queries=[("currency", "string", False, "Currency")])
-    add(C, f, "GetCart", summary="Get cart", method_path="get /api/v1/cart", tags="shop", auth=True)
-    add(C, f, "AddCartItem", summary="Add cart item", method_path="post /api/v1/cart/items", tags="shop", auth=True, body="dto.AddCartItemRequest")
-    add(C, f, "UpdateCartItem", summary="Update cart item", method_path="patch /api/v1/cart/items/{item_id}", tags="shop", auth=True, body="dto.UpdateCartItemRequest", params=[("item_id", "string", "Cart item ID")])
-    add(C, f, "RemoveCartItem", summary="Remove cart item", method_path="delete /api/v1/cart/items/{item_id}", tags="shop", auth=True, params=[("item_id", "string", "Cart item ID")])
-    add(C, f, "Checkout", summary="Checkout cart", method_path="post /api/v1/orders", tags="shop", auth=True, body="dto.CheckoutRequest", success="201")
-    add(C, f, "Pay", summary="Pay order", method_path="post /api/v1/orders/{order_id}/pay", tags="shop", auth=True, body="dto.PayOrderRequest", params=[("order_id", "string", "Order ID")])
 
     f = "internal/modules/video/handler/video_handler.go"
     add(C, f, "Feed", summary="Video feed", method_path="get /api/v1/videos/feed", tags="videos", auth=True)

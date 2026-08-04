@@ -245,8 +245,6 @@ Removed — `/api/v1/mobile/home/*` (stadium / club) is no longer exposed.
 | **Error Codes** | `404` · استاندارد |
 | **Pagination** | ندارد |
 
-**تکمیل چنت:** `POST /api/v1/chants/{chant_id}/complete` → `{ "points_earned": 100, "total_points": 227 }`
-
 ```json
 {
   "title": "We will rock you",

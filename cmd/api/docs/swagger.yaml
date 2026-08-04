@@ -1,203 +1,5 @@
 basePath: /
 definitions:
-  clap_internal_modules_club_dto.CreateClubRequest:
-    properties:
-      country:
-        type: string
-      description:
-        type: string
-      is_active:
-        type: boolean
-      logo_url:
-        type: string
-      name:
-        type: string
-      short_name:
-        type: string
-    required:
-    - name
-    type: object
-  clap_internal_modules_club_dto.UpdateClubRequest:
-    properties:
-      country:
-        type: string
-      description:
-        type: string
-      is_active:
-        type: boolean
-      logo_url:
-        type: string
-      name:
-        type: string
-      short_name:
-        type: string
-    required:
-    - name
-    type: object
-  clap_internal_modules_clubseason_dto.CreateClubSeasonRequest:
-    properties:
-      club_id:
-        type: string
-      joined_at:
-        type: string
-      season_id:
-        type: string
-      status:
-        enum:
-        - active
-        - suspended
-        - withdrawn
-        type: string
-    required:
-    - club_id
-    - joined_at
-    - season_id
-    - status
-    type: object
-  clap_internal_modules_clubseason_dto.UpdateClubSeasonRequest:
-    properties:
-      status:
-        enum:
-        - active
-        - suspended
-        - withdrawn
-        type: string
-    required:
-    - status
-    type: object
-  clap_internal_modules_guess_dto.AnswerQuizRequest:
-    properties:
-      choice:
-        maxLength: 255
-        type: string
-    required:
-    - choice
-    type: object
-  clap_internal_modules_league_dto.CreateLeagueRequest:
-    properties:
-      country:
-        type: string
-      is_active:
-        type: boolean
-      name:
-        type: string
-      provider:
-        type: string
-      provider_league_id:
-        type: string
-    required:
-    - name
-    type: object
-  clap_internal_modules_league_dto.UpdateLeagueRequest:
-    properties:
-      country:
-        type: string
-      is_active:
-        type: boolean
-      name:
-        type: string
-      provider:
-        type: string
-      provider_league_id:
-        type: string
-    required:
-    - name
-    type: object
-  clap_internal_modules_match_dto.CreateMatchRequest:
-    properties:
-      away_club_id:
-        type: string
-      home_club_id:
-        type: string
-      league_id:
-        type: string
-      match_datetime:
-        type: string
-      provider:
-        type: string
-      provider_match_id:
-        type: string
-      season_id:
-        type: string
-      stadium_name:
-        type: string
-      status:
-        enum:
-        - scheduled
-        - live
-        - halftime
-        - finished
-        - cancelled
-        type: string
-    required:
-    - away_club_id
-    - home_club_id
-    - league_id
-    - match_datetime
-    - season_id
-    - status
-    type: object
-  clap_internal_modules_match_dto.UpdateMatchRequest:
-    properties:
-      away_score:
-        minimum: 0
-        type: integer
-      current_minute:
-        maxLength: 10
-        type: string
-      home_score:
-        minimum: 0
-        type: integer
-      match_datetime:
-        type: string
-      provider:
-        type: string
-      provider_match_id:
-        type: string
-      stadium_name:
-        type: string
-      status:
-        enum:
-        - scheduled
-        - live
-        - halftime
-        - finished
-        - cancelled
-        type: string
-    required:
-    - match_datetime
-    - status
-    type: object
-  clap_internal_modules_matchsongschedule_dto.CreateMatchSongScheduleRequest:
-    properties:
-      event_type:
-        type: string
-      is_active:
-        type: boolean
-      match_id:
-        type: string
-      scheduled_time:
-        type: string
-      song_id:
-        type: string
-    required:
-    - event_type
-    - match_id
-    - scheduled_time
-    - song_id
-    type: object
-  clap_internal_modules_matchsongschedule_dto.UpdateMatchSongScheduleRequest:
-    properties:
-      event_type:
-        type: string
-      is_active:
-        type: boolean
-      scheduled_time:
-        type: string
-    required:
-    - event_type
-    - scheduled_time
-    type: object
   clap_internal_modules_playback_dto.ScheduleSongRequest:
     properties:
       duration_ms:
@@ -223,90 +25,6 @@ definitions:
         type: integer
     required:
     - client_timestamp_ms
-    type: object
-  clap_internal_modules_season_dto.CreateSeasonRequest:
-    properties:
-      end_date:
-        type: string
-      is_active:
-        type: boolean
-      league_id:
-        type: string
-      name:
-        type: string
-      start_date:
-        type: string
-    required:
-    - end_date
-    - league_id
-    - name
-    - start_date
-    type: object
-  clap_internal_modules_season_dto.UpdateSeasonRequest:
-    properties:
-      end_date:
-        type: string
-      is_active:
-        type: boolean
-      name:
-        type: string
-      start_date:
-        type: string
-    required:
-    - end_date
-    - name
-    - start_date
-    type: object
-  clap_internal_modules_shop_dto.AddCartItemRequest:
-    properties:
-      product_id:
-        type: string
-      product_type:
-        enum:
-        - snack
-        - merch
-        type: string
-      quantity:
-        maximum: 99
-        minimum: 1
-        type: integer
-      size:
-        maxLength: 10
-        type: string
-    required:
-    - product_id
-    - product_type
-    - quantity
-    type: object
-  clap_internal_modules_shop_dto.CheckoutRequest:
-    properties:
-      delivery_method:
-        enum:
-        - seat
-        - pickup
-        type: string
-      seat_number:
-        maxLength: 20
-        type: string
-    required:
-    - delivery_method
-    type: object
-  clap_internal_modules_shop_dto.PayOrderRequest:
-    properties:
-      payment_method:
-        maxLength: 30
-        type: string
-    required:
-    - payment_method
-    type: object
-  clap_internal_modules_shop_dto.UpdateCartItemRequest:
-    properties:
-      quantity:
-        maximum: 99
-        minimum: 1
-        type: integer
-    required:
-    - quantity
     type: object
   clap_internal_modules_song_dto.CreateSongRequest:
     properties:
@@ -376,8 +94,6 @@ definitions:
     type: object
   clap_internal_modules_user_dto.UpdateMobileProfileRequest:
     properties:
-      email:
-        type: string
       name:
         maxLength: 100
         minLength: 1
@@ -406,6 +122,13 @@ definitions:
       success:
         type: boolean
     type: object
+  internal_modules_auth_handler.ChangeEmailRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
   internal_modules_auth_handler.LoginRequest:
     properties:
       email:
@@ -431,62 +154,77 @@ definitions:
     - email
     - name
     type: object
-  internal_modules_auth_handler.UpdateProfileRequest:
+  internal_modules_auth_handler.VerifyChangeEmailRequest:
     properties:
-      first_name:
+      code:
         type: string
-      last_name:
+      email:
         type: string
-      phone:
-        type: string
+    required:
+    - code
+    - email
     type: object
   internal_modules_auth_handler.VerifyOTPRequest:
     properties:
-      email:
-        type: string
       code:
         type: string
+      email:
+        type: string
     required:
-    - email
     - code
-    type: object
-  internal_modules_user_handler.CreateProfileRequest:
-    properties:
-      avatar_url:
-        type: string
-      bio:
-        type: string
-      city:
-        type: string
-      country:
-        type: string
-      date_of_birth:
-        type: string
-    type: object
-  internal_modules_user_handler.UpdateProfileRequest:
-    properties:
-      avatar_url:
-        type: string
-      bio:
-        type: string
-      city:
-        type: string
-      country:
-        type: string
-      date_of_birth:
-        type: string
+    - email
     type: object
 info:
   contact:
     name: Clap API Support
-  description: Clap match-day experience backend (auth, clubs, matches, realtime,
-    shop).
+  description: Clap match-day experience backend (auth, clubs, realtime).
   license:
     name: Proprietary
   termsOfService: http://swagger.io/terms/
   title: Clap Backend API
   version: "1.0"
 paths:
+  /api/v1/auth/change-email:
+    post:
+      consumes:
+      - application/json
+      description: Send a 4-digit OTP to the new email. Email is updated only after
+        verify-change-email. Call again to resend.
+      parameters:
+      - description: New email
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_auth_handler.ChangeEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Change email (request OTP)
+      tags:
+      - auth
   /api/v1/auth/login:
     post:
       consumes:
@@ -583,6 +321,43 @@ paths:
       summary: Register (OTP email)
       tags:
       - auth
+  /api/v1/auth/verify-change-email:
+    post:
+      consumes:
+      - application/json
+      description: Validate the OTP sent to the new email, update the account email,
+        and issue fresh tokens
+      parameters:
+      - description: New email + OTP
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_auth_handler.VerifyChangeEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Change email (verify OTP)
+      tags:
+      - auth
   /api/v1/auth/verify-otp:
     post:
       consumes:
@@ -613,122 +388,6 @@ paths:
       summary: Verify OTP
       tags:
       - auth
-  /api/v1/cart:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Get cart
-      tags:
-      - shop
-  /api/v1/cart/items:
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Request body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/clap_internal_modules_shop_dto.AddCartItemRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Add cart item
-      tags:
-      - shop
-  /api/v1/cart/items/{item_id}:
-    delete:
-      parameters:
-      - description: Cart item ID
-        in: path
-        name: item_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Remove cart item
-      tags:
-      - shop
-    patch:
-      consumes:
-      - application/json
-      parameters:
-      - description: Cart item ID
-        in: path
-        name: item_id
-        required: true
-        type: string
-      - description: Request body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/clap_internal_modules_shop_dto.UpdateCartItemRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Update cart item
-      tags:
-      - shop
   /api/v1/chants:
     get:
       parameters:
@@ -754,34 +413,6 @@ paths:
       security:
       - BearerAuth: []
       summary: List chants
-      tags:
-      - chants
-  /api/v1/chants/{chant_id}/complete:
-    post:
-      parameters:
-      - description: Chant ID
-        in: path
-        name: chant_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Complete chant
       tags:
       - chants
   /api/v1/chants/{chant_id}/countdown:
@@ -840,873 +471,6 @@ paths:
       summary: Chant lyrics
       tags:
       - chants
-  /api/v1/club-seasons:
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Request body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/clap_internal_modules_clubseason_dto.CreateClubSeasonRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Add club to season
-      tags:
-      - club-seasons
-  /api/v1/club-seasons/{id}:
-    patch:
-      consumes:
-      - application/json
-      parameters:
-      - description: ClubSeason ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Request body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/clap_internal_modules_clubseason_dto.UpdateClubSeasonRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Update club-season status
-      tags:
-      - club-seasons
-  /api/v1/clubs:
-    get:
-      parameters:
-      - description: Sort field
-        in: query
-        name: sort
-        type: string
-      - description: asc|desc
-        in: query
-        name: order
-        type: string
-      - description: Page number
-        in: query
-        name: page
-        type: integer
-      - description: Items per page
-        in: query
-        name: per_page
-        type: integer
-      - description: Search query
-        in: query
-        name: q
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      summary: List clubs
-      tags:
-      - clubs
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Request body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/clap_internal_modules_club_dto.CreateClubRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Create club
-      tags:
-      - clubs
-  /api/v1/clubs/{id}:
-    delete:
-      parameters:
-      - description: Club ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Delete club
-      tags:
-      - clubs
-    get:
-      parameters:
-      - description: Club ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      summary: Get club
-      tags:
-      - clubs
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: Club ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Request body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/clap_internal_modules_club_dto.UpdateClubRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Update club
-      tags:
-      - clubs
-  /api/v1/clubs/{id}/matches:
-    get:
-      parameters:
-      - description: Club ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      summary: List matches by club
-      tags:
-      - matches
-  /api/v1/clubs/{id}/seasons:
-    get:
-      parameters:
-      - description: Club ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: List seasons for club
-      tags:
-      - club-seasons
-  /api/v1/clubs/search:
-    get:
-      parameters:
-      - description: Search query
-        in: query
-        name: q
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      summary: Search clubs
-      tags:
-      - clubs
-  /api/v1/guess/matches/{match_id}:
-    get:
-      parameters:
-      - description: Match ID
-        in: path
-        name: match_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Guess match overview
-      tags:
-      - guess
-  /api/v1/guess/quizzes/{quiz_id}:
-    get:
-      parameters:
-      - description: Quiz ID
-        in: path
-        name: quiz_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Quiz detail
-      tags:
-      - guess
-  /api/v1/guess/quizzes/{quiz_id}/answer:
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Quiz ID
-        in: path
-        name: quiz_id
-        required: true
-        type: string
-      - description: Request body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/clap_internal_modules_guess_dto.AnswerQuizRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Answer quiz
-      tags:
-      - guess
-  /api/v1/leagues:
-    get:
-      parameters:
-      - description: Sort field
-        in: query
-        name: sort
-        type: string
-      - description: asc|desc
-        in: query
-        name: order
-        type: string
-      - description: Page number
-        in: query
-        name: page
-        type: integer
-      - description: Items per page
-        in: query
-        name: per_page
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      summary: List leagues
-      tags:
-      - leagues
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Request body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/clap_internal_modules_league_dto.CreateLeagueRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Create league
-      tags:
-      - leagues
-  /api/v1/leagues/{id}:
-    delete:
-      parameters:
-      - description: League ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Delete league
-      tags:
-      - leagues
-    get:
-      parameters:
-      - description: League ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      summary: Get league
-      tags:
-      - leagues
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: League ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Request body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/clap_internal_modules_league_dto.UpdateLeagueRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Update league
-      tags:
-      - leagues
-  /api/v1/leagues/{id}/matches:
-    get:
-      parameters:
-      - description: League ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      summary: List matches by league
-      tags:
-      - matches
-  /api/v1/leagues/{id}/seasons:
-    get:
-      parameters:
-      - description: League ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      summary: List seasons by league
-      tags:
-      - seasons
-  /api/v1/match-song-schedules:
-    get:
-      parameters:
-      - description: Sort field
-        in: query
-        name: sort
-        type: string
-      - description: asc|desc
-        in: query
-        name: order
-        type: string
-      - description: Page number
-        in: query
-        name: page
-        type: integer
-      - description: Items per page
-        in: query
-        name: per_page
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      summary: List match song schedules
-      tags:
-      - match-song-schedules
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Request body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/clap_internal_modules_matchsongschedule_dto.CreateMatchSongScheduleRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Create match song schedule
-      tags:
-      - match-song-schedules
-  /api/v1/match-song-schedules/{id}:
-    delete:
-      parameters:
-      - description: Schedule ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Delete match song schedule
-      tags:
-      - match-song-schedules
-    get:
-      parameters:
-      - description: Schedule ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      summary: Get match song schedule
-      tags:
-      - match-song-schedules
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: Schedule ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Request body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/clap_internal_modules_matchsongschedule_dto.UpdateMatchSongScheduleRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Update match song schedule
-      tags:
-      - match-song-schedules
-  /api/v1/matches:
-    get:
-      parameters:
-      - description: Sort field
-        in: query
-        name: sort
-        type: string
-      - description: asc|desc
-        in: query
-        name: order
-        type: string
-      - description: Page number
-        in: query
-        name: page
-        type: integer
-      - description: Items per page
-        in: query
-        name: per_page
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      summary: List matches
-      tags:
-      - matches
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Request body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/clap_internal_modules_match_dto.CreateMatchRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Create match
-      tags:
-      - matches
-  /api/v1/matches/{id}:
-    delete:
-      parameters:
-      - description: Match ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Delete match
-      tags:
-      - matches
-    get:
-      parameters:
-      - description: Match ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      summary: Get match
-      tags:
-      - matches
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: Match ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Request body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/clap_internal_modules_match_dto.UpdateMatchRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Update match
-      tags:
-      - matches
   /api/v1/matches/{id}/runtime:
     get:
       parameters:
@@ -1841,60 +605,6 @@ paths:
       summary: Start match runtime
       tags:
       - match-runtime
-  /api/v1/matches/{id}/song-schedules:
-    get:
-      parameters:
-      - description: Match ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      summary: List schedules by match
-      tags:
-      - match-song-schedules
-  /api/v1/matches/live:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      summary: List live matches
-      tags:
-      - matches
-  /api/v1/matches/upcoming:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      summary: List upcoming matches
-      tags:
-      - matches
   /api/v1/media/{id}/playback-url:
     get:
       parameters:
@@ -1957,234 +667,6 @@ paths:
       summary: Upload media
       tags:
       - media
-  /api/v1/mobile/home/club:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Club home
-      tags:
-      - mobile-home
-  /api/v1/mobile/home/stadium:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Stadium home
-      tags:
-      - mobile-home
-  /api/v1/news:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: List news
-      tags:
-      - news
-  /api/v1/orders:
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Request body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/clap_internal_modules_shop_dto.CheckoutRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Checkout cart
-      tags:
-      - shop
-  /api/v1/orders/{order_id}/pay:
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Order ID
-        in: path
-        name: order_id
-        required: true
-        type: string
-      - description: Request body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/clap_internal_modules_shop_dto.PayOrderRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Pay order
-      tags:
-      - shop
-  /api/v1/players/{player_id}:
-    get:
-      parameters:
-      - description: Player ID
-        in: path
-        name: player_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Player detail
-      tags:
-      - stats
-  /api/v1/products:
-    get:
-      parameters:
-      - description: Search
-        in: query
-        name: search
-        type: string
-      - description: Category
-        in: query
-        name: category
-        type: string
-      - description: Currency
-        in: query
-        name: currency
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: List products
-      tags:
-      - shop
-  /api/v1/products/{product_id}:
-    get:
-      parameters:
-      - description: Product ID
-        in: path
-        name: product_id
-        required: true
-        type: string
-      - description: Currency
-        in: query
-        name: currency
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Product detail
-      tags:
-      - shop
   /api/v1/profile/leaderboard:
     get:
       produces:
@@ -2206,8 +688,29 @@ paths:
       - BearerAuth: []
       summary: Leaderboard
       tags:
-      - mobile-profile
+      - profile
   /api/v1/profile/me:
+    delete:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete profile
+      tags:
+      - profile
     get:
       produces:
       - application/json
@@ -2226,9 +729,9 @@ paths:
             $ref: '#/definitions/clap_internal_shared_response.Response'
       security:
       - BearerAuth: []
-      summary: Mobile profile me
+      summary: Get profile
       tags:
-      - mobile-profile
+      - profile
     patch:
       consumes:
       - application/json
@@ -2256,9 +759,9 @@ paths:
             $ref: '#/definitions/clap_internal_shared_response.Response'
       security:
       - BearerAuth: []
-      summary: Update mobile profile
+      summary: Update profile
       tags:
-      - mobile-profile
+      - profile
   /api/v1/profile/me/avatar:
     post:
       consumes:
@@ -2266,7 +769,7 @@ paths:
       parameters:
       - description: Avatar image
         in: formData
-        name: file
+        name: avatar
         required: true
         type: file
       produces:
@@ -2288,110 +791,7 @@ paths:
       - BearerAuth: []
       summary: Upload avatar
       tags:
-      - mobile-profile
-  /api/v1/profiles/me:
-    delete:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Delete profile
-      tags:
-      - profiles
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Get profile
-      tags:
-      - profiles
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Request body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/internal_modules_user_handler.CreateProfileRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Create profile
-      tags:
-      - profiles
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: Request body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/internal_modules_user_handler.UpdateProfileRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Update profile
-      tags:
-      - profiles
+      - profile
   /api/v1/realtime/admin/cleanup/all:
     post:
       description: Admin only
@@ -2578,7 +978,9 @@ paths:
       - realtime
   /api/v1/realtime/ws:
     get:
-      description: Upgrade to WebSocket. JWT required (query or header).
+      description: 'Real WebSocket upgrade endpoint. Swagger "Try it out" cannot open
+        sockets (plain GET → 400). Use a WS client: Authorization Bearer JWT only
+        (no query token). Example: ws(s)://HOST/api/v1/realtime/ws'
       produces:
       - application/json
       responses:
@@ -2597,303 +999,6 @@ paths:
       summary: WebSocket connect
       tags:
       - realtime
-  /api/v1/seasons:
-    get:
-      parameters:
-      - description: Sort field
-        in: query
-        name: sort
-        type: string
-      - description: asc|desc
-        in: query
-        name: order
-        type: string
-      - description: Page number
-        in: query
-        name: page
-        type: integer
-      - description: Items per page
-        in: query
-        name: per_page
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      summary: List seasons
-      tags:
-      - seasons
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Request body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/clap_internal_modules_season_dto.CreateSeasonRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Create season
-      tags:
-      - seasons
-  /api/v1/seasons/{id}:
-    delete:
-      parameters:
-      - description: Season ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Delete season
-      tags:
-      - seasons
-    get:
-      parameters:
-      - description: Season ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      summary: Get season
-      tags:
-      - seasons
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: Season ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Request body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/clap_internal_modules_season_dto.UpdateSeasonRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Update season
-      tags:
-      - seasons
-  /api/v1/seasons/{id}/clubs:
-    get:
-      parameters:
-      - description: Season ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: List clubs in season
-      tags:
-      - club-seasons
-  /api/v1/seasons/{id}/clubs/{club_id}:
-    delete:
-      parameters:
-      - description: Season ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Club ID
-        in: path
-        name: club_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Remove club from season
-      tags:
-      - club-seasons
-  /api/v1/seasons/{id}/matches:
-    get:
-      parameters:
-      - description: Season ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      summary: List matches by season
-      tags:
-      - matches
-  /api/v1/snacks:
-    get:
-      parameters:
-      - description: Search
-        in: query
-        name: search
-        type: string
-      - description: Category
-        in: query
-        name: category
-        type: string
-      - description: Currency
-        in: query
-        name: currency
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: List snacks
-      tags:
-      - shop
-  /api/v1/snacks/{snack_id}:
-    get:
-      parameters:
-      - description: Snack ID
-        in: path
-        name: snack_id
-        required: true
-        type: string
-      - description: Currency
-        in: query
-        name: currency
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Snack detail
-      tags:
-      - shop
   /api/v1/song-lyrics:
     post:
       consumes:
@@ -3280,28 +1385,6 @@ paths:
       summary: Import lyrics
       tags:
       - song-lyrics
-  /api/v1/songs/{id}/match-schedules:
-    get:
-      parameters:
-      - description: Song ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      summary: List schedules by song
-      tags:
-      - match-song-schedules
   /api/v1/songs/schedule:
     post:
       consumes:
@@ -3411,66 +1494,20 @@ paths:
       summary: Search songs
       tags:
       - songs
-  /api/v1/users/me:
-    get:
-      description: Return the authenticated user profile
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Current user
-      tags:
-      - users
-    put:
-      consumes:
-      - application/json
-      description: Update the authenticated user profile fields
-      parameters:
-      - description: Profile fields
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/internal_modules_auth_handler.UpdateProfileRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Update profile
-      tags:
-      - users
   /api/v1/videos:
     post:
       consumes:
       - multipart/form-data
       parameters:
-      - description: Video file
+      - description: Media file (image or video)
         in: formData
-        name: file
+        name: media
         required: true
         type: file
+      - description: image or video (inferred from file when omitted)
+        in: formData
+        name: type
+        type: string
       - description: Caption
         in: formData
         name: caption

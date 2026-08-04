@@ -5,13 +5,11 @@ import (
 	"strings"
 	"time"
 
-	authmodels "clap/internal/modules/auth/models"
 	"clap/internal/modules/chant/models"
 	"clap/internal/shared/errors"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type ChantRepository interface {
@@ -26,9 +24,6 @@ type ChantRepository interface {
 	// TodayCompletions returns the user's most recent completions today with
 	// their chants preloaded (Home "chant program" card).
 	TodayCompletions(ctx context.Context, userID uuid.UUID, limit int) ([]models.ChantCompletion, map[uuid.UUID]models.Chant, error)
-	// Complete records a completion and atomically credits the user's points.
-	// Returns the user's new total. Fails with 409 when already completed.
-	Complete(ctx context.Context, chantID, userID uuid.UUID, points int) (int, error)
 }
 
 type chantRepository struct {
@@ -123,40 +118,4 @@ func (r *chantRepository) TodayCompletions(ctx context.Context, userID uuid.UUID
 		}
 	}
 	return completions, chantByID, nil
-}
-
-func (r *chantRepository) Complete(ctx context.Context, chantID, userID uuid.UUID, points int) (int, error) {
-	var totalPoints int
-
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		completion := models.ChantCompletion{
-			ChantID:      chantID,
-			UserID:       userID,
-			PointsEarned: points,
-		}
-		res := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&completion)
-		if res.Error != nil {
-			return errors.NewInternal("Failed to record completion", res.Error)
-		}
-		if res.RowsAffected == 0 {
-			return errors.NewConflict("Chant already completed", nil)
-		}
-
-		if err := tx.Model(&authmodels.User{}).
-			Where("id = ?", userID).
-			UpdateColumn("points", gorm.Expr("points + ?", points)).Error; err != nil {
-			return errors.NewInternal("Failed to award points", err)
-		}
-
-		if err := tx.Model(&authmodels.User{}).
-			Where("id = ?", userID).
-			Pluck("points", &totalPoints).Error; err != nil {
-			return errors.NewInternal("Failed to read points balance", err)
-		}
-		return nil
-	})
-	if err != nil {
-		return 0, err
-	}
-	return totalPoints, nil
 }

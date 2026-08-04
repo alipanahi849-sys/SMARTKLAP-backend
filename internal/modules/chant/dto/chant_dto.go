@@ -50,9 +50,3 @@ type ChantLyricsResponse struct {
 	AudioURL string           `json:"audio_url"`
 	Lyrics   []ChantLyricLine `json:"lyrics"`
 }
-
-// ChantCompleteResponse is POST /chants/{id}/complete.
-type ChantCompleteResponse struct {
-	PointsEarned int `json:"points_earned"`
-	TotalPoints  int `json:"total_points"`
-}

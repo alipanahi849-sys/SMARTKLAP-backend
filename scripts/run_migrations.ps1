@@ -11,7 +11,6 @@ $migrations = @(
     "pkg/migrations/006_create_matches.up.sql",
     "pkg/migrations/007_create_songs.up.sql",
     "pkg/migrations/008_create_song_lyrics.up.sql",
-    "pkg/migrations/009_create_match_song_schedules.up.sql",
     "pkg/migrations/010_add_club_id_to_users.up.sql",
     "pkg/migrations/011_add_unique_active_season_constraint.up.sql",
     "pkg/migrations/012_create_media_files.up.sql",
@@ -40,7 +39,6 @@ $migrations = @(
     "pkg/migrations/031_create_profiles.up.sql",
     "pkg/migrations/032_create_chants.up.sql",
     "pkg/migrations/033_create_quizzes.up.sql",
-    "pkg/migrations/034_create_shop.up.sql",
     "pkg/migrations/035_create_news.up.sql",
     "pkg/migrations/036_create_videos.up.sql",
     "pkg/migrations/037_create_match_statistics.up.sql"
