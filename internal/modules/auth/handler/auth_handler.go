@@ -74,7 +74,7 @@ type RefreshTokenRequest struct {
 func (h *authHandler) Register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, middleware.ValidationMessage(err))
 		return
 	}
 
@@ -102,7 +102,7 @@ func (h *authHandler) Register(c *gin.Context) {
 func (h *authHandler) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, middleware.ValidationMessage(err))
 		return
 	}
 
@@ -129,7 +129,7 @@ func (h *authHandler) Login(c *gin.Context) {
 func (h *authHandler) VerifyOTP(c *gin.Context) {
 	var req VerifyOTPRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, middleware.ValidationMessage(err))
 		return
 	}
 
@@ -171,7 +171,7 @@ func (h *authHandler) RequestChangeEmail(c *gin.Context) {
 
 	var req ChangeEmailRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, middleware.ValidationMessage(err))
 		return
 	}
 
@@ -206,7 +206,7 @@ func (h *authHandler) VerifyChangeEmail(c *gin.Context) {
 
 	var req VerifyChangeEmailRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, middleware.ValidationMessage(err))
 		return
 	}
 
@@ -239,7 +239,7 @@ func (h *authHandler) VerifyChangeEmail(c *gin.Context) {
 func (h *authHandler) RefreshToken(c *gin.Context) {
 	var req RefreshTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, middleware.ValidationMessage(err))
 		return
 	}
 

@@ -49,7 +49,7 @@ func (h *mobileProfileHandler) UpdateMe(c *gin.Context) {
 
 	var req dto.UpdateMobileProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, middleware.ValidationMessage(err))
 		return
 	}
 
@@ -58,7 +58,7 @@ func (h *mobileProfileHandler) UpdateMe(c *gin.Context) {
 		response.Error(c, err)
 		return
 	}
-	response.Success(c, profile)
+	response.SuccessWithMessage(c, profile, "Profile updated successfully")
 }
 
 // Leaderboard godoc
@@ -120,5 +120,5 @@ func (h *mobileProfileHandler) UploadAvatar(c *gin.Context) {
 		response.Error(c, uploadErr)
 		return
 	}
-	response.Success(c, result)
+	response.SuccessWithMessage(c, result, "Avatar uploaded successfully")
 }

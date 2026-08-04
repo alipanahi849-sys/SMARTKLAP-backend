@@ -6,16 +6,23 @@ import (
 	"github.com/google/uuid"
 )
 
+// ProfileRank is the user's leaderboard position (contract §2.1).
+type ProfileRank struct {
+	Position int `json:"position"`
+	Total    int `json:"total"`
+}
+
 // MobileProfileResponse is the shape of GET/PATCH /profile/me.
 // ID is the user id (not the profiles-table row id).
 type MobileProfileResponse struct {
-	ID        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Name      string    `json:"name"`
-	Email     string    `json:"email"`
-	AvatarURL string    `json:"avatar_url"`
-	Points    int       `json:"points"`
+	ID        uuid.UUID   `json:"id"`
+	CreatedAt time.Time   `json:"created_at"`
+	UpdatedAt time.Time   `json:"updated_at"`
+	Name      string      `json:"name"`
+	Email     string      `json:"email"`
+	AvatarURL string      `json:"avatar_url"`
+	Points    int         `json:"points"`
+	Rank      ProfileRank `json:"rank"`
 }
 
 // UpdateMobileProfileRequest is the PATCH /profile/me body (§2.2).

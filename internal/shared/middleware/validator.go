@@ -42,6 +42,11 @@ func ValidateURI(obj interface{}) gin.HandlerFunc {
 	}
 }
 
+// ValidationMessage turns binding/validation errors into a short user-facing string (toast-friendly).
+func ValidationMessage(err error) string {
+	return getValidationErrorMessage(err)
+}
+
 func getValidationErrorMessage(err error) string {
 	if validationErrors, ok := err.(validator.ValidationErrors); ok {
 		messages := make([]string, 0, len(validationErrors))
@@ -54,16 +59,36 @@ func getValidationErrorMessage(err error) string {
 }
 
 func getFieldErrorMessage(fe validator.FieldError) string {
+	field := friendlyFieldName(fe.Field())
 	switch fe.Tag() {
 	case "required":
-		return "Field " + fe.Field() + " is required"
+		return field + " is required"
 	case "email":
-		return "Field " + fe.Field() + " must be a valid email"
+		return field + " must be a valid email"
 	case "min":
-		return "Field " + fe.Field() + " must be at least " + fe.Param() + " characters"
+		return field + " must be at least " + fe.Param() + " characters"
 	case "max":
-		return "Field " + fe.Field() + " must be at most " + fe.Param() + " characters"
+		return field + " must be at most " + fe.Param() + " characters"
+	case "len":
+		return field + " must be exactly " + fe.Param() + " characters"
+	case "numeric":
+		return field + " must contain only numbers"
 	default:
-		return "Field " + fe.Field() + " is invalid"
+		return field + " is invalid"
+	}
+}
+
+func friendlyFieldName(field string) string {
+	switch field {
+	case "OTPCode":
+		return "Code"
+	case "RefreshToken":
+		return "Refresh token"
+	case "Name":
+		return "Name"
+	case "Email":
+		return "Email"
+	default:
+		return field
 	}
 }

@@ -216,6 +216,14 @@ func (s *mobileProfileService) buildProfileResponse(ctx context.Context, user *a
 		updatedAt = latestTime(user.UpdatedAt, profile.UpdatedAt)
 	}
 
+	rank := dto.ProfileRank{Position: 1, Total: 1}
+	if higher, err := s.userRepo.CountWithMorePoints(ctx, user.Points); err == nil {
+		rank.Position = int(higher) + 1
+	}
+	if total, err := s.userRepo.CountActive(ctx); err == nil {
+		rank.Total = int(total)
+	}
+
 	return &dto.MobileProfileResponse{
 		ID:        user.ID,
 		CreatedAt: user.CreatedAt,
@@ -224,6 +232,7 @@ func (s *mobileProfileService) buildProfileResponse(ctx context.Context, user *a
 		Email:     user.Email,
 		AvatarURL: avatarURL,
 		Points:    user.Points,
+		Rank:      rank,
 	}, nil
 }
 

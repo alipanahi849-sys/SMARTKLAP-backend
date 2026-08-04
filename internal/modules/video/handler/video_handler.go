@@ -114,7 +114,7 @@ func (h *videoHandler) Upload(c *gin.Context) {
 		response.Error(c, svcErr)
 		return
 	}
-	response.Created(c, result)
+	response.CreatedWithMessage(c, result, "Video uploaded successfully")
 }
 
 // Like video godoc
@@ -170,5 +170,9 @@ func (h *videoHandler) toggleLike(c *gin.Context, like bool) {
 		response.Error(c, svcErr)
 		return
 	}
-	response.NoContent(c)
+	if like {
+		response.SuccessWithMessage(c, response.EmptyObject, "Video liked successfully")
+		return
+	}
+	response.SuccessWithMessage(c, response.EmptyObject, "Video unliked successfully")
 }

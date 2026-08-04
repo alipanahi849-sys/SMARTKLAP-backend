@@ -59,10 +59,17 @@ func SuccessWithMessage(c *gin.Context, data interface{}, message string) {
 }
 
 func Created(c *gin.Context, data interface{}) {
+	CreatedWithMessage(c, data, "Resource created successfully")
+}
+
+func CreatedWithMessage(c *gin.Context, data interface{}, message string) {
+	if message == "" {
+		message = "Resource created successfully"
+	}
 	c.JSON(http.StatusCreated, Response{
 		Success: true,
 		Status:  http.StatusCreated,
-		Message: "Resource created successfully",
+		Message: message,
 		Data:    data,
 	})
 }
