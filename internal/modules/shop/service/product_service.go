@@ -212,10 +212,15 @@ func (s *productService) Create(ctx context.Context, req *dto.CreateProductReque
 		return nil, errors.NewBadRequest("name is required", nil)
 	}
 
+	subname, err := validateSubname(req.Subname)
+	if err != nil {
+		return nil, err
+	}
+
 	product := &models.Product{
 		ProductType:    productType,
 		Name:           name,
-		Subname:        strings.TrimSpace(req.Subname),
+		Subname:        subname,
 		Description:    strings.TrimSpace(req.Description),
 		Category:       category,
 		PriceCents:     req.PriceCents,
@@ -263,6 +268,11 @@ func (s *productService) Update(ctx context.Context, id uuid.UUID, req *dto.Upda
 		return nil, errors.NewBadRequest("name is required", nil)
 	}
 
+	subname, err := validateSubname(req.Subname)
+	if err != nil {
+		return nil, err
+	}
+
 	if imageURL := strings.TrimSpace(req.ImageURL); imageURL != "" {
 		oldKey := product.ImageKey
 		product.ImageKey = imageURL
@@ -271,7 +281,7 @@ func (s *productService) Update(ctx context.Context, id uuid.UUID, req *dto.Upda
 
 	product.ProductType = productType
 	product.Name = name
-	product.Subname = strings.TrimSpace(req.Subname)
+	product.Subname = subname
 	product.Description = strings.TrimSpace(req.Description)
 	product.Category = category
 	product.PriceCents = req.PriceCents
@@ -377,6 +387,17 @@ func normalizeProductType(raw string, required bool) (string, error) {
 	return pt, nil
 }
 
+func validateSubname(raw string) (string, error) {
+	subname := strings.TrimSpace(raw)
+	if subname == "" {
+		return "", nil
+	}
+	if len(strings.Fields(subname)) > 3 {
+		return "", errors.NewBadRequest("subname must be at most 3 words", nil)
+	}
+	return subname, nil
+}
+
 func validateCategory(category, productType string) error {
 	category = strings.TrimSpace(category)
 	if category == "" {
@@ -457,6 +478,9 @@ func toProductDetail(p *models.Product, currency string, sizes []string, imageUR
 		Description: p.Description,
 		Price:       formatPrice(*p, currency),
 		ImageURL:    imageURL,
+	}
+	if p.Subname != "" {
+		resp.Subname = p.Subname
 	}
 	if p.SellerName != "" {
 		resp.SellerName = p.SellerName

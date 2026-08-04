@@ -37,7 +37,7 @@ type ProductDetailFilters struct {
 type CreateProductRequest struct {
 	ProductType    string   `json:"product_type" binding:"required"`
 	Name           string   `json:"name" binding:"required"`
-	Subname        string   `json:"subname"`
+	Subname        string   `json:"subname" binding:"max=60"`
 	Description    string   `json:"description"`
 	Category       string   `json:"category" binding:"required"`
 	PriceCents     int64    `json:"price_cents" binding:"required,min=0"`
@@ -52,7 +52,7 @@ type CreateProductRequest struct {
 type UpdateProductRequest struct {
 	ProductType    string   `json:"product_type" binding:"required"`
 	Name           string   `json:"name" binding:"required"`
-	Subname        string   `json:"subname"`
+	Subname        string   `json:"subname" binding:"max=60"`
 	Description    string   `json:"description"`
 	Category       string   `json:"category" binding:"required"`
 	PriceCents     int64    `json:"price_cents" binding:"required,min=0"`
@@ -68,7 +68,7 @@ type ProductItem struct {
 	ID          uuid.UUID `json:"id"`
 	ProductType string    `json:"product_type"`
 	Name        string    `json:"name"`
-	Subname     string    `json:"subname"`
+	Subname     string    `json:"subname,omitempty"`
 	Description string    `json:"description"`
 	Price       string    `json:"price"`
 	ImageURL    string    `json:"image_url"`
@@ -87,6 +87,7 @@ type ProductDetailResponse struct {
 	ID             uuid.UUID `json:"id"`
 	ProductType    string    `json:"product_type"`
 	Name           string    `json:"name"`
+	Subname        string    `json:"subname,omitempty"`
 	SellerName     string    `json:"seller_name,omitempty"`
 	Description    string    `json:"description"`
 	Price          string    `json:"price"`

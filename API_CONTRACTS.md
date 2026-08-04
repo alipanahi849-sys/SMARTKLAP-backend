@@ -380,7 +380,7 @@ Removed — `/api/v1/guess/*` is no longer exposed.
 | **Endpoint** | `/api/v1/shop` |
 | **HTTP Method** | GET |
 | **Request** | Query: `search?`, `product_type?: "food"\|"merch"`, `category?`, `currency?: "EUR"\|"POINT"`, `cursor?`, `limit?` |
-| **Response** | `200 OK` — `{ "items": [{ "id","product_type","name","description","price","image_url" }], "cart_count", "user_points", "meta" }` |
+| **Response** | `200 OK` — `{ "items": [{ "id","product_type","name","subname?","description","price","image_url" }], "cart_count", "user_points", "meta" }` |
 | **Authentication** | Bearer |
 | **Error Codes** | `400` (cursor نامعتبر) · استاندارد |
 | **Pagination** | Cursor-based — `cursor` = آیدی آخرین آیتم صفحه قبل؛ `limit` پیش‌فرض ۲۰ |
@@ -414,7 +414,7 @@ GET /api/v1/shop?limit=10&cursor=b2000000-0000-4000-8000-000000000010
 | **Endpoint** | `/api/v1/shop/{product_id}` |
 | **HTTP Method** | GET |
 | **Request** | Path param `product_id`; query `currency?: "EUR"\|"POINT"`, `size?` (فقط برای `product_type=merch`) |
-| **Response** | `200 OK` — food: `{ "id","product_type","name","description","price","image_url" }` · merch: `{ ...,"available_sizes":["M","L"] }` |
+| **Response** | `200 OK` — food: `{ "id","product_type","name","subname?","description","price","image_url" }` · merch: `{ ...,"seller_name?","available_sizes":["M","L"] }` |
 | **Authentication** | Bearer |
 | **Error Codes** | `404` · استاندارد |
 | **Pagination** | ندارد |
@@ -509,6 +509,7 @@ GET /api/v1/shop?limit=10&cursor=b2000000-0000-4000-8000-000000000010
   "id": "1",
   "name": "Sport T-shirt",
   "seller_name": "Sport Mall 2",
+  "subname": "Home kit",
   "description": "Official club home kit jersey.",
   "price": "44,00 €",
   "image_url": "https://cdn.smartklap.com/store/shirt.png",
