@@ -165,10 +165,7 @@ func (s *productService) Create(ctx context.Context, req *dto.CreateProductReque
 		return nil, err
 	}
 
-	imageKey := strings.TrimSpace(req.ImageKey)
-	if imageKey == "" {
-		imageKey = strings.TrimSpace(req.ImageURL)
-	}
+	imageRef := strings.TrimSpace(req.ImageURL)
 
 	isActive := true
 	if req.IsActive != nil {
@@ -188,7 +185,7 @@ func (s *productService) Create(ctx context.Context, req *dto.CreateProductReque
 		Category:       category,
 		PriceCents:     req.PriceCents,
 		PricePoints:    req.PricePoints,
-		ImageKey:       imageKey,
+		ImageKey:       imageRef,
 		SellerName:     strings.TrimSpace(req.SellerName),
 		AvailableSizes: marshalAvailableSizes(sizes),
 		IsActive:       isActive,
@@ -257,7 +254,6 @@ func (s *productService) UploadProductImage(ctx context.Context, productID uuid.
 
 	return &dto.ImageUploadResponse{
 		ProductID: productID,
-		ImageKey:  key,
 		ImageURL:  s.resolveURL(ctx, key),
 	}, nil
 }

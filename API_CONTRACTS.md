@@ -421,11 +421,11 @@ Removed — `/api/v1/guess/*` is no longer exposed.
 | **Endpoint** | `/api/v1/shop/{product_id}/image` |
 | **HTTP Method** | POST |
 | **Request** | Path param `product_id`; `multipart/form-data` — field `file` (JPEG/PNG/WebP, max 5 MB) |
-| **Response** | `201 Created` — `{ "product_id", "image_key", "image_url" }` |
+| **Response** | `201 Created` — `{ "product_id", "image_url" }` |
 | **Authentication** | Bearer (admin) |
 | **Error Codes** | `403` · `404` · `415` · `413` · استاندارد |
 
-سرور فایل را ذخیره می‌کند و `image_key` همان محصول را در دیتابیس آپدیت می‌کند.
+سرور فایل را ذخیره می‌کند و آدرس تصویر همان محصول را در دیتابیس آپدیت می‌کند.
 
 **Flow:**
 1. `POST /shop` — ساخت محصول (بدون عکس یا با `image_url` خارجی)

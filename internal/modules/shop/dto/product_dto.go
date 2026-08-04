@@ -35,7 +35,6 @@ type CreateProductRequest struct {
 	Category       string   `json:"category" binding:"required"`
 	PriceCents     int64    `json:"price_cents" binding:"required,min=0"`
 	PricePoints    int      `json:"price_points" binding:"required,min=0"`
-	ImageKey       string   `json:"image_key"`
 	ImageURL       string   `json:"image_url"`
 	SellerName     string   `json:"seller_name"`
 	AvailableSizes []string `json:"available_sizes"`
@@ -76,6 +75,5 @@ type ProductDetailResponse struct {
 // ImageUploadResponse is POST /api/v1/shop/{id}/image.
 type ImageUploadResponse struct {
 	ProductID uuid.UUID `json:"product_id"`
-	ImageKey  string    `json:"image_key"`
 	ImageURL  string    `json:"image_url"`
 }
