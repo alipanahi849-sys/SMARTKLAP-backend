@@ -52,7 +52,7 @@ type ProductService interface {
 	List(ctx context.Context, userID uuid.UUID, page, limit int, filters dto.ProductListFilters) (*dto.ProductListResponse, error)
 	GetByID(ctx context.Context, id uuid.UUID, filters dto.ProductDetailFilters) (*dto.ProductDetailResponse, error)
 	Create(ctx context.Context, req *dto.CreateProductRequest, authCtx *utils.AuthorizationContext) (*dto.ProductDetailResponse, error)
-	UploadImage(ctx context.Context, file *multipart.FileHeader, authCtx *utils.AuthorizationContext) (*dto.ImageUploadResponse, error)
+	UploadProductImage(ctx context.Context, productID uuid.UUID, file *multipart.FileHeader, authCtx *utils.AuthorizationContext) (*dto.ImageUploadResponse, error)
 }
 
 type productService struct {
@@ -201,8 +201,13 @@ func (s *productService) Create(ctx context.Context, req *dto.CreateProductReque
 	return toProductDetail(product, dto.CurrencyEUR, sizesForResponse(product, sizes), s.resolveURL(ctx, product.ImageKey)), nil
 }
 
-func (s *productService) UploadImage(ctx context.Context, file *multipart.FileHeader, authCtx *utils.AuthorizationContext) (*dto.ImageUploadResponse, error) {
+func (s *productService) UploadProductImage(ctx context.Context, productID uuid.UUID, file *multipart.FileHeader, authCtx *utils.AuthorizationContext) (*dto.ImageUploadResponse, error) {
 	if err := authCtx.RequireAdmin(); err != nil {
+		return nil, err
+	}
+
+	product, err := s.productRepo.FindByIDAdmin(ctx, productID)
+	if err != nil {
 		return nil, err
 	}
 
@@ -229,17 +234,31 @@ func (s *productService) UploadImage(ctx context.Context, file *multipart.FileHe
 	}
 	defer src.Close()
 
-	key := fmt.Sprintf("shop/images/%s%s", uuid.NewString(), ext)
+	key := fmt.Sprintf("shop/images/%s/%s%s", productID.String(), uuid.NewString(), ext)
 	if err := s.storage.Upload(ctx, key, src, mimeType, file.Size); err != nil {
-		logger.Error().Err(err).Str("key", key).Msg("shop_image_store_failed")
+		logger.Error().Err(err).Str("product_id", productID.String()).Str("key", key).Msg("shop_image_store_failed")
 		return nil, errors.NewInternal("Failed to store image", err)
 	}
 
-	logger.Info().Str("storage_key", key).Msg("shop_image_uploaded")
+	if err := s.productRepo.UpdateImageKey(ctx, productID, key); err != nil {
+		return nil, err
+	}
+
+	oldKey := product.ImageKey
+	if oldKey != "" && oldKey != key &&
+		!strings.HasPrefix(oldKey, "http://") && !strings.HasPrefix(oldKey, "https://") {
+		_ = s.storage.Delete(ctx, oldKey)
+	}
+
+	logger.Info().
+		Str("product_id", productID.String()).
+		Str("storage_key", key).
+		Msg("shop_product_image_uploaded")
 
 	return &dto.ImageUploadResponse{
-		ImageKey: key,
-		ImageURL: s.resolveURL(ctx, key),
+		ProductID: productID,
+		ImageKey:  key,
+		ImageURL:  s.resolveURL(ctx, key),
 	}, nil
 }
 

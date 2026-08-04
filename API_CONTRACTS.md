@@ -418,14 +418,18 @@ Removed — `/api/v1/guess/*` is no longer exposed.
 
 | Field | Value |
 |---|---|
-| **Endpoint** | `/api/v1/shop/image` |
+| **Endpoint** | `/api/v1/shop/{product_id}/image` |
 | **HTTP Method** | POST |
-| **Request** | `multipart/form-data` — field `file` (JPEG/PNG/WebP, max 5 MB) |
-| **Response** | `201 Created` — `{ "image_key", "image_url" }` |
+| **Request** | Path param `product_id`; `multipart/form-data` — field `file` (JPEG/PNG/WebP, max 5 MB) |
+| **Response** | `201 Created` — `{ "product_id", "image_key", "image_url" }` |
 | **Authentication** | Bearer (admin) |
-| **Error Codes** | `403` · `415` · `413` · استاندارد |
+| **Error Codes** | `403` · `404` · `415` · `413` · استاندارد |
 
-`image_key` را در body ساخت محصول (`POST /shop`) بفرست.
+سرور فایل را ذخیره می‌کند و `image_key` همان محصول را در دیتابیس آپدیت می‌کند.
+
+**Flow:**
+1. `POST /shop` — ساخت محصول (بدون عکس یا با `image_url` خارجی)
+2. `POST /shop/{product_id}/image` — آپلود عکس و اتصال خودکار به همان محصول
 
 ### 7.4 Create Product (admin)
 
@@ -433,7 +437,7 @@ Removed — `/api/v1/guess/*` is no longer exposed.
 |---|---|
 | **Endpoint** | `/api/v1/shop` |
 | **HTTP Method** | POST |
-| **Request** | `{ "product_type","name","subname?","description?","category","price_cents","price_points","image_key?","seller_name?","available_sizes?","is_active?" }` |
+| **Request** | `{ "product_type","name","subname?","description?","category","price_cents","price_points","image_url?","seller_name?","available_sizes?","is_active?" }` |
 | **Response** | `201 Created` — product detail object |
 | **Authentication** | Bearer (admin) |
 | **Error Codes** | `403` · `400` · استاندارد |
@@ -449,11 +453,11 @@ Removed — `/api/v1/guess/*` is no longer exposed.
   "category": "t-shirts",
   "price_cents": 3250,
   "price_points": 3250,
-  "image_key": "shop/images/abc.jpg",
   "seller_name": "Sport Mall 2",
   "available_sizes": ["M", "L", "XL", "XXL"]
 }
 ```
+سپس: `POST /shop/{id}/image` با فایل عکس.
 
 **Food example:**
 ```json
@@ -463,8 +467,7 @@ Removed — `/api/v1/guess/*` is no longer exposed.
   "description": "With onions",
   "category": "sandwiches",
   "price_cents": 820,
-  "price_points": 820,
-  "image_key": "shop/images/def.jpg"
+  "price_points": 820
 }
 ```
 

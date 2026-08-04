@@ -16,7 +16,7 @@ type ProductHandler interface {
 	List(c *gin.Context)
 	GetByID(c *gin.Context)
 	Create(c *gin.Context)
-	UploadImage(c *gin.Context)
+	UploadProductImage(c *gin.Context)
 }
 
 type productHandler struct {
@@ -135,20 +135,28 @@ func (h *productHandler) Create(c *gin.Context) {
 	response.Created(c, result)
 }
 
-// Upload shop image godoc
+// Upload product image godoc
 //
-//	@Summary		Upload shop product image
+//	@Summary		Upload image for a shop product
 //	@Tags			shop
 //	@Accept			multipart/form-data
 //	@Produce		json
 //	@Security		BearerAuth
+//	@Param			id		path		string	true	"Product ID"
 //	@Param			file	formData	file	true	"Product image (JPEG, PNG or WebP)"
 //	@Success		201	{object}	response.Response
 //	@Failure		401	{object}	response.Response
 //	@Failure		403	{object}	response.Response
+//	@Failure		404	{object}	response.Response
 //	@Failure		400	{object}	response.Response
-//	@Router			/api/v1/shop/image [post]
-func (h *productHandler) UploadImage(c *gin.Context) {
+//	@Router			/api/v1/shop/{id}/image [post]
+func (h *productHandler) UploadProductImage(c *gin.Context) {
+	productID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid product ID")
+		return
+	}
+
 	file, err := c.FormFile("file")
 	if err != nil {
 		response.BadRequest(c, "file is required")
@@ -156,7 +164,7 @@ func (h *productHandler) UploadImage(c *gin.Context) {
 	}
 
 	authCtx := getAuthContext(c)
-	result, err := h.svc.UploadImage(c.Request.Context(), file, authCtx)
+	result, err := h.svc.UploadProductImage(c.Request.Context(), productID, file, authCtx)
 	if err != nil {
 		response.Error(c, err)
 		return

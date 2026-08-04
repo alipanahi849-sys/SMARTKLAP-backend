@@ -22,7 +22,9 @@ type ProductFilters struct {
 type ProductRepository interface {
 	List(ctx context.Context, page, limit int, filters ProductFilters) ([]models.Product, int64, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*models.Product, error)
+	FindByIDAdmin(ctx context.Context, id uuid.UUID) (*models.Product, error)
 	Create(ctx context.Context, product *models.Product) error
+	UpdateImageKey(ctx context.Context, id uuid.UUID, imageKey string) error
 }
 
 type productRepository struct {
@@ -78,6 +80,31 @@ func (r *productRepository) FindByID(ctx context.Context, id uuid.UUID) (*models
 		return nil, errors.NewInternal("Failed to find product", err)
 	}
 	return &product, nil
+}
+
+func (r *productRepository) FindByIDAdmin(ctx context.Context, id uuid.UUID) (*models.Product, error) {
+	var product models.Product
+	err := r.db.WithContext(ctx).First(&product, "id = ?", id).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, errors.NewNotFound("Product not found", nil)
+		}
+		return nil, errors.NewInternal("Failed to find product", err)
+	}
+	return &product, nil
+}
+
+func (r *productRepository) UpdateImageKey(ctx context.Context, id uuid.UUID, imageKey string) error {
+	res := r.db.WithContext(ctx).Model(&models.Product{}).
+		Where("id = ?", id).
+		Update("image_key", imageKey)
+	if res.Error != nil {
+		return errors.NewInternal("Failed to update product image", res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return errors.NewNotFound("Product not found", nil)
+	}
+	return nil
 }
 
 func (r *productRepository) Create(ctx context.Context, product *models.Product) error {

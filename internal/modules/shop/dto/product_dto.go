@@ -73,8 +73,9 @@ type ProductDetailResponse struct {
 	AvailableSizes []string  `json:"available_sizes,omitempty"`
 }
 
-// ImageUploadResponse is POST /api/v1/shop/image.
+// ImageUploadResponse is POST /api/v1/shop/{id}/image.
 type ImageUploadResponse struct {
-	ImageKey string `json:"image_key"`
-	ImageURL string `json:"image_url"`
+	ProductID uuid.UUID `json:"product_id"`
+	ImageKey  string    `json:"image_key"`
+	ImageURL  string    `json:"image_url"`
 }
