@@ -18,7 +18,7 @@ INSERT INTO products (
     3250, 3250,
     'https://loremflickr.com/400/400/shirt,jersey,sport/all',
     'Sport Mall 2',
-    '["XS","S","M","L","XL","XXL","3XL"]'::jsonb,
+    '["XXS","XS","S","M","L","XL","XXL","3XL","4XL","5XL"]'::jsonb,
     true,
     NOW() - INTERVAL '15 minutes'
   ),
@@ -32,7 +32,7 @@ INSERT INTO products (
     3250, 3250,
     'https://loremflickr.com/400/400/shirt,jersey,football/all',
     'Sport Mall 2',
-    '["XS","S","M","L","XL","XXL","3XL"]'::jsonb,
+    '["XXS","XS","S","M","L","XL","XXL","3XL","4XL","5XL"]'::jsonb,
     true,
     NOW() - INTERVAL '14 minutes'
   ),
@@ -74,7 +74,7 @@ INSERT INTO products (
     8900, 8900,
     'https://loremflickr.com/400/400/tracksuit,sport/all',
     'Sport Mall 2',
-    '["XS","S","M","L","XL","XXL","3XL"]'::jsonb,
+    '["XXS","XS","S","M","L","XL","XXL","3XL","4XL","5XL"]'::jsonb,
     true,
     NOW() - INTERVAL '11 minutes'
   ),
@@ -88,7 +88,7 @@ INSERT INTO products (
     5500, 5500,
     'https://loremflickr.com/400/400/hoodie,sport/all',
     'Fan Shop',
-    '["XS","S","M","L","XL","XXL","3XL"]'::jsonb,
+    '["XXS","XS","S","M","L","XL","XXL","3XL","4XL","5XL"]'::jsonb,
     true,
     NOW() - INTERVAL '10 minutes'
   ),
@@ -200,7 +200,7 @@ INSERT INTO products (
     2200, 2200,
     'https://loremflickr.com/400/400/scarf,football/all',
     'Fan Shop',
-    '["Standard","Long"]'::jsonb,
+    '["Standard","Long","Extra Long"]'::jsonb,
     true,
     NOW() - INTERVAL '2 minutes'
   ),
@@ -340,7 +340,7 @@ INSERT INTO products (
     4200, 4200,
     'https://loremflickr.com/400/400/gloves,football/all',
     'Sport Mall 2',
-    '["7","8","9","10","11"]'::jsonb,
+    '["6","7","8","9","10","11","12"]'::jsonb,
     true,
     NOW() - INTERVAL '24 minutes'
   ),
@@ -368,7 +368,7 @@ INSERT INTO products (
     1800, 1800,
     'https://loremflickr.com/400/400/cap,sport/all',
     'Fan Shop',
-    '["S/M","L/XL","XL/XXL"]'::jsonb,
+    '["S/M","M/L","L/XL","XL/XXL","XXL"]'::jsonb,
     true,
     NOW() - INTERVAL '26 minutes'
   ),
@@ -396,7 +396,7 @@ INSERT INTO products (
     2400, 2400,
     'https://loremflickr.com/400/400/shorts,sport/all',
     'Sport Mall 2',
-    '["XS","S","M","L","XL","XXL","3XL"]'::jsonb,
+    '["XXS","XS","S","M","L","XL","XXL","3XL","4XL","5XL"]'::jsonb,
     true,
     NOW() - INTERVAL '28 minutes'
   ),
@@ -410,7 +410,7 @@ INSERT INTO products (
     1200, 1200,
     'https://loremflickr.com/400/400/socks,sport/all',
     'Sport Mall 2',
-    '["XS","S","M","L","XL"]'::jsonb,
+    '["XXS","XS","S","M","L","XL","XXL"]'::jsonb,
     true,
     NOW() - INTERVAL '29 minutes'
   ),
@@ -480,7 +480,7 @@ INSERT INTO products (
     6200, 6200,
     'https://loremflickr.com/400/400/jersey,vintage/all',
     'Sport Mall 2',
-    '["XS","S","M","L","XL","XXL","3XL"]'::jsonb,
+    '["XXS","XS","S","M","L","XL","XXL","3XL","4XL","5XL"]'::jsonb,
     true,
     NOW() - INTERVAL '34 minutes'
   ),
@@ -521,7 +521,7 @@ WHERE deleted_at IS NULL AND name = 'Training Suit' AND id::text NOT LIKE 'c2000
 UPDATE products SET
     subname = 'Home kit',
     description = 'Official club home kit jersey for the current season. Lightweight breathable polyester with moisture-wicking finish and embroidered crest. Available in a full range of adult sizes from XS to 3XL.',
-    available_sizes = '["XS","S","M","L","XL","XXL","3XL"]'::jsonb,
+    available_sizes = '["XXS","XS","S","M","L","XL","XXL","3XL","4XL","5XL"]'::jsonb,
     updated_at = NOW()
 WHERE deleted_at IS NULL AND name = 'Sport T-shirt' AND id::text NOT LIKE 'c2000000%';
 
@@ -537,7 +537,7 @@ WHERE deleted_at IS NULL AND name = 'Club Sticker Pack' AND id::text NOT LIKE 'c
 
 UPDATE products SET
     description = 'Complete two-piece training tracksuit with zip jacket and tapered joggers in club colours. Available in sizes XS through 3XL for a comfortable fit.',
-    available_sizes = '["XS","S","M","L","XL","XXL","3XL"]'::jsonb,
+    available_sizes = '["XXS","XS","S","M","L","XL","XXL","3XL","4XL","5XL"]'::jsonb,
     updated_at = NOW()
 WHERE deleted_at IS NULL AND name = 'Training Suit' AND id::text NOT LIKE 'c2000000%';
 
