@@ -119,9 +119,7 @@ func (s *chantService) List(ctx context.Context, userID uuid.UUID, matchID *uuid
 		}
 	}
 
-	markNextInSection(todayItems)
-	markNextInSection(upcomingItems)
-	markNextInSection(previousItems)
+	markNextInActiveSection(todayItems, upcomingItems, previousItems)
 	sections := make([]dto.ChantSection, 0, 3)
 	if len(todayItems) > 0 {
 		sections = append(sections, dto.ChantSection{Title: "Todays chants", Items: todayItems})
@@ -264,6 +262,34 @@ func chantDuration(c *models.Chant) int {
 		return c.DurationSeconds
 	}
 	return c.Song.Duration
+}
+
+// markNextInActiveSection marks is_next only in the first section (in API order)
+// that still has incomplete chants; other sections stay locked until it is finished.
+func markNextInActiveSection(sections ...[]dto.ChantItem) {
+	activeMarked := false
+	for _, items := range sections {
+		if len(items) == 0 {
+			continue
+		}
+		if !activeMarked && sectionHasIncomplete(items) {
+			markNextInSection(items)
+			activeMarked = true
+			continue
+		}
+		for i := range items {
+			items[i].IsNext = false
+		}
+	}
+}
+
+func sectionHasIncomplete(items []dto.ChantItem) bool {
+	for _, item := range items {
+		if !item.IsDone {
+			return true
+		}
+	}
+	return false
 }
 
 // markNextInSection sets is_next on the first incomplete item that follows
