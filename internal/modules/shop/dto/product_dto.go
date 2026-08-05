@@ -70,6 +70,7 @@ type ProductStockInfo struct {
 	StockQuantity *int `json:"stock_quantity,omitempty"`
 	IsUnlimited   bool `json:"is_unlimited"`
 	InStock       bool `json:"in_stock"`
+	SoldOut       bool `json:"soldout,omitempty"`
 }
 
 // ProductItem is a single row on the shop list screen.

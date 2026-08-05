@@ -42,6 +42,7 @@ type Product struct {
 	SellerName     string         `gorm:"type:varchar(200);not null;default:''" json:"seller_name"`
 	AvailableSizes string         `gorm:"type:jsonb;not null;default:'[]'" json:"available_sizes"`
 	StockQuantity  *int           `gorm:"column:stock_quantity" json:"stock_quantity"`
+	SoldOut        bool           `gorm:"column:sold_out;not null;default:false" json:"sold_out"`
 	IsActive       bool           `gorm:"not null;default:true" json:"is_active"`
 	CreatedAt      time.Time      `json:"created_at"`
 	UpdatedAt      time.Time      `json:"updated_at"`
@@ -65,4 +66,9 @@ func (p Product) InStock() bool {
 		return true
 	}
 	return *p.StockQuantity > 0
+}
+
+// IsSoldOut is true when limited inventory was depleted by orders (not admin zero-stock).
+func (p Product) IsSoldOut() bool {
+	return !p.IsUnlimitedStock() && !p.InStock() && p.SoldOut
 }

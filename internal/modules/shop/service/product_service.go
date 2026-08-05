@@ -332,6 +332,9 @@ func (s *productService) Update(ctx context.Context, id uuid.UUID, req *dto.Upda
 	product.SellerName = strings.TrimSpace(req.SellerName)
 	product.AvailableSizes = marshalAvailableSizes(sizes)
 	product.StockQuantity = stockQuantity
+	if stockQuantity != nil && *stockQuantity > 0 {
+		product.SoldOut = false
+	}
 	if req.IsActive != nil {
 		product.IsActive = *req.IsActive
 	}
@@ -544,6 +547,7 @@ func toProductStockInfo(p *models.Product) dto.ProductStockInfo {
 	info := dto.ProductStockInfo{
 		IsUnlimited: p.IsUnlimitedStock(),
 		InStock:     p.InStock(),
+		SoldOut:     p.IsSoldOut(),
 	}
 	if !info.IsUnlimited {
 		qty := *p.StockQuantity

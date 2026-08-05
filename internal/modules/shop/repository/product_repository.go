@@ -33,6 +33,8 @@ type ProductRepository interface {
 	Update(ctx context.Context, product *models.Product) error
 	UpdateImageKey(ctx context.Context, id uuid.UUID, imageKey string) error
 	Delete(ctx context.Context, id uuid.UUID) error
+	// DecrementStockForOrder reduces limited stock after payment; sets sold_out when it reaches 0.
+	DecrementStockForOrder(ctx context.Context, id uuid.UUID, quantity int) error
 }
 
 type productRepository struct {
@@ -133,6 +135,29 @@ func (r *productRepository) Update(ctx context.Context, product *models.Product)
 func (r *productRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	if err := r.db.WithContext(ctx).Delete(&models.Product{}, id).Error; err != nil {
 		return errors.NewInternal("Failed to delete product", err)
+	}
+	return nil
+}
+
+func (r *productRepository) DecrementStockForOrder(ctx context.Context, id uuid.UUID, quantity int) error {
+	if quantity <= 0 {
+		return errors.NewBadRequest("quantity must be positive", nil)
+	}
+
+	res := r.db.WithContext(ctx).Exec(`
+		UPDATE products
+		SET stock_quantity = stock_quantity - ?,
+		    sold_out = CASE WHEN stock_quantity - ? = 0 THEN TRUE ELSE sold_out END,
+		    updated_at = NOW()
+		WHERE id = ?
+		  AND stock_quantity IS NOT NULL
+		  AND stock_quantity >= ?
+	`, quantity, quantity, id, quantity)
+	if res.Error != nil {
+		return errors.NewInternal("Failed to decrement product stock", res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return errors.NewUnprocessable("Insufficient stock for product", nil)
 	}
 	return nil
 }
