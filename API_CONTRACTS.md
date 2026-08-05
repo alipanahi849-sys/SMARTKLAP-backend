@@ -314,7 +314,7 @@ Removed — `/api/v1/guess/*` is no longer exposed.
 | **Endpoint** | `/api/v1/shop/cart` |
 | **HTTP Method** | GET |
 | **Request** | بدون پارامتر |
-| **Response** | `200 OK` — `{ "orders": [{ "id","title","date","items":[{ "id","image_url","quantity" }],"extra_text" }] }` |
+| **Response** | `200 OK` — `{ "orders":[...], "items":[{ "id","product_id","product_type","size?","name","subname?","description?","price","image_url","quantity" }], "subtotal", "shipping", "total", "cart_count" }` |
 | **Authentication** | Bearer |
 | **Error Codes** | استاندارد |
 | **Pagination** | ندارد (سبد فعلی کاربر) |
@@ -342,15 +342,38 @@ Removed — `/api/v1/guess/*` is no longer exposed.
 {
   "orders": [
     {
-      "id": "food_1",
+      "id": "food",
       "title": "Food Delivery",
-      "date": "2026-07-10",
+      "date": "2026-08-05",
       "items": [
-        { "id": "f1", "image_url": "https://cdn.smartklap.com/foods/berger.png", "quantity": 2 }
+        {
+          "id": "a1000000-0000-4000-8000-000000000001",
+          "product_id": "c2000000-0000-4000-8000-000000000007",
+          "product_type": "food",
+          "image_url": "https://cdn.smartklap.com/foods/berger.png",
+          "quantity": 2
+        }
       ],
-      "extra_text": "2 more item"
+      "extra_text": "2 more items"
     }
-  ]
+  ],
+  "items": [
+    {
+      "id": "a1000000-0000-4000-8000-000000000001",
+      "product_id": "c2000000-0000-4000-8000-000000000007",
+      "product_type": "food",
+      "name": "Double Burger",
+      "subname": "With cheese",
+      "description": "Two flame-grilled beef patties...",
+      "price": "8,20 €",
+      "image_url": "https://cdn.smartklap.com/foods/berger.png",
+      "quantity": 2
+    }
+  ],
+  "subtotal": "16,40 €",
+  "shipping": "",
+  "total": "16,40 €",
+  "cart_count": 2
 }
 ```
 
