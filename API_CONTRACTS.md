@@ -311,7 +311,7 @@ Removed — `/api/v1/guess/*` is no longer exposed.
 | Field | Value |
 |---|---|
 | **Screen Name** | Basket Screen |
-| **Endpoint** | `/api/v1/cart` |
+| **Endpoint** | `/api/v1/shop/cart` (planned GET) |
 | **HTTP Method** | GET |
 | **Request** | بدون پارامتر |
 | **Response** | `200 OK` — `{ "orders": [{ "id","title","date","items":[{ "id","image_url","quantity" }],"extra_text" }] }` |
@@ -319,11 +319,11 @@ Removed — `/api/v1/guess/*` is no longer exposed.
 | **Error Codes** | استاندارد |
 | **Pagination** | ندارد (سبد فعلی کاربر) |
 
-**مدیریت سبد:**
-- `POST /api/v1/cart/items` — افزودن به سبد `{ "product_type": "food"|"merch", "product_id", "quantity?", "size?" }` — `quantity` پیش‌فرض ۱؛ **موجودی محصول (`stock_quantity`) تغییر نمی‌کند**
-- `POST /api/v1/cart/items/decrease` — کم کردن از سبد `{ "product_id", "quantity?", "size?" }` — `quantity` پیش‌فرض ۱؛ اگر به ۰ برسد خط از سبد حذف می‌شود؛ **موجودی محصول تغییر نمی‌کند**
-- `PATCH /api/v1/cart/items/{item_id}` — `{ "quantity" }` (planned)
-- `DELETE /api/v1/cart/items/{item_id}` (planned)
+**مدیریت سبد (زیرمجموعه Shop):**
+- `POST /api/v1/shop/cart/items` — افزودن به سبد `{ "product_type": "food"|"merch", "product_id", "quantity?", "size?" }` — `quantity` پیش‌فرض ۱؛ **موجودی محصول (`stock_quantity`) تغییر نمی‌کند**
+- `POST /api/v1/shop/cart/items/decrease` — کم کردن از سبد `{ "product_id", "quantity?", "size?" }` — `quantity` پیش‌فرض ۱؛ اگر به ۰ برسد خط از سبد حذف می‌شود؛ **موجودی محصول تغییر نمی‌کند**
+- `PATCH /api/v1/shop/cart/items/{item_id}` — `{ "quantity" }` (planned)
+- `DELETE /api/v1/shop/cart/items/{item_id}` (planned)
 
 **پاسخ add/decrease:**
 ```json
@@ -553,7 +553,7 @@ GET /api/v1/shop?limit=10&cursor=b2000000-0000-4000-8000-000000000010
 
 محصول soft-delete می‌شود و از لیست موبایل حذف می‌گردد.
 
-خرید: همان `POST /api/v1/cart/items` با `product_type: "merch"`، `size` هم در body ارسال شود.
+خرید: `POST /api/v1/shop/cart/items` با `product_type: "merch"`، `size` هم در body ارسال شود.
 
 ```json
 {
@@ -568,6 +568,15 @@ GET /api/v1/shop?limit=10&cursor=b2000000-0000-4000-8000-000000000010
   "stock": { "stock_quantity": 25, "is_unlimited": false, "in_stock": true }
 }
 ```
+
+### 7.7 Shop Cart
+
+| Field | Value |
+|---|---|
+| **Screen Name** | Product detail (+/- buttons) |
+| **Endpoints** | `POST /api/v1/shop/cart/items` · `POST /api/v1/shop/cart/items/decrease` |
+| **Authentication** | Bearer |
+| **Note** | بخشی از Shop module؛ موجودی محصول تا پرداخت تغییر نمی‌کند |
 
 ---
 

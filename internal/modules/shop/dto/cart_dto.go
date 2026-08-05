@@ -2,7 +2,7 @@ package dto
 
 import "github.com/google/uuid"
 
-// AddCartItemRequest is the body for POST /api/v1/cart/items.
+// AddCartItemRequest is the body for POST /api/v1/shop/cart/items.
 type AddCartItemRequest struct {
 	ProductID   uuid.UUID `json:"product_id" binding:"required"`
 	ProductType string    `json:"product_type" binding:"required"`
@@ -10,7 +10,7 @@ type AddCartItemRequest struct {
 	Size        string    `json:"size"`
 }
 
-// DecreaseCartItemRequest is the body for POST /api/v1/cart/items/decrease.
+// DecreaseCartItemRequest is the body for POST /api/v1/shop/cart/items/decrease.
 type DecreaseCartItemRequest struct {
 	ProductID uuid.UUID `json:"product_id" binding:"required"`
 	Quantity  int       `json:"quantity" binding:"omitempty,min=1"`

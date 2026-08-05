@@ -2,14 +2,11 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"strings"
 
-	"clap/internal/modules/cart/dto"
-	cartmodels "clap/internal/modules/cart/models"
-	cartrepository "clap/internal/modules/cart/repository"
-	shopmodels "clap/internal/modules/shop/models"
-	shoprepo "clap/internal/modules/shop/repository"
+	"clap/internal/modules/shop/dto"
+	"clap/internal/modules/shop/models"
+	"clap/internal/modules/shop/repository"
 	"clap/internal/shared/errors"
 
 	"github.com/google/uuid"
@@ -23,13 +20,13 @@ type CartService interface {
 }
 
 type cartService struct {
-	cartRepo    cartrepository.CartRepository
-	productRepo shoprepo.ProductRepository
+	cartRepo    repository.CartRepository
+	productRepo repository.ProductRepository
 }
 
 func NewCartService(
-	cartRepo cartrepository.CartRepository,
-	productRepo shoprepo.ProductRepository,
+	cartRepo repository.CartRepository,
+	productRepo repository.ProductRepository,
 ) CartService {
 	return &cartService{
 		cartRepo:    cartRepo,
@@ -43,7 +40,7 @@ func (s *cartService) AddItem(ctx context.Context, userID uuid.UUID, req *dto.Ad
 		qty = 1
 	}
 
-	productType, err := normalizeProductType(req.ProductType)
+	productType, err := normalizeProductType(req.ProductType, true)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +79,7 @@ func (s *cartService) AddItem(ctx context.Context, userID uuid.UUID, req *dto.Ad
 
 	var itemID uuid.UUID
 	if existing == nil {
-		item := &cartmodels.CartItem{
+		item := &models.CartItem{
 			UserID:      userID,
 			ProductID:   req.ProductID,
 			ProductType: productType,
@@ -160,21 +157,9 @@ func (s *cartService) CountItems(ctx context.Context, userID uuid.UUID) (int, er
 	return s.cartRepo.CountTotalQuantity(ctx, userID)
 }
 
-func normalizeProductType(raw string) (string, error) {
-	pt := strings.ToLower(strings.TrimSpace(raw))
-	switch pt {
-	case shopmodels.ProductTypeFood, shopmodels.ProductTypeMerch:
-		return pt, nil
-	case "snack":
-		return shopmodels.ProductTypeFood, nil
-	default:
-		return "", errors.NewBadRequest("product_type must be 'food' or 'merch'", nil)
-	}
-}
-
 func normalizeCartSize(productType, raw string) (string, error) {
 	size := strings.TrimSpace(raw)
-	if productType == shopmodels.ProductTypeFood {
+	if productType == models.ProductTypeFood {
 		if size != "" {
 			return "", errors.NewBadRequest("size is only available for merch products", nil)
 		}
@@ -183,12 +168,12 @@ func normalizeCartSize(productType, raw string) (string, error) {
 	return size, nil
 }
 
-func validateProductForCart(product *shopmodels.Product, size string) error {
+func validateProductForCart(product *models.Product, size string) error {
 	if !product.InStock() {
 		return errors.NewUnprocessable("Product is out of stock", nil)
 	}
 
-	if product.ProductType == shopmodels.ProductTypeMerch && size != "" {
+	if product.ProductType == models.ProductTypeMerch && size != "" {
 		sizes := parseAvailableSizes(product.AvailableSizes)
 		if len(sizes) > 0 {
 			found := false
@@ -207,7 +192,7 @@ func validateProductForCart(product *shopmodels.Product, size string) error {
 	return nil
 }
 
-func validateCartQuantityAgainstStock(product *shopmodels.Product, requestedQty int) error {
+func validateCartQuantityAgainstStock(product *models.Product, requestedQty int) error {
 	if product.IsUnlimitedStock() {
 		return nil
 	}
@@ -215,15 +200,4 @@ func validateCartQuantityAgainstStock(product *shopmodels.Product, requestedQty 
 		return errors.NewUnprocessable("Requested quantity exceeds available stock", nil)
 	}
 	return nil
-}
-
-func parseAvailableSizes(raw string) []string {
-	if raw == "" || raw == "[]" {
-		return nil
-	}
-	var sizes []string
-	if err := json.Unmarshal([]byte(raw), &sizes); err != nil {
-		return nil
-	}
-	return sizes
 }

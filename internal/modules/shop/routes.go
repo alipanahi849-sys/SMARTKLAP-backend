@@ -2,7 +2,6 @@ package shop
 
 import (
 	authrepo "clap/internal/modules/auth/repository"
-	"clap/internal/modules/cart"
 	"clap/internal/modules/shop/handler"
 	"clap/internal/modules/shop/repository"
 	"clap/internal/modules/shop/service"
@@ -13,26 +12,36 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// RegisterRoutes wires the mobile Shop endpoints (Mobile API Contract §7).
+// RegisterRoutes wires the mobile Shop endpoints (Mobile API Contract §6–§7).
 func RegisterRoutes(r *gin.RouterGroup) {
 	db := database.GetDB()
 
+	productRepo := repository.NewProductRepository(db)
+	cartRepo := repository.NewCartRepository(db)
+	cartSvc := service.NewCartService(cartRepo, productRepo)
+
 	shopSvc := service.NewProductService(
-		repository.NewProductRepository(db),
+		productRepo,
 		authrepo.NewUserRepository(),
 		storageinit.Provider(),
-		cart.NewService(),
+		cartSvc,
 	)
-	h := handler.NewProductHandler(shopSvc)
+
+	productH := handler.NewProductHandler(shopSvc)
+	cartH := handler.NewCartHandler(cartSvc)
 
 	shop := r.Group("/shop")
 	shop.Use(middleware.Auth())
 	{
-		shop.GET("", h.List)
-		shop.POST("", h.Create)
-		shop.GET("/:id", h.GetByID)
-		shop.PUT("/:id", h.Update)
-		shop.DELETE("/:id", h.Delete)
-		shop.POST("/:id/image", h.UploadProductImage)
+		shop.GET("", productH.List)
+		shop.POST("", productH.Create)
+
+		shop.POST("/cart/items", cartH.AddItem)
+		shop.POST("/cart/items/decrease", cartH.DecreaseItem)
+
+		shop.GET("/:id", productH.GetByID)
+		shop.PUT("/:id", productH.Update)
+		shop.DELETE("/:id", productH.Delete)
+		shop.POST("/:id/image", productH.UploadProductImage)
 	}
 }

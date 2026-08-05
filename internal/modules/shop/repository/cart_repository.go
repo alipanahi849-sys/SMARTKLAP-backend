@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"clap/internal/modules/cart/models"
+	"clap/internal/modules/shop/models"
 	"clap/internal/shared/errors"
 
 	"github.com/google/uuid"

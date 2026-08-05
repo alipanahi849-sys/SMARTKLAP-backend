@@ -409,6 +409,9 @@ func normalizeProductType(raw string, required bool) (string, error) {
 		}
 		return "", nil
 	}
+	if pt == "snack" {
+		pt = models.ProductTypeFood
+	}
 	if pt != models.ProductTypeFood && pt != models.ProductTypeMerch {
 		return "", errors.NewBadRequest("product_type must be 'food' or 'merch'", nil)
 	}
