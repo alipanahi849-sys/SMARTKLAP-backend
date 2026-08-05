@@ -11,7 +11,6 @@ import (
 	"time"
 
 	authrepo "clap/internal/modules/auth/repository"
-	cartrepo "clap/internal/modules/cart/repository"
 	"clap/internal/modules/shop/dto"
 	"clap/internal/modules/shop/models"
 	"clap/internal/modules/shop/repository"
@@ -61,20 +60,17 @@ type ProductService interface {
 type productService struct {
 	productRepo repository.ProductRepository
 	userRepo    authrepo.UserRepository
-	cartRepo    cartrepo.CartRepository
 	storage     storage.StorageProvider
 }
 
 func NewProductService(
 	productRepo repository.ProductRepository,
 	userRepo authrepo.UserRepository,
-	cartRepo cartrepo.CartRepository,
 	storageProvider storage.StorageProvider,
 ) ProductService {
 	return &productService{
 		productRepo: productRepo,
 		userRepo:    userRepo,
-		cartRepo:    cartRepo,
 		storage:     storageProvider,
 	}
 }
@@ -157,14 +153,9 @@ func (s *productService) List(ctx context.Context, userID uuid.UUID, filters dto
 		meta.NextCursor = &lastID
 	}
 
-	cartCount, err := s.cartRepo.CountByUserID(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
 	return &dto.ProductListResponse{
 		Items:      items,
-		CartCount:  cartCount,
+		CartCount:  0,
 		UserPoints: user.Points,
 		Meta:       meta,
 	}, nil
