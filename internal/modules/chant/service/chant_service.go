@@ -27,7 +27,7 @@ const audioURLExpiry = 2 * time.Hour
 
 // ChantService implements the mobile Chants screens (contract §4).
 type ChantService interface {
-	List(ctx context.Context, userID uuid.UUID, matchID *uuid.UUID, search string) (*dto.ChantListResponse, error)
+	List(ctx context.Context, userID uuid.UUID, filters dto.ChantListFilters) (*dto.ChantListResponse, error)
 	Lyrics(ctx context.Context, chantID uuid.UUID, mode string) (*dto.ChantLyricsResponse, error)
 	Complete(ctx context.Context, userID, chantID uuid.UUID) (*dto.ChantCompleteResponse, error)
 	// TodayProgram powers the Home "chant program" card (contract §3.1).
@@ -70,18 +70,47 @@ func NewChantServiceWithTarget(
 	}
 }
 
-func (s *chantService) List(ctx context.Context, userID uuid.UUID, matchID *uuid.UUID, search string) (*dto.ChantListResponse, error) {
-	match, err := s.resolveMatch(ctx, matchID)
+func (s *chantService) List(ctx context.Context, userID uuid.UUID, filters dto.ChantListFilters) (*dto.ChantListResponse, error) {
+	match, err := s.resolveMatch(ctx, filters.MatchID)
 	if err != nil {
 		return nil, err
 	}
 	if match == nil {
-		return &dto.ChantListResponse{MatchTitle: "", Sections: []dto.ChantSection{}}, nil
+		return &dto.ChantListResponse{
+			MatchTitle: "",
+			Sections:   []dto.ChantSection{},
+			Meta:       dto.ChantListMeta{Limit: filters.Limit, HasMore: false},
+		}, nil
 	}
 
-	chants, err := s.chantRepo.FindByMatch(ctx, match.ID, search)
+	limit := filters.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+
+	var after *repository.ChantCursorAnchor
+	if filters.Cursor != nil {
+		cursorChant, cursorErr := s.chantRepo.FindByID(ctx, *filters.Cursor)
+		if cursorErr != nil {
+			return nil, errors.NewBadRequest("Invalid cursor", nil)
+		}
+		if cursorChant.MatchID != match.ID {
+			return nil, errors.NewBadRequest("Invalid cursor", nil)
+		}
+		after = &repository.ChantCursorAnchor{
+			ScheduledAt: cursorChant.ScheduledAt,
+			ID:          cursorChant.ID,
+		}
+	}
+
+	chants, err := s.chantRepo.FindByMatchAfter(ctx, match.ID, filters.Search, limit+1, after)
 	if err != nil {
 		return nil, err
+	}
+
+	hasMore := len(chants) > limit
+	if hasMore {
+		chants = chants[:limit]
 	}
 
 	chantIDs := make([]uuid.UUID, len(chants))
@@ -92,8 +121,6 @@ func (s *chantService) List(ctx context.Context, userID uuid.UUID, matchID *uuid
 	if err != nil {
 		return nil, err
 	}
-
-	// isNext is computed per section after grouping (see markNextInSection).
 
 	now := time.Now().UTC()
 	today := now.Truncate(24 * time.Hour)
@@ -119,7 +146,18 @@ func (s *chantService) List(ctx context.Context, userID uuid.UUID, matchID *uuid
 		}
 	}
 
-	markNextInActiveSection(todayItems, upcomingItems, previousItems)
+	if after == nil {
+		markNextInActiveSection(todayItems, upcomingItems, previousItems)
+	} else {
+		incompleteBefore, checkErr := s.chantRepo.HasIncompleteAtOrBefore(ctx, userID, match.ID, filters.Search, after)
+		if checkErr != nil {
+			return nil, checkErr
+		}
+		if !incompleteBefore {
+			markNextInActiveSection(todayItems, upcomingItems, previousItems)
+		}
+	}
+
 	sections := make([]dto.ChantSection, 0, 3)
 	if len(todayItems) > 0 {
 		sections = append(sections, dto.ChantSection{Title: "Todays chants", Items: todayItems})
@@ -133,7 +171,16 @@ func (s *chantService) List(ctx context.Context, userID uuid.UUID, matchID *uuid
 
 	title := match.HomeClub.Name + " - " + match.AwayClub.Name + "'s chants"
 
-	return &dto.ChantListResponse{MatchTitle: title, Sections: sections}, nil
+	meta := dto.ChantListMeta{
+		Limit:   limit,
+		HasMore: hasMore,
+	}
+	if hasMore && len(chants) > 0 {
+		lastID := chants[len(chants)-1].ID
+		meta.NextCursor = &lastID
+	}
+
+	return &dto.ChantListResponse{MatchTitle: title, Sections: sections, Meta: meta}, nil
 }
 
 func (s *chantService) Lyrics(ctx context.Context, chantID uuid.UUID, mode string) (*dto.ChantLyricsResponse, error) {

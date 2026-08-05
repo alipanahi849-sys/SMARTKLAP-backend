@@ -1,9 +1,13 @@
 package handler
 
 import (
+	"strings"
+
+	"clap/internal/modules/chant/dto"
 	"clap/internal/modules/chant/service"
 	"clap/internal/shared/middleware"
 	"clap/internal/shared/response"
+	"clap/internal/shared/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -30,7 +34,10 @@ func NewChantHandler(svc service.ChantService) ChantHandler {
 //	@Tags			chants
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			search	query	string	false	"Search query"
+//	@Param			search		query	string	false	"Search query"
+//	@Param			match_id	query	string	false	"Match ID filter"
+//	@Param			cursor		query	string	false	"Chant ID of the last item from the previous page"
+//	@Param			limit		query	int		false	"Items per page (default 20, max 100)"
 //	@Success		200	{object}	response.Response
 //	@Failure		401	{object}	response.Response
 //	@Failure		400	{object}	response.Response
@@ -42,6 +49,8 @@ func (h *chantHandler) List(c *gin.Context) {
 		return
 	}
 
+	limit := utils.GetMobileCursorLimit(c)
+
 	var matchID *uuid.UUID
 	if raw, ok := c.GetQuery("match_id"); ok && raw != "" {
 		parsed, err := uuid.Parse(raw)
@@ -52,7 +61,22 @@ func (h *chantHandler) List(c *gin.Context) {
 		matchID = &parsed
 	}
 
-	result, err := h.svc.List(c.Request.Context(), userID, matchID, c.Query("search"))
+	var cursor *uuid.UUID
+	if raw := strings.TrimSpace(c.Query("cursor")); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			response.BadRequest(c, "Invalid cursor")
+			return
+		}
+		cursor = &id
+	}
+
+	result, err := h.svc.List(c.Request.Context(), userID, dto.ChantListFilters{
+		MatchID: matchID,
+		Search:  c.Query("search"),
+		Cursor:  cursor,
+		Limit:   limit,
+	})
 	if err != nil {
 		response.Error(c, err)
 		return

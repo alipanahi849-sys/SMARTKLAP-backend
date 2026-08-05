@@ -19,10 +19,26 @@ type ChantSection struct {
 	Items []ChantItem `json:"items"`
 }
 
+// ChantListFilters are query params for GET /chants.
+type ChantListFilters struct {
+	MatchID *uuid.UUID
+	Search  string
+	Cursor  *uuid.UUID
+	Limit   int
+}
+
+// ChantListMeta is cursor pagination meta for GET /chants.
+type ChantListMeta struct {
+	Limit      int        `json:"limit"`
+	HasMore    bool       `json:"has_more"`
+	NextCursor *uuid.UUID `json:"next_cursor,omitempty"`
+}
+
 // ChantListResponse is GET /chants.
 type ChantListResponse struct {
 	MatchTitle string         `json:"match_title"`
 	Sections   []ChantSection `json:"sections"`
+	Meta       ChantListMeta  `json:"meta"`
 }
 
 // ChantCompleteResponse is POST /chants/{id}/complete.

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	chantmodels "clap/internal/modules/chant/models"
+	chantdto "clap/internal/modules/chant/dto"
 	chantrepo "clap/internal/modules/chant/repository"
 	chantsvc "clap/internal/modules/chant/service"
 	matchmodels "clap/internal/modules/match/models"
@@ -127,14 +128,21 @@ func (r *stubChantRepo) FindByID(_ context.Context, id uuid.UUID) (*chantmodels.
 	return nil, sharederrors.NewNotFound("Chant not found", nil)
 }
 
-func (r *stubChantRepo) FindByMatch(_ context.Context, matchID uuid.UUID, _ string) ([]chantmodels.Chant, error) {
+func (r *stubChantRepo) FindByMatchAfter(_ context.Context, matchID uuid.UUID, _ string, limit int, _ *chantrepo.ChantCursorAnchor) ([]chantmodels.Chant, error) {
 	var result []chantmodels.Chant
 	for _, c := range r.chants {
 		if c.MatchID == matchID {
 			result = append(result, *c)
 		}
 	}
+	if limit > 0 && len(result) > limit {
+		result = result[:limit]
+	}
 	return result, nil
+}
+
+func (r *stubChantRepo) HasIncompleteAtOrBefore(_ context.Context, _ uuid.UUID, _ uuid.UUID, _ string, _ *chantrepo.ChantCursorAnchor) (bool, error) {
+	return false, nil
 }
 
 func (r *stubChantRepo) CompletedChantIDs(_ context.Context, userID uuid.UUID, chantIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
@@ -236,7 +244,10 @@ func TestChant_ListGroupsIntoSections(t *testing.T) {
 		c.ID = id
 	}
 
-	resp, err := svc.List(context.Background(), uuid.New(), &match.ID, "")
+	resp, err := svc.List(context.Background(), uuid.New(), chantdto.ChantListFilters{
+		MatchID: &match.ID,
+		Limit:   20,
+	})
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}

@@ -14,11 +14,20 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+// ChantCursorAnchor is the list position after which the next page is fetched.
+type ChantCursorAnchor struct {
+	ScheduledAt time.Time
+	ID          uuid.UUID
+}
+
 type ChantRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*models.Chant, error)
-	// FindByMatch returns active chants for a match ordered by schedule time,
-	// optionally filtered by a title search term.
-	FindByMatch(ctx context.Context, matchID uuid.UUID, search string) ([]models.Chant, error)
+	// FindByMatchAfter returns active chants for a match ordered by schedule time.
+	// Pass after=nil for the first page.
+	FindByMatchAfter(ctx context.Context, matchID uuid.UUID, search string, limit int, after *ChantCursorAnchor) ([]models.Chant, error)
+	// HasIncompleteAtOrBefore reports whether the user has not completed any chant
+	// at or before the given anchor in the match list order.
+	HasIncompleteAtOrBefore(ctx context.Context, userID, matchID uuid.UUID, search string, anchor *ChantCursorAnchor) (bool, error)
 	// CompletedChantIDs returns which of the given chants the user completed.
 	CompletedChantIDs(ctx context.Context, userID uuid.UUID, chantIDs []uuid.UUID) (map[uuid.UUID]bool, error)
 	// TodayPoints sums the user's chant points earned since local midnight (UTC).
@@ -51,18 +60,49 @@ func (r *chantRepository) FindByID(ctx context.Context, id uuid.UUID) (*models.C
 	return &chant, nil
 }
 
-func (r *chantRepository) FindByMatch(ctx context.Context, matchID uuid.UUID, search string) ([]models.Chant, error) {
+func (r *chantRepository) FindByMatchAfter(ctx context.Context, matchID uuid.UUID, search string, limit int, after *ChantCursorAnchor) ([]models.Chant, error) {
 	q := r.db.WithContext(ctx).Preload("Song").
 		Where("match_id = ? AND is_active = ?", matchID, true)
 	if s := strings.TrimSpace(search); s != "" {
 		q = q.Where("title ILIKE ?", "%"+s+"%")
 	}
+	if after != nil {
+		q = q.Where(
+			"(scheduled_at > ?) OR (scheduled_at = ? AND id > ?)",
+			after.ScheduledAt, after.ScheduledAt, after.ID,
+		)
+	}
 
 	var chants []models.Chant
-	if err := q.Order("scheduled_at ASC").Find(&chants).Error; err != nil {
+	if err := q.Order("scheduled_at ASC, id ASC").
+		Limit(limit).
+		Find(&chants).Error; err != nil {
 		return nil, errors.NewInternal("Failed to list chants", err)
 	}
 	return chants, nil
+}
+
+func (r *chantRepository) HasIncompleteAtOrBefore(ctx context.Context, userID, matchID uuid.UUID, search string, anchor *ChantCursorAnchor) (bool, error) {
+	if anchor == nil {
+		return false, nil
+	}
+
+	q := r.db.WithContext(ctx).Table("chants c").
+		Joins("LEFT JOIN chant_completions cc ON cc.chant_id = c.id AND cc.user_id = ?", userID).
+		Where("c.match_id = ? AND c.is_active = ? AND cc.id IS NULL", matchID, true).
+		Where(
+			"(c.scheduled_at < ?) OR (c.scheduled_at = ? AND c.id <= ?)",
+			anchor.ScheduledAt, anchor.ScheduledAt, anchor.ID,
+		)
+	if s := strings.TrimSpace(search); s != "" {
+		q = q.Where("c.title ILIKE ?", "%"+s+"%")
+	}
+
+	var count int64
+	if err := q.Count(&count).Error; err != nil {
+		return false, errors.NewInternal("Failed to check chant progress", err)
+	}
+	return count > 0, nil
 }
 
 func (r *chantRepository) CompletedChantIDs(ctx context.Context, userID uuid.UUID, chantIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
