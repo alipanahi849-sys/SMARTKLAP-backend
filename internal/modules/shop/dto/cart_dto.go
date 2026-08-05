@@ -58,6 +58,12 @@ type BasketOrder struct {
 	ExtraText string            `json:"extra_text,omitempty"`
 }
 
+// BasketListFilters are query params for GET /api/v1/shop/cart.
+type BasketListFilters struct {
+	Cursor *uuid.UUID
+	Limit  int
+}
+
 // BasketResponse is GET /api/v1/shop/cart.
 type BasketResponse struct {
 	Orders    []BasketOrder      `json:"orders"`
@@ -66,4 +72,5 @@ type BasketResponse struct {
 	Shipping  string             `json:"shipping,omitempty"`
 	Total     string             `json:"total,omitempty"`
 	CartCount int                `json:"cart_count"`
+	Meta      CursorListMeta     `json:"meta"`
 }

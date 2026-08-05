@@ -1,10 +1,13 @@
 package handler
 
 import (
+	"strings"
+
 	"clap/internal/modules/shop/dto"
 	"clap/internal/modules/shop/service"
 	"clap/internal/shared/middleware"
 	"clap/internal/shared/response"
+	"clap/internal/shared/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -32,8 +35,11 @@ func NewCartHandler(svc service.CartService) CartHandler {
 //	@Tags			shop
 //	@Produce		json
 //	@Security		BearerAuth
+//	@Param			cursor	query	string	false	"Cart item ID of the last item from the previous page"
+//	@Param			limit	query	int		false	"Items per page (default 20, max 100)"
 //	@Success		200	{object}	response.Response
 //	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
 //	@Router			/api/v1/shop/cart [get]
 func (h *cartHandler) GetBasket(c *gin.Context) {
 	userID := middleware.GetUserID(c)
@@ -42,7 +48,22 @@ func (h *cartHandler) GetBasket(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.GetBasket(c.Request.Context(), userID)
+	limit := utils.GetMobileCursorLimit(c)
+
+	var cursor *uuid.UUID
+	if raw := strings.TrimSpace(c.Query("cursor")); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			response.BadRequest(c, "Invalid cursor")
+			return
+		}
+		cursor = &id
+	}
+
+	result, err := h.svc.GetBasket(c.Request.Context(), userID, dto.BasketListFilters{
+		Cursor: cursor,
+		Limit:  limit,
+	})
 	if err != nil {
 		response.Error(c, err)
 		return

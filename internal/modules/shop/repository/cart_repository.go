@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"clap/internal/modules/shop/models"
 	"clap/internal/shared/errors"
@@ -10,9 +11,18 @@ import (
 	"gorm.io/gorm"
 )
 
+// CartCursorAnchor is the list position after which the next page is fetched.
+type CartCursorAnchor struct {
+	UpdatedAt time.Time
+	ID        uuid.UUID
+}
+
 type CartRepository interface {
 	FindLine(ctx context.Context, userID, productID uuid.UUID, size string) (*models.CartItem, error)
+	FindLineByID(ctx context.Context, userID, id uuid.UUID) (*UserCartLine, error)
 	ListUserLines(ctx context.Context, userID uuid.UUID) ([]UserCartLine, error)
+	ListUserLinesAfter(ctx context.Context, userID uuid.UUID, limit int, after *CartCursorAnchor) ([]UserCartLine, error)
+	SumSubtotalCents(ctx context.Context, userID uuid.UUID) (int64, error)
 	Create(ctx context.Context, item *models.CartItem) error
 	UpdateQuantity(ctx context.Context, id uuid.UUID, quantity int) error
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -52,19 +62,70 @@ func (r *cartRepository) FindLine(ctx context.Context, userID, productID uuid.UU
 	return &item, nil
 }
 
-func (r *cartRepository) ListUserLines(ctx context.Context, userID uuid.UUID) ([]UserCartLine, error) {
-	var lines []UserCartLine
-	err := r.db.WithContext(ctx).
+func (r *cartRepository) userLinesQueryCtx(ctx context.Context, userID uuid.UUID) *gorm.DB {
+	return r.db.WithContext(ctx).
 		Table("cart_items").
 		Select("cart_items.*, products.image_key, products.name, products.subname, products.description, products.price_cents, products.price_points").
 		Joins("INNER JOIN products ON products.id = cart_items.product_id AND products.deleted_at IS NULL AND products.is_active = ?", true).
-		Where("cart_items.user_id = ?", userID).
-		Order("cart_items.updated_at DESC").
+		Where("cart_items.user_id = ?", userID)
+}
+
+func (r *cartRepository) FindLineByID(ctx context.Context, userID, id uuid.UUID) (*UserCartLine, error) {
+	var lines []UserCartLine
+	err := r.userLinesQueryCtx(ctx, userID).
+		Where("cart_items.id = ?", id).
+		Limit(1).
+		Scan(&lines).Error
+	if err != nil {
+		return nil, errors.NewInternal("Failed to load cart item", err)
+	}
+	if len(lines) == 0 {
+		return nil, errors.NewNotFound("Cart item not found", nil)
+	}
+	return &lines[0], nil
+}
+
+func (r *cartRepository) ListUserLines(ctx context.Context, userID uuid.UUID) ([]UserCartLine, error) {
+	var lines []UserCartLine
+	err := r.userLinesQueryCtx(ctx, userID).
+		Order("cart_items.updated_at DESC, cart_items.id DESC").
 		Scan(&lines).Error
 	if err != nil {
 		return nil, errors.NewInternal("Failed to load cart", err)
 	}
 	return lines, nil
+}
+
+func (r *cartRepository) ListUserLinesAfter(ctx context.Context, userID uuid.UUID, limit int, after *CartCursorAnchor) ([]UserCartLine, error) {
+	q := r.userLinesQueryCtx(ctx, userID)
+	if after != nil {
+		q = q.Where(
+			"(cart_items.updated_at < ?) OR (cart_items.updated_at = ? AND cart_items.id < ?)",
+			after.UpdatedAt, after.UpdatedAt, after.ID,
+		)
+	}
+
+	var lines []UserCartLine
+	if err := q.Order("cart_items.updated_at DESC, cart_items.id DESC").
+		Limit(limit).
+		Scan(&lines).Error; err != nil {
+		return nil, errors.NewInternal("Failed to load cart", err)
+	}
+	return lines, nil
+}
+
+func (r *cartRepository) SumSubtotalCents(ctx context.Context, userID uuid.UUID) (int64, error) {
+	var total int64
+	err := r.db.WithContext(ctx).
+		Table("cart_items").
+		Select("COALESCE(SUM(products.price_cents * cart_items.quantity), 0)").
+		Joins("INNER JOIN products ON products.id = cart_items.product_id AND products.deleted_at IS NULL AND products.is_active = ?", true).
+		Where("cart_items.user_id = ?", userID).
+		Scan(&total).Error
+	if err != nil {
+		return 0, errors.NewInternal("Failed to sum cart subtotal", err)
+	}
+	return total, nil
 }
 
 func (r *cartRepository) Create(ctx context.Context, item *models.CartItem) error {

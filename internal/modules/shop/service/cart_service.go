@@ -19,7 +19,7 @@ const basketPreviewLimit = 3
 
 // CartService manages the user shopping cart without changing product stock.
 type CartService interface {
-	GetBasket(ctx context.Context, userID uuid.UUID) (*dto.BasketResponse, error)
+	GetBasket(ctx context.Context, userID uuid.UUID, filters dto.BasketListFilters) (*dto.BasketResponse, error)
 	AddItem(ctx context.Context, userID uuid.UUID, req *dto.AddCartItemRequest) (*dto.CartMutationResponse, error)
 	DecreaseItem(ctx context.Context, userID uuid.UUID, req *dto.DecreaseCartItemRequest) (*dto.CartMutationResponse, error)
 	CountItems(ctx context.Context, userID uuid.UUID) (int, error)
@@ -43,31 +43,57 @@ func NewCartService(
 	}
 }
 
-func (s *cartService) GetBasket(ctx context.Context, userID uuid.UUID) (*dto.BasketResponse, error) {
-	lines, err := s.cartRepo.ListUserLines(ctx, userID)
+func (s *cartService) GetBasket(ctx context.Context, userID uuid.UUID, filters dto.BasketListFilters) (*dto.BasketResponse, error) {
+	limit := filters.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+
+	var after *repository.CartCursorAnchor
+	if filters.Cursor != nil {
+		cursorLine, err := s.cartRepo.FindLineByID(ctx, userID, *filters.Cursor)
+		if err != nil {
+			return nil, errors.NewBadRequest("Invalid cursor", nil)
+		}
+		after = &repository.CartCursorAnchor{
+			UpdatedAt: cursorLine.UpdatedAt,
+			ID:        cursorLine.ID,
+		}
+	}
+
+	lines, err := s.cartRepo.ListUserLinesAfter(ctx, userID, limit+1, after)
 	if err != nil {
 		return nil, err
 	}
 
-	grouped := map[string][]repository.UserCartLine{
-		models.ProductTypeFood:  {},
-		models.ProductTypeMerch: {},
+	hasMore := len(lines) > limit
+	if hasMore {
+		lines = lines[:limit]
 	}
 
-	for _, line := range lines {
-		pt := basketGroupType(line.ProductType)
-		if pt != models.ProductTypeFood && pt != models.ProductTypeMerch {
-			continue
+	orders := []dto.BasketOrder{}
+	if filters.Cursor == nil {
+		allLines, err := s.cartRepo.ListUserLines(ctx, userID)
+		if err != nil {
+			return nil, err
 		}
-		grouped[pt] = append(grouped[pt], line)
-	}
-
-	orders := make([]dto.BasketOrder, 0, 2)
-	if foodLines := grouped[models.ProductTypeFood]; len(foodLines) > 0 {
-		orders = append(orders, buildBasketOrder(ctx, models.ProductTypeFood, foodLines, s.resolveURL))
-	}
-	if merchLines := grouped[models.ProductTypeMerch]; len(merchLines) > 0 {
-		orders = append(orders, buildBasketOrder(ctx, models.ProductTypeMerch, merchLines, s.resolveURL))
+		grouped := map[string][]repository.UserCartLine{
+			models.ProductTypeFood:  {},
+			models.ProductTypeMerch: {},
+		}
+		for _, line := range allLines {
+			pt := basketGroupType(line.ProductType)
+			if pt != models.ProductTypeFood && pt != models.ProductTypeMerch {
+				continue
+			}
+			grouped[pt] = append(grouped[pt], line)
+		}
+		if foodLines := grouped[models.ProductTypeFood]; len(foodLines) > 0 {
+			orders = append(orders, buildBasketOrder(ctx, models.ProductTypeFood, foodLines, s.resolveURL))
+		}
+		if merchLines := grouped[models.ProductTypeMerch]; len(merchLines) > 0 {
+			orders = append(orders, buildBasketOrder(ctx, models.ProductTypeMerch, merchLines, s.resolveURL))
+		}
 	}
 
 	cartCount, err := s.cartRepo.CountTotalQuantity(ctx, userID)
@@ -75,13 +101,32 @@ func (s *cartService) GetBasket(ctx context.Context, userID uuid.UUID) (*dto.Bas
 		return nil, err
 	}
 
+	subtotalCents, err := s.cartRepo.SumSubtotalCents(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	subtotal := ""
+	if subtotalCents > 0 {
+		subtotal = utils.FormatEuro(subtotalCents)
+	}
+
+	meta := dto.CursorListMeta{
+		Limit:   limit,
+		HasMore: hasMore,
+	}
+	if hasMore && len(lines) > 0 {
+		lastID := lines[len(lines)-1].ID
+		meta.NextCursor = &lastID
+	}
+
 	return &dto.BasketResponse{
 		Orders:    orders,
 		Items:     buildCheckoutItems(ctx, lines, s.resolveURL),
-		Subtotal:  formatCheckoutSubtotal(lines),
+		Subtotal:  subtotal,
 		Shipping:  "",
-		Total:     formatCheckoutSubtotal(lines),
+		Total:     subtotal,
 		CartCount: cartCount,
+		Meta:      meta,
 	}, nil
 }
 
@@ -155,17 +200,6 @@ func buildCheckoutItems(ctx context.Context, lines []repository.UserCartLine, re
 		}
 	}
 	return items
-}
-
-func formatCheckoutSubtotal(lines []repository.UserCartLine) string {
-	var totalCents int64
-	for _, line := range lines {
-		totalCents += line.PriceCents * int64(line.Quantity)
-	}
-	if totalCents <= 0 {
-		return ""
-	}
-	return utils.FormatEuro(totalCents)
 }
 
 func basketGroupType(productType string) string {
