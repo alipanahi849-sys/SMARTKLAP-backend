@@ -33,10 +33,12 @@ import (
 	"clap/cmd/api/docs"
 	"clap/internal/modules/auth"
 	"clap/internal/modules/chant"
+	"clap/internal/modules/cart"
 	schedulerrepo "clap/internal/modules/eventscheduler/repository"
 	schedulersvc "clap/internal/modules/eventscheduler/service"
 	lyricssvc "clap/internal/modules/lyricssync/service"
 	"clap/internal/modules/matchruntime"
+	"clap/internal/modules/order"
 	matchruntimerepo "clap/internal/modules/matchruntime/repository"
 	"clap/internal/modules/media"
 	"clap/internal/modules/playback"
@@ -320,6 +322,8 @@ func setupRouter(deps routerDeps) *gin.Engine {
 		chant.RegisterRoutes(v1)
 		video.RegisterRoutes(v1)
 		shop.RegisterRoutes(v1)
+		cart.RegisterRoutes(v1)
+		order.RegisterRoutes(v1)
 		// Phase 4 + 4.2: Realtime Engine Foundation + WebSocket Delivery Layer
 		realtime.RegisterRoutesWithWS(v1, realtime.WSConfig{
 			CM:           deps.cm,
