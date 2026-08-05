@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"strings"
+
+	"clap/internal/modules/video/dto"
 	"clap/internal/modules/video/service"
 	"clap/internal/shared/middleware"
 	"clap/internal/shared/response"
@@ -33,6 +36,8 @@ func NewVideoHandler(svc service.VideoService) VideoHandler {
 //	@Tags			videos
 //	@Produce		json
 //	@Security		BearerAuth
+//	@Param			cursor	query	string	false	"Video ID of the last item from the previous page"
+//	@Param			limit	query	int		false	"Items per page (default 20, max 100)"
 //	@Success		200	{object}	response.Response
 //	@Failure		401	{object}	response.Response
 //	@Failure		400	{object}	response.Response
@@ -44,8 +49,22 @@ func (h *videoHandler) Feed(c *gin.Context) {
 		return
 	}
 
-	page, limit := utils.GetMobilePagination(c)
-	result, err := h.svc.Feed(c.Request.Context(), userID, page, limit)
+	limit := utils.GetMobileCursorLimit(c)
+
+	var cursor *uuid.UUID
+	if raw := strings.TrimSpace(c.Query("cursor")); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			response.BadRequest(c, "Invalid cursor")
+			return
+		}
+		cursor = &id
+	}
+
+	result, err := h.svc.Feed(c.Request.Context(), userID, dto.VideoListFilters{
+		Cursor: cursor,
+		Limit:  limit,
+	})
 	if err != nil {
 		response.Error(c, err)
 		return
@@ -59,6 +78,8 @@ func (h *videoHandler) Feed(c *gin.Context) {
 //	@Tags			videos
 //	@Produce		json
 //	@Security		BearerAuth
+//	@Param			cursor	query	string	false	"Video ID of the last item from the previous page"
+//	@Param			limit	query	int		false	"Items per page (default 20, max 100)"
 //	@Success		200	{object}	response.Response
 //	@Failure		401	{object}	response.Response
 //	@Failure		400	{object}	response.Response
@@ -70,8 +91,22 @@ func (h *videoHandler) Mine(c *gin.Context) {
 		return
 	}
 
-	page, limit := utils.GetMobilePagination(c)
-	result, err := h.svc.Mine(c.Request.Context(), userID, page, limit)
+	limit := utils.GetMobileCursorLimit(c)
+
+	var cursor *uuid.UUID
+	if raw := strings.TrimSpace(c.Query("cursor")); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			response.BadRequest(c, "Invalid cursor")
+			return
+		}
+		cursor = &id
+	}
+
+	result, err := h.svc.Mine(c.Request.Context(), userID, dto.VideoListFilters{
+		Cursor: cursor,
+		Limit:  limit,
+	})
 	if err != nil {
 		response.Error(c, err)
 		return

@@ -16,7 +16,9 @@ import (
 	chantsvc "clap/internal/modules/chant/service"
 	matchmodels "clap/internal/modules/match/models"
 	usermodels "clap/internal/modules/user/models"
+	videodto "clap/internal/modules/video/dto"
 	videomodels "clap/internal/modules/video/models"
+	videorepo "clap/internal/modules/video/repository"
 	videosvc "clap/internal/modules/video/service"
 	sharederrors "clap/internal/shared/errors"
 
@@ -282,22 +284,30 @@ func (r *stubVideoRepo) FindByID(_ context.Context, id uuid.UUID) (*videomodels.
 	return nil, sharederrors.NewNotFound("Video not found", nil)
 }
 
-func (r *stubVideoRepo) Feed(_ context.Context, _, _ int) ([]videomodels.Video, int64, error) {
+func (r *stubVideoRepo) FeedAfter(_ context.Context, limit int, _ *videorepo.VideoCursorAnchor) ([]videomodels.Video, error) {
 	var result []videomodels.Video
 	for _, v := range r.videos {
-		result = append(result, *v)
+		if v.Status == videomodels.StatusPublished {
+			result = append(result, *v)
+		}
 	}
-	return result, int64(len(result)), nil
+	if limit > 0 && len(result) > limit {
+		result = result[:limit]
+	}
+	return result, nil
 }
 
-func (r *stubVideoRepo) ByUser(_ context.Context, userID uuid.UUID, _, _ int) ([]videomodels.Video, int64, error) {
+func (r *stubVideoRepo) ByUserAfter(_ context.Context, userID uuid.UUID, limit int, _ *videorepo.VideoCursorAnchor) ([]videomodels.Video, error) {
 	var result []videomodels.Video
 	for _, v := range r.videos {
 		if v.UserID == userID {
 			result = append(result, *v)
 		}
 	}
-	return result, int64(len(result)), nil
+	if limit > 0 && len(result) > limit {
+		result = result[:limit]
+	}
+	return result, nil
 }
 
 func (r *stubVideoRepo) LikedVideoIDs(_ context.Context, userID uuid.UUID, videoIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
@@ -522,7 +532,7 @@ func TestVideo_FeedMarksLikedVideos(t *testing.T) {
 		t.Fatalf("Like failed: %v", err)
 	}
 
-	feed, err := svc.Feed(context.Background(), userID, 1, 20)
+	feed, err := svc.Feed(context.Background(), userID, videodto.VideoListFilters{Limit: 20})
 	if err != nil {
 		t.Fatalf("Feed failed: %v", err)
 	}

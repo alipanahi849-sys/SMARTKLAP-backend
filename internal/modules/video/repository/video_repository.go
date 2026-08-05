@@ -2,23 +2,29 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"clap/internal/modules/video/models"
 	"clap/internal/shared/errors"
-	"clap/internal/shared/utils"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
+// VideoCursorAnchor is the list position after which the next page is fetched.
+type VideoCursorAnchor struct {
+	CreatedAt time.Time
+	ID        uuid.UUID
+}
+
 type VideoRepository interface {
 	Create(ctx context.Context, video *models.Video) error
 	FindByID(ctx context.Context, id uuid.UUID) (*models.Video, error)
-	// Feed lists published videos newest-first with the author preloaded.
-	Feed(ctx context.Context, page, limit int) ([]models.Video, int64, error)
-	// ByUser lists a user's own videos (any status) newest-first.
-	ByUser(ctx context.Context, userID uuid.UUID, page, limit int) ([]models.Video, int64, error)
+	// FeedAfter lists published videos newest-first with the author preloaded.
+	FeedAfter(ctx context.Context, limit int, after *VideoCursorAnchor) ([]models.Video, error)
+	// ByUserAfter lists a user's own videos (any status) newest-first.
+	ByUserAfter(ctx context.Context, userID uuid.UUID, limit int, after *VideoCursorAnchor) ([]models.Video, error)
 	// LikedVideoIDs returns which of the given videos the user has liked.
 	LikedVideoIDs(ctx context.Context, userID uuid.UUID, videoIDs []uuid.UUID) (map[uuid.UUID]bool, error)
 	// Like inserts a like and bumps the denormalized counter atomically.
@@ -56,43 +62,43 @@ func (r *videoRepository) FindByID(ctx context.Context, id uuid.UUID) (*models.V
 	return &video, nil
 }
 
-func (r *videoRepository) Feed(ctx context.Context, page, limit int) ([]models.Video, int64, error) {
+func (r *videoRepository) FeedAfter(ctx context.Context, limit int, after *VideoCursorAnchor) ([]models.Video, error) {
 	q := r.db.WithContext(ctx).Model(&models.Video{}).
 		Where("status = ?", models.StatusPublished)
-
-	var total int64
-	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, errors.NewInternal("Failed to count videos", err)
+	if after != nil {
+		q = q.Where(
+			"(created_at < ?) OR (created_at = ? AND id < ?)",
+			after.CreatedAt, after.CreatedAt, after.ID,
+		)
 	}
 
 	var videos []models.Video
 	if err := q.Preload("User").
-		Order("created_at DESC").
-		Offset(utils.GetOffset(page, limit)).
+		Order("created_at DESC, id DESC").
 		Limit(limit).
 		Find(&videos).Error; err != nil {
-		return nil, 0, errors.NewInternal("Failed to load feed", err)
+		return nil, errors.NewInternal("Failed to load feed", err)
 	}
-	return videos, total, nil
+	return videos, nil
 }
 
-func (r *videoRepository) ByUser(ctx context.Context, userID uuid.UUID, page, limit int) ([]models.Video, int64, error) {
+func (r *videoRepository) ByUserAfter(ctx context.Context, userID uuid.UUID, limit int, after *VideoCursorAnchor) ([]models.Video, error) {
 	q := r.db.WithContext(ctx).Model(&models.Video{}).Where("user_id = ?", userID)
-
-	var total int64
-	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, errors.NewInternal("Failed to count videos", err)
+	if after != nil {
+		q = q.Where(
+			"(created_at < ?) OR (created_at = ? AND id < ?)",
+			after.CreatedAt, after.CreatedAt, after.ID,
+		)
 	}
 
 	var videos []models.Video
 	if err := q.Preload("User").
-		Order("created_at DESC").
-		Offset(utils.GetOffset(page, limit)).
+		Order("created_at DESC, id DESC").
 		Limit(limit).
 		Find(&videos).Error; err != nil {
-		return nil, 0, errors.NewInternal("Failed to load videos", err)
+		return nil, errors.NewInternal("Failed to load videos", err)
 	}
-	return videos, total, nil
+	return videos, nil
 }
 
 func (r *videoRepository) LikedVideoIDs(ctx context.Context, userID uuid.UUID, videoIDs []uuid.UUID) (map[uuid.UUID]bool, error) {

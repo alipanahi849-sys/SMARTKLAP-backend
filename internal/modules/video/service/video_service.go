@@ -17,7 +17,6 @@ import (
 	"clap/internal/modules/video/repository"
 	"clap/internal/shared/errors"
 	"clap/internal/shared/logger"
-	"clap/internal/shared/utils"
 	"clap/pkg/storage"
 
 	"github.com/google/uuid"
@@ -42,8 +41,8 @@ var hashtagPattern = regexp.MustCompile(`#([\p{L}\p{N}_]+)`)
 
 // VideoService implements the mobile Video screens (contract §8).
 type VideoService interface {
-	Feed(ctx context.Context, userID uuid.UUID, page, limit int) (*dto.VideoFeedResponse, error)
-	Mine(ctx context.Context, userID uuid.UUID, page, limit int) (*dto.VideoFeedResponse, error)
+	Feed(ctx context.Context, userID uuid.UUID, filters dto.VideoListFilters) (*dto.VideoFeedResponse, error)
+	Mine(ctx context.Context, userID uuid.UUID, filters dto.VideoListFilters) (*dto.VideoFeedResponse, error)
 	Upload(ctx context.Context, userID uuid.UUID, file *multipart.FileHeader, mediaType, caption string) (*dto.VideoUploadResponse, error)
 	Like(ctx context.Context, userID, videoID uuid.UUID) error
 	Unlike(ctx context.Context, userID, videoID uuid.UUID) error
@@ -73,20 +72,60 @@ func NewVideoService(
 	}
 }
 
-func (s *videoService) Feed(ctx context.Context, userID uuid.UUID, page, limit int) (*dto.VideoFeedResponse, error) {
-	videos, total, err := s.videoRepo.Feed(ctx, page, limit)
+func (s *videoService) Feed(ctx context.Context, userID uuid.UUID, filters dto.VideoListFilters) (*dto.VideoFeedResponse, error) {
+	limit := filters.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+
+	var after *repository.VideoCursorAnchor
+	if filters.Cursor != nil {
+		cursorVideo, err := s.videoRepo.FindByID(ctx, *filters.Cursor)
+		if err != nil {
+			return nil, errors.NewBadRequest("Invalid cursor", nil)
+		}
+		if cursorVideo.Status != models.StatusPublished {
+			return nil, errors.NewBadRequest("Invalid cursor", nil)
+		}
+		after = &repository.VideoCursorAnchor{
+			CreatedAt: cursorVideo.CreatedAt,
+			ID:        cursorVideo.ID,
+		}
+	}
+
+	videos, err := s.videoRepo.FeedAfter(ctx, limit+1, after)
 	if err != nil {
 		return nil, err
 	}
-	return s.buildFeedResponse(ctx, userID, videos, total, page, limit)
+	return s.buildFeedResponse(ctx, userID, videos, limit)
 }
 
-func (s *videoService) Mine(ctx context.Context, userID uuid.UUID, page, limit int) (*dto.VideoFeedResponse, error) {
-	videos, total, err := s.videoRepo.ByUser(ctx, userID, page, limit)
+func (s *videoService) Mine(ctx context.Context, userID uuid.UUID, filters dto.VideoListFilters) (*dto.VideoFeedResponse, error) {
+	limit := filters.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+
+	var after *repository.VideoCursorAnchor
+	if filters.Cursor != nil {
+		cursorVideo, err := s.videoRepo.FindByID(ctx, *filters.Cursor)
+		if err != nil {
+			return nil, errors.NewBadRequest("Invalid cursor", nil)
+		}
+		if cursorVideo.UserID != userID {
+			return nil, errors.NewBadRequest("Invalid cursor", nil)
+		}
+		after = &repository.VideoCursorAnchor{
+			CreatedAt: cursorVideo.CreatedAt,
+			ID:        cursorVideo.ID,
+		}
+	}
+
+	videos, err := s.videoRepo.ByUserAfter(ctx, userID, limit+1, after)
 	if err != nil {
 		return nil, err
 	}
-	return s.buildFeedResponse(ctx, userID, videos, total, page, limit)
+	return s.buildFeedResponse(ctx, userID, videos, limit)
 }
 
 func (s *videoService) Upload(ctx context.Context, userID uuid.UUID, file *multipart.FileHeader, mediaType, caption string) (*dto.VideoUploadResponse, error) {
@@ -218,7 +257,12 @@ func (s *videoService) Unlike(ctx context.Context, userID, videoID uuid.UUID) er
 
 // ─── internals ────────────────────────────────────────────────────────────────
 
-func (s *videoService) buildFeedResponse(ctx context.Context, userID uuid.UUID, videos []models.Video, total int64, page, limit int) (*dto.VideoFeedResponse, error) {
+func (s *videoService) buildFeedResponse(ctx context.Context, userID uuid.UUID, videos []models.Video, limit int) (*dto.VideoFeedResponse, error) {
+	hasMore := len(videos) > limit
+	if hasMore {
+		videos = videos[:limit]
+	}
+
 	videoIDs := make([]uuid.UUID, len(videos))
 	authorIDs := make([]uuid.UUID, len(videos))
 	for i, v := range videos {
@@ -265,9 +309,18 @@ func (s *videoService) buildFeedResponse(ctx context.Context, userID uuid.UUID, 
 		}
 	}
 
+	meta := dto.VideoListMeta{
+		Limit:   limit,
+		HasMore: hasMore,
+	}
+	if hasMore && len(videos) > 0 {
+		lastID := videos[len(videos)-1].ID
+		meta.NextCursor = &lastID
+	}
+
 	return &dto.VideoFeedResponse{
 		Items: items,
-		Meta:  utils.NewListMeta(total, page, limit),
+		Meta:  meta,
 	}, nil
 }
 

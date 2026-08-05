@@ -3,8 +3,6 @@ package dto
 import (
 	"time"
 
-	"clap/internal/shared/utils"
-
 	"github.com/google/uuid"
 )
 
@@ -29,10 +27,23 @@ type VideoItem struct {
 	IsLiked      bool        `json:"is_liked"`
 }
 
+// VideoListFilters are query params for GET /videos/feed and GET /videos/mine.
+type VideoListFilters struct {
+	Cursor *uuid.UUID
+	Limit  int
+}
+
+// VideoListMeta is cursor pagination meta for video list endpoints.
+type VideoListMeta struct {
+	Limit      int        `json:"limit"`
+	HasMore    bool       `json:"has_more"`
+	NextCursor *uuid.UUID `json:"next_cursor,omitempty"`
+}
+
 // VideoFeedResponse is GET /videos/feed and GET /videos/mine.
 type VideoFeedResponse struct {
-	Items []VideoItem    `json:"items"`
-	Meta  utils.ListMeta `json:"meta"`
+	Items []VideoItem   `json:"items"`
+	Meta  VideoListMeta `json:"meta"`
 }
 
 // VideoUploadResponse is POST /videos (contract §8.3).
