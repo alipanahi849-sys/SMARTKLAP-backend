@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"strconv"
+	"strings"
 
 	"clap/internal/modules/user/dto"
 	"clap/internal/modules/user/service"
@@ -67,22 +67,29 @@ func (h *mobileProfileHandler) UpdateMe(c *gin.Context) {
 //	@Tags			profile
 //	@Produce		json
 //	@Security		BearerAuth
+//	@Param			cursor	query	string	false	"User ID of the last item from the previous page"
+//	@Param			limit	query	int		false	"Items per page (default 4, max 50)"
 //	@Success		200	{object}	response.Response
 //	@Failure		401	{object}	response.Response
 //	@Failure		400	{object}	response.Response
 //	@Router			/api/v1/profile/leaderboard [get]
 func (h *mobileProfileHandler) Leaderboard(c *gin.Context) {
-	limit := 4
-	if raw, ok := c.GetQuery("limit"); ok {
-		parsed, err := strconv.Atoi(raw)
-		if err != nil || parsed <= 0 {
-			response.BadRequest(c, "limit must be a positive integer")
+	limit := utils.GetLeaderboardCursorLimit(c)
+
+	var cursor *uuid.UUID
+	if raw := strings.TrimSpace(c.Query("cursor")); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			response.BadRequest(c, "Invalid cursor")
 			return
 		}
-		limit = parsed
+		cursor = &id
 	}
 
-	board, err := h.svc.Leaderboard(c.Request.Context(), limit)
+	board, err := h.svc.Leaderboard(c.Request.Context(), dto.LeaderboardFilters{
+		Cursor: cursor,
+		Limit:  limit,
+	})
 	if err != nil {
 		response.Error(c, err)
 		return

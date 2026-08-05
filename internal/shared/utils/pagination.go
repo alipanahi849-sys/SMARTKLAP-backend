@@ -77,6 +77,20 @@ func GetMobilePagination(c *gin.Context) (int, int) {
 	return page, limit
 }
 
+// GetLeaderboardCursorLimit reads ?limit= for GET /profile/leaderboard
+// (defaults to 4, capped at 50).
+func GetLeaderboardCursorLimit(c *gin.Context) int {
+	limit := 4
+
+	if l, ok := c.GetQuery("limit"); ok {
+		if parsed := parseInt(l); parsed > 0 && parsed <= 50 {
+			limit = parsed
+		}
+	}
+
+	return limit
+}
+
 // GetMobileCursorLimit reads ?limit= for cursor-based mobile lists
 // (defaults to 20, capped at 100).
 func GetMobileCursorLimit(c *gin.Context) int {

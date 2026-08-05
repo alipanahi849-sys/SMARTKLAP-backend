@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"sync"
 	"testing"
+	"time"
 
+	authrepo "clap/internal/modules/auth/repository"
 	"clap/internal/modules/auth/models"
 	authsvc "clap/internal/modules/auth/service"
 	"clap/internal/shared/database"
@@ -108,7 +110,7 @@ func (r *stubUserRepo) CountWithMorePoints(_ context.Context, points int) (int64
 	return n, nil
 }
 
-func (r *stubUserRepo) TopByPoints(_ context.Context, limit int) ([]models.User, error) {
+func (r *stubUserRepo) TopByPointsAfter(_ context.Context, limit int, _ *authrepo.LeaderboardCursorAnchor) ([]models.User, error) {
 	var users []models.User
 	for _, u := range r.byID {
 		users = append(users, *u)
@@ -117,6 +119,10 @@ func (r *stubUserRepo) TopByPoints(_ context.Context, limit int) ([]models.User,
 		users = users[:limit]
 	}
 	return users, nil
+}
+
+func (r *stubUserRepo) LeaderboardRank(_ context.Context, _ int, _ time.Time, _ uuid.UUID) (int, error) {
+	return 1, nil
 }
 
 type stubRoleRepo struct{}

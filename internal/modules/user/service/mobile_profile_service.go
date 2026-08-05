@@ -36,7 +36,7 @@ var allowedAvatarMimeTypes = map[string]string{
 type MobileProfileService interface {
 	GetMe(ctx context.Context, userID uuid.UUID) (*dto.MobileProfileResponse, error)
 	UpdateMe(ctx context.Context, userID uuid.UUID, req *dto.UpdateMobileProfileRequest) (*dto.MobileProfileResponse, error)
-	Leaderboard(ctx context.Context, limit int) (*dto.LeaderboardResponse, error)
+	Leaderboard(ctx context.Context, filters dto.LeaderboardFilters) (*dto.LeaderboardResponse, error)
 	UploadAvatar(ctx context.Context, userID uuid.UUID, file *multipart.FileHeader) (*dto.AvatarUploadResponse, error)
 }
 
@@ -92,7 +92,8 @@ func (s *mobileProfileService) UpdateMe(ctx context.Context, userID uuid.UUID, r
 	return s.buildProfileResponse(ctx, user)
 }
 
-func (s *mobileProfileService) Leaderboard(ctx context.Context, limit int) (*dto.LeaderboardResponse, error) {
+func (s *mobileProfileService) Leaderboard(ctx context.Context, filters dto.LeaderboardFilters) (*dto.LeaderboardResponse, error) {
+	limit := filters.Limit
 	if limit <= 0 {
 		limit = 4
 	}
@@ -100,9 +101,33 @@ func (s *mobileProfileService) Leaderboard(ctx context.Context, limit int) (*dto
 		limit = 50
 	}
 
-	users, err := s.userRepo.TopByPoints(ctx, limit)
+	var after *authrepo.LeaderboardCursorAnchor
+	startRank := 1
+	if filters.Cursor != nil {
+		cursorUser, err := s.userRepo.FindByID(ctx, *filters.Cursor)
+		if err != nil {
+			return nil, errors.NewBadRequest("Invalid cursor", nil)
+		}
+		after = &authrepo.LeaderboardCursorAnchor{
+			Points:    cursorUser.Points,
+			CreatedAt: cursorUser.CreatedAt,
+			ID:        cursorUser.ID,
+		}
+		rank, rankErr := s.userRepo.LeaderboardRank(ctx, cursorUser.Points, cursorUser.CreatedAt, cursorUser.ID)
+		if rankErr != nil {
+			return nil, rankErr
+		}
+		startRank = rank + 1
+	}
+
+	users, err := s.userRepo.TopByPointsAfter(ctx, limit+1, after)
 	if err != nil {
 		return nil, err
+	}
+
+	hasMore := len(users) > limit
+	if hasMore {
+		users = users[:limit]
 	}
 
 	// Batch-load avatars in a single query (no N+1).
@@ -122,14 +147,23 @@ func (s *mobileProfileService) Leaderboard(ctx context.Context, limit int) (*dto
 			avatar = s.resolveAvatarURL(ctx, p.AvatarURL)
 		}
 		items[i] = dto.LeaderboardItem{
-			Rank:      i + 1,
+			Rank:      startRank + i,
 			Name:      u.DisplayName(),
 			Points:    u.Points,
 			AvatarURL: avatar,
 		}
 	}
 
-	return &dto.LeaderboardResponse{Items: items}, nil
+	meta := dto.LeaderboardMeta{
+		Limit:   limit,
+		HasMore: hasMore,
+	}
+	if hasMore && len(users) > 0 {
+		lastID := users[len(users)-1].ID
+		meta.NextCursor = &lastID
+	}
+
+	return &dto.LeaderboardResponse{Items: items, Meta: meta}, nil
 }
 
 func (s *mobileProfileService) UploadAvatar(ctx context.Context, userID uuid.UUID, file *multipart.FileHeader) (*dto.AvatarUploadResponse, error) {

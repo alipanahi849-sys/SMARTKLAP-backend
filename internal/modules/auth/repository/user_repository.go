@@ -1,14 +1,23 @@
 package repository
 
 import (
+	"context"
+	"time"
+
 	"clap/internal/modules/auth/models"
 	"clap/internal/shared/database"
 	"clap/internal/shared/errors"
-	"context"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
+
+// LeaderboardCursorAnchor is the list position after which the next page is fetched.
+type LeaderboardCursorAnchor struct {
+	Points    int
+	CreatedAt time.Time
+	ID        uuid.UUID
+}
 
 type UserRepository interface {
 	Create(ctx context.Context, user *models.User) error
@@ -28,8 +37,11 @@ type UserRepository interface {
 	// CountWithMorePoints returns how many active users outrank the given
 	// points balance; rank position = result + 1.
 	CountWithMorePoints(ctx context.Context, points int) (int64, error)
-	// TopByPoints returns the highest-scoring active users for the leaderboard.
-	TopByPoints(ctx context.Context, limit int) ([]models.User, error)
+	// TopByPointsAfter returns active users ordered by points (desc), created_at (asc).
+	// Pass after=nil for the first page.
+	TopByPointsAfter(ctx context.Context, limit int, after *LeaderboardCursorAnchor) ([]models.User, error)
+	// LeaderboardRank returns a user's 1-based position on the leaderboard.
+	LeaderboardRank(ctx context.Context, points int, createdAt time.Time, id uuid.UUID) (int, error)
 }
 
 type userRepository struct {
@@ -156,16 +168,42 @@ func (r *userRepository) CountWithMorePoints(ctx context.Context, points int) (i
 	return total, nil
 }
 
-func (r *userRepository) TopByPoints(ctx context.Context, limit int) ([]models.User, error) {
+func (r *userRepository) TopByPointsAfter(ctx context.Context, limit int, after *LeaderboardCursorAnchor) ([]models.User, error) {
+	q := r.db.WithContext(ctx).Where("is_active = ?", true)
+
+	if after != nil {
+		q = q.Where(
+			"(points < ?) OR (points = ? AND created_at > ?) OR (points = ? AND created_at = ? AND id > ?)",
+			after.Points, after.Points, after.CreatedAt, after.Points, after.CreatedAt, after.ID,
+		)
+	}
+
 	var users []models.User
-	if err := r.db.WithContext(ctx).
-		Where("is_active = ?", true).
-		Order("points DESC, created_at ASC").
+	if err := q.Order("points DESC, created_at ASC, id ASC").
 		Limit(limit).
 		Find(&users).Error; err != nil {
 		return nil, errors.NewInternal("Failed to load leaderboard", err)
 	}
 	return users, nil
+}
+
+func (r *userRepository) LeaderboardRank(ctx context.Context, points int, createdAt time.Time, id uuid.UUID) (int, error) {
+	higher, err := r.CountWithMorePoints(ctx, points)
+	if err != nil {
+		return 0, err
+	}
+
+	var tied int64
+	if err := r.db.WithContext(ctx).Model(&models.User{}).
+		Where(
+			"is_active = ? AND points = ? AND ((created_at < ?) OR (created_at = ? AND id < ?))",
+			true, points, createdAt, createdAt, id,
+		).
+		Count(&tied).Error; err != nil {
+		return 0, errors.NewInternal("Failed to compute rank", err)
+	}
+
+	return int(higher+tied) + 1, nil
 }
 
 func (r *userRepository) GetUserRoles(ctx context.Context, userID uuid.UUID) ([]models.Role, error) {

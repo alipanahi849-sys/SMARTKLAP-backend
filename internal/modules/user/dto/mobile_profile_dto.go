@@ -39,9 +39,23 @@ type LeaderboardItem struct {
 	AvatarURL string `json:"avatar_url"`
 }
 
+// LeaderboardFilters are query params for GET /profile/leaderboard.
+type LeaderboardFilters struct {
+	Cursor *uuid.UUID
+	Limit  int
+}
+
+// LeaderboardMeta is cursor pagination meta for GET /profile/leaderboard.
+type LeaderboardMeta struct {
+	Limit      int        `json:"limit"`
+	HasMore    bool       `json:"has_more"`
+	NextCursor *uuid.UUID `json:"next_cursor,omitempty"`
+}
+
 // LeaderboardResponse wraps GET /profile/leaderboard.
 type LeaderboardResponse struct {
 	Items []LeaderboardItem `json:"items"`
+	Meta  LeaderboardMeta   `json:"meta"`
 }
 
 // AvatarUploadResponse is returned by POST /profile/me/avatar (§2.2).
