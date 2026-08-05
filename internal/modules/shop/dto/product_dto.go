@@ -46,6 +46,7 @@ type CreateProductRequest struct {
 	SellerName     string   `json:"seller_name"`
 	AvailableSizes []string `json:"available_sizes"`
 	IsActive       *bool    `json:"is_active"`
+	StockQuantity  *int     `json:"stock_quantity"`
 }
 
 // UpdateProductRequest is the body for PUT /api/v1/shop/{id}.
@@ -61,17 +62,26 @@ type UpdateProductRequest struct {
 	SellerName     string   `json:"seller_name"`
 	AvailableSizes []string `json:"available_sizes"`
 	IsActive       *bool    `json:"is_active"`
+	StockQuantity  *int     `json:"stock_quantity"`
+}
+
+// ProductStockInfo describes inventory availability for list and detail responses.
+type ProductStockInfo struct {
+	StockQuantity *int `json:"stock_quantity,omitempty"`
+	IsUnlimited   bool `json:"is_unlimited"`
+	InStock       bool `json:"in_stock"`
 }
 
 // ProductItem is a single row on the shop list screen.
 type ProductItem struct {
-	ID          uuid.UUID `json:"id"`
-	ProductType string    `json:"product_type"`
-	Name        string    `json:"name"`
-	Subname     string    `json:"subname,omitempty"`
-	Description string    `json:"description"`
-	Price       string    `json:"price"`
-	ImageURL    string    `json:"image_url"`
+	ID          uuid.UUID        `json:"id"`
+	ProductType string           `json:"product_type"`
+	Name        string           `json:"name"`
+	Subname     string           `json:"subname,omitempty"`
+	Description string           `json:"description"`
+	Price       string           `json:"price"`
+	ImageURL    string           `json:"image_url"`
+	Stock       ProductStockInfo `json:"stock"`
 }
 
 // ProductListResponse is GET /api/v1/shop.
@@ -90,9 +100,10 @@ type ProductDetailResponse struct {
 	Subname        string    `json:"subname,omitempty"`
 	SellerName     string    `json:"seller_name,omitempty"`
 	Description    string    `json:"description"`
-	Price          string    `json:"price"`
-	ImageURL       string    `json:"image_url"`
-	AvailableSizes []string  `json:"available_sizes,omitempty"`
+	Price          string           `json:"price"`
+	ImageURL       string           `json:"image_url"`
+	AvailableSizes []string         `json:"available_sizes,omitempty"`
+	Stock          ProductStockInfo `json:"stock"`
 }
 
 // ImageUploadResponse is POST /api/v1/shop/{id}/image.

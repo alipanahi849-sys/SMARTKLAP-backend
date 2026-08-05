@@ -57,21 +57,29 @@ type ProductService interface {
 	UploadProductImage(ctx context.Context, productID uuid.UUID, file *multipart.FileHeader, authCtx *utils.AuthorizationContext) (*dto.ImageUploadResponse, error)
 }
 
+// CartCounter supplies the user's current cart item count for shop list responses.
+type CartCounter interface {
+	CountItems(ctx context.Context, userID uuid.UUID) (int, error)
+}
+
 type productService struct {
 	productRepo repository.ProductRepository
 	userRepo    authrepo.UserRepository
 	storage     storage.StorageProvider
+	cartCounter CartCounter
 }
 
 func NewProductService(
 	productRepo repository.ProductRepository,
 	userRepo authrepo.UserRepository,
 	storageProvider storage.StorageProvider,
+	cartCounter CartCounter,
 ) ProductService {
 	return &productService{
 		productRepo: productRepo,
 		userRepo:    userRepo,
 		storage:     storageProvider,
+		cartCounter: cartCounter,
 	}
 }
 
@@ -141,6 +149,7 @@ func (s *productService) List(ctx context.Context, userID uuid.UUID, filters dto
 			Description: p.Description,
 			Price:       formatPrice(p, currency),
 			ImageURL:    s.resolveURL(ctx, p.ImageKey),
+			Stock:       toProductStockInfo(&p),
 		}
 	}
 
@@ -153,9 +162,16 @@ func (s *productService) List(ctx context.Context, userID uuid.UUID, filters dto
 		meta.NextCursor = &lastID
 	}
 
+	cartCount := 0
+	if s.cartCounter != nil {
+		if count, err := s.cartCounter.CountItems(ctx, userID); err == nil {
+			cartCount = count
+		}
+	}
+
 	return &dto.ProductListResponse{
 		Items:      items,
-		CartCount:  0,
+		CartCount:  cartCount,
 		UserPoints: user.Points,
 		Meta:       meta,
 	}, nil
@@ -217,6 +233,11 @@ func (s *productService) Create(ctx context.Context, req *dto.CreateProductReque
 		return nil, err
 	}
 
+	stockQuantity, err := validateStockQuantity(req.StockQuantity)
+	if err != nil {
+		return nil, err
+	}
+
 	product := &models.Product{
 		ProductType:    productType,
 		Name:           name,
@@ -228,6 +249,7 @@ func (s *productService) Create(ctx context.Context, req *dto.CreateProductReque
 		ImageKey:       imageRef,
 		SellerName:     strings.TrimSpace(req.SellerName),
 		AvailableSizes: marshalAvailableSizes(sizes),
+		StockQuantity:  stockQuantity,
 		IsActive:       isActive,
 	}
 
@@ -273,6 +295,11 @@ func (s *productService) Update(ctx context.Context, id uuid.UUID, req *dto.Upda
 		return nil, err
 	}
 
+	stockQuantity, err := validateStockQuantity(req.StockQuantity)
+	if err != nil {
+		return nil, err
+	}
+
 	if imageURL := strings.TrimSpace(req.ImageURL); imageURL != "" {
 		oldKey := product.ImageKey
 		product.ImageKey = imageURL
@@ -288,6 +315,7 @@ func (s *productService) Update(ctx context.Context, id uuid.UUID, req *dto.Upda
 	product.PricePoints = req.PricePoints
 	product.SellerName = strings.TrimSpace(req.SellerName)
 	product.AvailableSizes = marshalAvailableSizes(sizes)
+	product.StockQuantity = stockQuantity
 	if req.IsActive != nil {
 		product.IsActive = *req.IsActive
 	}
@@ -470,6 +498,29 @@ func parseCurrency(raw string) (string, error) {
 	return currency, nil
 }
 
+func validateStockQuantity(raw *int) (*int, error) {
+	if raw == nil {
+		return nil, nil
+	}
+	if *raw < 0 {
+		return nil, errors.NewBadRequest("stock_quantity must be >= 0", nil)
+	}
+	qty := *raw
+	return &qty, nil
+}
+
+func toProductStockInfo(p *models.Product) dto.ProductStockInfo {
+	info := dto.ProductStockInfo{
+		IsUnlimited: p.IsUnlimitedStock(),
+		InStock:     p.InStock(),
+	}
+	if !info.IsUnlimited {
+		qty := *p.StockQuantity
+		info.StockQuantity = &qty
+	}
+	return info
+}
+
 func toProductDetail(p *models.Product, currency string, sizes []string, imageURL string) *dto.ProductDetailResponse {
 	resp := &dto.ProductDetailResponse{
 		ID:          p.ID,
@@ -478,6 +529,7 @@ func toProductDetail(p *models.Product, currency string, sizes []string, imageUR
 		Description: p.Description,
 		Price:       formatPrice(*p, currency),
 		ImageURL:    imageURL,
+		Stock:       toProductStockInfo(p),
 	}
 	if p.Subname != "" {
 		resp.Subname = p.Subname

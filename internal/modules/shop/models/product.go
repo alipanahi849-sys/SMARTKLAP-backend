@@ -41,6 +41,7 @@ type Product struct {
 	ImageKey       string         `gorm:"type:varchar(500);not null;default:''" json:"-"`
 	SellerName     string         `gorm:"type:varchar(200);not null;default:''" json:"seller_name"`
 	AvailableSizes string         `gorm:"type:jsonb;not null;default:'[]'" json:"available_sizes"`
+	StockQuantity  *int           `gorm:"column:stock_quantity" json:"stock_quantity"`
 	IsActive       bool           `gorm:"not null;default:true" json:"is_active"`
 	CreatedAt      time.Time      `json:"created_at"`
 	UpdatedAt      time.Time      `json:"updated_at"`
@@ -53,4 +54,15 @@ func (Product) TableName() string {
 
 func (p Product) HasSizes() bool {
 	return p.ProductType == ProductTypeMerch
+}
+
+func (p Product) IsUnlimitedStock() bool {
+	return p.StockQuantity == nil
+}
+
+func (p Product) InStock() bool {
+	if p.IsUnlimitedStock() {
+		return true
+	}
+	return *p.StockQuantity > 0
 }

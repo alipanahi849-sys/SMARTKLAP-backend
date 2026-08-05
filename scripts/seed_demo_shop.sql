@@ -505,6 +505,38 @@ ON CONFLICT (id) DO UPDATE SET
     image_key = EXCLUDED.image_key,
     updated_at = NOW();
 
+-- Stock: merch uses limited inventory; food defaults to unlimited (NULL).
+-- NULL = unlimited; 0 = out of stock.
+UPDATE products SET stock_quantity = CASE name
+    WHEN 'Sport T-shirt'      THEN 25
+    WHEN 'Away T-shirt'       THEN 18
+    WHEN 'Match Ball'         THEN 12
+    WHEN 'Club Sticker Pack'  THEN NULL
+    WHEN 'Training Suit'      THEN 8
+    WHEN 'Winter Hoodie'      THEN 5
+    WHEN 'Mini Ball'          THEN 30
+    WHEN 'Scarf'              THEN 15
+    WHEN 'Goalkeeper Gloves'  THEN 6
+    WHEN 'Captain Armband'    THEN NULL
+    WHEN 'Stadium Cap'        THEN 20
+    WHEN 'Fan Flag'           THEN 10
+    WHEN 'Training Shorts'    THEN 14
+    WHEN 'Socks Pack'         THEN 22
+    WHEN 'Water Bottle'       THEN NULL
+    WHEN 'Retro Jersey'       THEN 0
+    WHEN 'Pump Ball'          THEN 9
+    ELSE stock_quantity
+END,
+updated_at = NOW()
+WHERE deleted_at IS NULL AND product_type = 'merch' AND id::text LIKE 'c2000000%';
+
+UPDATE products SET stock_quantity = CASE name
+    WHEN 'Fish & Chips' THEN 40
+    ELSE NULL
+END,
+updated_at = NOW()
+WHERE deleted_at IS NULL AND product_type = 'food' AND id::text LIKE 'c2000000%';
+
 -- Refresh legacy migration rows and any leftover random/picsum/cdn URLs.
 UPDATE products SET image_key = 'https://loremflickr.com/400/400/shirt,jersey,sport/all', updated_at = NOW()
 WHERE deleted_at IS NULL AND name = 'Sport T-shirt' AND id::text NOT LIKE 'c2000000%';

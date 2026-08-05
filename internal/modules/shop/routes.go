@@ -2,6 +2,7 @@ package shop
 
 import (
 	authrepo "clap/internal/modules/auth/repository"
+	"clap/internal/modules/cart"
 	"clap/internal/modules/shop/handler"
 	"clap/internal/modules/shop/repository"
 	"clap/internal/modules/shop/service"
@@ -20,6 +21,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 		repository.NewProductRepository(db),
 		authrepo.NewUserRepository(),
 		storageinit.Provider(),
+		cart.NewService(),
 	)
 	h := handler.NewProductHandler(shopSvc)
 

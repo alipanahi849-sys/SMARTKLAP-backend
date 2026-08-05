@@ -320,9 +320,23 @@ Removed — `/api/v1/guess/*` is no longer exposed.
 | **Pagination** | ندارد (سبد فعلی کاربر) |
 
 **مدیریت سبد:**
-- `POST /api/v1/cart/items` — `{ "product_type": "snack"\|"merch", "product_id", "quantity" }`
-- `PATCH /api/v1/cart/items/{item_id}` — `{ "quantity" }`
-- `DELETE /api/v1/cart/items/{item_id}`
+- `POST /api/v1/cart/items` — افزودن به سبد `{ "product_type": "food"|"merch", "product_id", "quantity?", "size?" }` — `quantity` پیش‌فرض ۱؛ **موجودی محصول (`stock_quantity`) تغییر نمی‌کند**
+- `POST /api/v1/cart/items/decrease` — کم کردن از سبد `{ "product_id", "quantity?", "size?" }` — `quantity` پیش‌فرض ۱؛ اگر به ۰ برسد خط از سبد حذف می‌شود؛ **موجودی محصول تغییر نمی‌کند**
+- `PATCH /api/v1/cart/items/{item_id}` — `{ "quantity" }` (planned)
+- `DELETE /api/v1/cart/items/{item_id}` (planned)
+
+**پاسخ add/decrease:**
+```json
+{
+  "item_id": "a1000000-0000-4000-8000-000000000001",
+  "product_id": "c2000000-0000-4000-8000-000000000001",
+  "quantity": 2,
+  "cart_count": 5
+}
+```
+بعد از حذف کامل خط، `item_id` حذف می‌شود و `quantity: 0`.
+
+**موجودی:** کاهش `stock_quantity` فقط پس از پرداخت موفق (`POST /orders/{id}/pay`) انجام می‌شود، نه هنگام add/decrease سبد.
 
 ```json
 {
@@ -380,7 +394,7 @@ Removed — `/api/v1/guess/*` is no longer exposed.
 | **Endpoint** | `/api/v1/shop` |
 | **HTTP Method** | GET |
 | **Request** | Query: `search?`, `product_type?: "food"\|"merch"`, `category?`, `currency?: "EUR"\|"POINT"`, `cursor?`, `limit?` |
-| **Response** | `200 OK` — `{ "items": [{ "id","product_type","name","subname?","description","price","image_url" }], "cart_count", "user_points", "meta" }` |
+| **Response** | `200 OK` — `{ "items": [{ "id","product_type","name","subname?","description","price","image_url","stock":{ "stock_quantity?","is_unlimited","in_stock" } }], "cart_count", "user_points", "meta" }` |
 | **Authentication** | Bearer |
 | **Error Codes** | `400` (cursor نامعتبر) · استاندارد |
 | **Pagination** | Cursor-based — `cursor` = آیدی آخرین آیتم صفحه قبل؛ `limit` پیش‌فرض ۲۰ |
@@ -392,8 +406,24 @@ Removed — `/api/v1/guess/*` is no longer exposed.
 ```json
 {
   "items": [
-    { "id": "1", "product_type": "merch", "name": "Sport T-shirt", "description": "Home kit", "price": "32,50 €", "image_url": "https://cdn.smartklap.com/store/shirt.png" },
-    { "id": "2", "product_type": "food", "name": "Double Berger", "description": "With onions", "price": "8,20 €", "image_url": "https://cdn.smartklap.com/foods/berger.png" }
+    {
+      "id": "1",
+      "product_type": "merch",
+      "name": "Sport T-shirt",
+      "description": "Home kit",
+      "price": "32,50 €",
+      "image_url": "https://cdn.smartklap.com/store/shirt.png",
+      "stock": { "stock_quantity": 25, "is_unlimited": false, "in_stock": true }
+    },
+    {
+      "id": "2",
+      "product_type": "food",
+      "name": "Double Berger",
+      "description": "With onions",
+      "price": "8,20 €",
+      "image_url": "https://cdn.smartklap.com/foods/berger.png",
+      "stock": { "is_unlimited": true, "in_stock": true }
+    }
   ],
   "cart_count": 2,
   "user_points": 960,
@@ -414,7 +444,7 @@ GET /api/v1/shop?limit=10&cursor=b2000000-0000-4000-8000-000000000010
 | **Endpoint** | `/api/v1/shop/{product_id}` |
 | **HTTP Method** | GET |
 | **Request** | Path param `product_id`; query `currency?: "EUR"\|"POINT"`, `size?` (فقط برای `product_type=merch`) |
-| **Response** | `200 OK` — food: `{ "id","product_type","name","subname?","description","price","image_url" }` · merch: `{ ...,"seller_name?","available_sizes":["M","L"] }` |
+| **Response** | `200 OK` — food/merch: `{ "id","product_type","name","subname?","description","price","image_url","stock":{ "stock_quantity?","is_unlimited","in_stock" } }` · merch اضافه: `{ "seller_name?","available_sizes":["M","L"] }` |
 | **Authentication** | Bearer |
 | **Error Codes** | `404` · استاندارد |
 | **Pagination** | ندارد |
@@ -442,7 +472,7 @@ GET /api/v1/shop?limit=10&cursor=b2000000-0000-4000-8000-000000000010
 |---|---|
 | **Endpoint** | `/api/v1/shop` |
 | **HTTP Method** | POST |
-| **Request** | `{ "product_type","name","subname?","description?","category","price_cents","price_points","image_url?","seller_name?","available_sizes?","is_active?" }` |
+| **Request** | `{ "product_type","name","subname?","description?","category","price_cents","price_points","image_url?","seller_name?","available_sizes?","is_active?","stock_quantity?" }` — `subname` حداکثر ۳ کلمه؛ `stock_quantity` اختیاری — `null`/حذف = نامحدود (`unlimited`)، عدد ≥ ۰ = موجودی محدود |
 | **Response** | `201 Created` — product detail object |
 | **Authentication** | Bearer (admin) |
 | **Error Codes** | `403` · `400` · استاندارد |
@@ -459,7 +489,8 @@ GET /api/v1/shop?limit=10&cursor=b2000000-0000-4000-8000-000000000010
   "price_cents": 3250,
   "price_points": 3250,
   "seller_name": "Sport Mall 2",
-  "available_sizes": ["M", "L", "XL", "XXL"]
+  "available_sizes": ["M", "L", "XL", "XXL"],
+  "stock_quantity": 25
 }
 ```
 سپس: `POST /shop/{id}/image` با فایل عکس.
@@ -475,6 +506,26 @@ GET /api/v1/shop?limit=10&cursor=b2000000-0000-4000-8000-000000000010
   "price_points": 820
 }
 ```
+غذا معمولاً بدون `stock_quantity` (نامحدود) ساخته می‌شود؛ در صورت نیاز می‌توان عدد گذاشت:
+```json
+{
+  "product_type": "food",
+  "name": "Fish & Chips",
+  "category": "sandwiches",
+  "price_cents": 920,
+  "price_points": 920,
+  "stock_quantity": 40
+}
+```
+یا نامحدود صریح:
+```json
+{ "stock_quantity": null }
+```
+
+**Stock semantics:**
+- `stock_quantity: null` یا حذف فیلد → `is_unlimited: true`, `in_stock: true`
+- `stock_quantity: 0` → `is_unlimited: false`, `in_stock: false`
+- `stock_quantity: N` (N > 0) → `is_unlimited: false`, `in_stock: true`
 
 ### 7.5 Update Product (admin)
 
@@ -513,7 +564,8 @@ GET /api/v1/shop?limit=10&cursor=b2000000-0000-4000-8000-000000000010
   "description": "Official club home kit jersey.",
   "price": "44,00 €",
   "image_url": "https://cdn.smartklap.com/store/shirt.png",
-  "available_sizes": ["M", "L", "XL", "XXL"]
+  "available_sizes": ["M", "L", "XL", "XXL"],
+  "stock": { "stock_quantity": 25, "is_unlimited": false, "in_stock": true }
 }
 ```
 
