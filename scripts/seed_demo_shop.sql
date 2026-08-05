@@ -505,37 +505,67 @@ ON CONFLICT (id) DO UPDATE SET
     image_key = EXCLUDED.image_key,
     updated_at = NOW();
 
--- Stock: merch uses limited inventory; food defaults to unlimited (NULL).
--- NULL = unlimited; 0 = out of stock.
+-- Stock quantities: NULL = unlimited, 0 = out of stock.
+-- Applies to all active products (demo UUIDs + legacy rows by product name).
 UPDATE products SET stock_quantity = CASE name
-    WHEN 'Sport T-shirt'      THEN 25
-    WHEN 'Away T-shirt'       THEN 18
-    WHEN 'Match Ball'         THEN 12
-    WHEN 'Club Sticker Pack'  THEN NULL
-    WHEN 'Training Suit'      THEN 8
-    WHEN 'Winter Hoodie'      THEN 5
-    WHEN 'Mini Ball'          THEN 30
-    WHEN 'Scarf'              THEN 15
-    WHEN 'Goalkeeper Gloves'  THEN 6
-    WHEN 'Captain Armband'    THEN NULL
-    WHEN 'Stadium Cap'        THEN 20
-    WHEN 'Fan Flag'           THEN 10
-    WHEN 'Training Shorts'    THEN 14
-    WHEN 'Socks Pack'         THEN 22
-    WHEN 'Water Bottle'       THEN NULL
-    WHEN 'Retro Jersey'       THEN 0
-    WHEN 'Pump Ball'          THEN 9
+    -- Merch
+    WHEN 'Sport T-shirt'       THEN 25
+    WHEN 'Away T-shirt'        THEN 18
+    WHEN 'Match Ball'          THEN 12
+    WHEN 'Club Sticker Pack'   THEN NULL
+    WHEN 'Training Suit'       THEN 8
+    WHEN 'Winter Hoodie'       THEN 5
+    WHEN 'Mini Ball'           THEN 30
+    WHEN 'Scarf'               THEN 15
+    WHEN 'Goalkeeper Gloves'   THEN 6
+    WHEN 'Captain Armband'     THEN NULL
+    WHEN 'Stadium Cap'         THEN 20
+    WHEN 'Fan Flag'            THEN 10
+    WHEN 'Training Shorts'     THEN 14
+    WHEN 'Socks Pack'          THEN 22
+    WHEN 'Water Bottle'        THEN NULL
+    WHEN 'Retro Jersey'        THEN 0
+    WHEN 'Pump Ball'           THEN 9
+    -- Food (mostly unlimited; limited items for cart/stock testing)
+    WHEN 'Double Burger'       THEN NULL
+    WHEN 'Club Hot Dog'        THEN 50
+    WHEN 'Loaded Nachos'       THEN 35
+    WHEN 'Salted Popcorn'      THEN NULL
+    WHEN 'Cola Zero'           THEN 100
+    WHEN 'Mineral Water'       THEN NULL
+    WHEN 'Chicken Wrap'        THEN 28
+    WHEN 'Veggie Pizza Slice'  THEN 45
+    WHEN 'French Fries'        THEN 60
+    WHEN 'Energy Drink'        THEN 80
+    WHEN 'Orange Juice'        THEN 55
+    WHEN 'Club Sandwich'       THEN 22
+    WHEN 'BBQ Wings'           THEN 18
+    WHEN 'Chocolate Muffin'    THEN 40
+    WHEN 'Iced Coffee'         THEN 70
+    WHEN 'Pretzel'             THEN NULL
+    WHEN 'Fish & Chips'        THEN 40
+    WHEN 'Sparkling Water'     THEN NULL
     ELSE stock_quantity
 END,
 updated_at = NOW()
-WHERE deleted_at IS NULL AND product_type = 'merch' AND id::text LIKE 'c2000000%';
+WHERE deleted_at IS NULL
+  AND name IN (
+    'Sport T-shirt', 'Away T-shirt', 'Match Ball', 'Club Sticker Pack', 'Training Suit',
+    'Winter Hoodie', 'Mini Ball', 'Scarf', 'Goalkeeper Gloves', 'Captain Armband',
+    'Stadium Cap', 'Fan Flag', 'Training Shorts', 'Socks Pack', 'Water Bottle',
+    'Retro Jersey', 'Pump Ball',
+    'Double Burger', 'Club Hot Dog', 'Loaded Nachos', 'Salted Popcorn', 'Cola Zero',
+    'Mineral Water', 'Chicken Wrap', 'Veggie Pizza Slice', 'French Fries', 'Energy Drink',
+    'Orange Juice', 'Club Sandwich', 'BBQ Wings', 'Chocolate Muffin', 'Iced Coffee',
+    'Pretzel', 'Fish & Chips', 'Sparkling Water'
+  );
 
-UPDATE products SET stock_quantity = CASE name
-    WHEN 'Fish & Chips' THEN 40
-    ELSE NULL
-END,
-updated_at = NOW()
-WHERE deleted_at IS NULL AND product_type = 'food' AND id::text LIKE 'c2000000%';
+-- Any other merch without stock yet → small demo inventory; food stays unlimited.
+UPDATE products SET stock_quantity = 15, updated_at = NOW()
+WHERE deleted_at IS NULL
+  AND product_type = 'merch'
+  AND stock_quantity IS NULL
+  AND name NOT IN ('Club Sticker Pack', 'Captain Armband', 'Water Bottle');
 
 -- Refresh legacy migration rows and any leftover random/picsum/cdn URLs.
 UPDATE products SET image_key = 'https://loremflickr.com/400/400/shirt,jersey,sport/all', updated_at = NOW()
