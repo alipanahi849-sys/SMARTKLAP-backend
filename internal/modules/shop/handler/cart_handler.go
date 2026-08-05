@@ -10,8 +10,9 @@ import (
 	"github.com/google/uuid"
 )
 
-// CartHandler serves shop cart add/decrease endpoints.
+// CartHandler serves shop cart endpoints.
 type CartHandler interface {
+	GetBasket(c *gin.Context)
 	AddItem(c *gin.Context)
 	DecreaseItem(c *gin.Context)
 }
@@ -22,6 +23,31 @@ type cartHandler struct {
 
 func NewCartHandler(svc service.CartService) CartHandler {
 	return &cartHandler{svc: svc}
+}
+
+// Get basket godoc
+//
+//	@Summary		Get shop basket
+//	@Description	Returns grouped cart preview for the Basket screen
+//	@Tags			shop
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Router			/api/v1/shop/cart [get]
+func (h *cartHandler) GetBasket(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == uuid.Nil {
+		response.Unauthorized(c, "Invalid user")
+		return
+	}
+
+	result, err := h.svc.GetBasket(c.Request.Context(), userID)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.Success(c, result)
 }
 
 // Add cart item godoc

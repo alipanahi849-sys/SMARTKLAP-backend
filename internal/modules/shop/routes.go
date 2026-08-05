@@ -18,7 +18,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 
 	productRepo := repository.NewProductRepository(db)
 	cartRepo := repository.NewCartRepository(db)
-	cartSvc := service.NewCartService(cartRepo, productRepo)
+	cartSvc := service.NewCartService(cartRepo, productRepo, storageinit.Provider())
 
 	shopSvc := service.NewProductService(
 		productRepo,
@@ -38,6 +38,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 
 		shop.POST("/cart/items", cartH.AddItem)
 		shop.POST("/cart/items/decrease", cartH.DecreaseItem)
+		shop.GET("/cart", cartH.GetBasket)
 
 		shop.GET("/:id", productH.GetByID)
 		shop.PUT("/:id", productH.Update)

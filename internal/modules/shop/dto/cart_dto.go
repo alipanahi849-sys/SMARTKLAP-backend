@@ -24,3 +24,24 @@ type CartMutationResponse struct {
 	Quantity  int        `json:"quantity"`
 	CartCount int        `json:"cart_count"`
 }
+
+// BasketOrderItem is one preview row on the Basket screen.
+type BasketOrderItem struct {
+	ID       uuid.UUID `json:"id"`
+	ImageURL string    `json:"image_url"`
+	Quantity int       `json:"quantity"`
+}
+
+// BasketOrder groups cart lines by product type for the Basket screen.
+type BasketOrder struct {
+	ID        string            `json:"id"`
+	Title     string            `json:"title"`
+	Date      string            `json:"date"`
+	Items     []BasketOrderItem `json:"items"`
+	ExtraText string            `json:"extra_text,omitempty"`
+}
+
+// BasketResponse is GET /api/v1/shop/cart.
+type BasketResponse struct {
+	Orders []BasketOrder `json:"orders"`
+}

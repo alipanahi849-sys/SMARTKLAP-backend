@@ -2,18 +2,23 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"clap/internal/modules/shop/dto"
 	"clap/internal/modules/shop/models"
 	"clap/internal/modules/shop/repository"
 	"clap/internal/shared/errors"
+	"clap/pkg/storage"
 
 	"github.com/google/uuid"
 )
 
+const basketPreviewLimit = 3
+
 // CartService manages the user shopping cart without changing product stock.
 type CartService interface {
+	GetBasket(ctx context.Context, userID uuid.UUID) (*dto.BasketResponse, error)
 	AddItem(ctx context.Context, userID uuid.UUID, req *dto.AddCartItemRequest) (*dto.CartMutationResponse, error)
 	DecreaseItem(ctx context.Context, userID uuid.UUID, req *dto.DecreaseCartItemRequest) (*dto.CartMutationResponse, error)
 	CountItems(ctx context.Context, userID uuid.UUID) (int, error)
@@ -22,16 +27,122 @@ type CartService interface {
 type cartService struct {
 	cartRepo    repository.CartRepository
 	productRepo repository.ProductRepository
+	storage     storage.StorageProvider
 }
 
 func NewCartService(
 	cartRepo repository.CartRepository,
 	productRepo repository.ProductRepository,
+	storageProvider storage.StorageProvider,
 ) CartService {
 	return &cartService{
 		cartRepo:    cartRepo,
 		productRepo: productRepo,
+		storage:     storageProvider,
 	}
+}
+
+func (s *cartService) GetBasket(ctx context.Context, userID uuid.UUID) (*dto.BasketResponse, error) {
+	lines, err := s.cartRepo.ListUserLines(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	grouped := map[string][]repository.UserCartLine{
+		models.ProductTypeFood:  {},
+		models.ProductTypeMerch: {},
+	}
+
+	for _, line := range lines {
+		pt := basketGroupType(line.ProductType)
+		if pt != models.ProductTypeFood && pt != models.ProductTypeMerch {
+			continue
+		}
+		grouped[pt] = append(grouped[pt], line)
+	}
+
+	orders := make([]dto.BasketOrder, 0, 2)
+	if foodLines := grouped[models.ProductTypeFood]; len(foodLines) > 0 {
+		orders = append(orders, buildBasketOrder(ctx, models.ProductTypeFood, foodLines, s.resolveURL))
+	}
+	if merchLines := grouped[models.ProductTypeMerch]; len(merchLines) > 0 {
+		orders = append(orders, buildBasketOrder(ctx, models.ProductTypeMerch, merchLines, s.resolveURL))
+	}
+
+	return &dto.BasketResponse{Orders: orders}, nil
+}
+
+func buildBasketOrder(
+	ctx context.Context,
+	productType string,
+	lines []repository.UserCartLine,
+	resolve func(context.Context, string) string,
+) dto.BasketOrder {
+	title := "Club Online Store"
+	if productType == models.ProductTypeFood {
+		title = "Food Delivery"
+	}
+
+	latest := lines[0].UpdatedAt
+	for _, line := range lines[1:] {
+		if line.UpdatedAt.After(latest) {
+			latest = line.UpdatedAt
+		}
+	}
+
+	preview := lines
+	extraText := ""
+	if len(lines) > basketPreviewLimit {
+		preview = lines[:basketPreviewLimit]
+		remaining := len(lines) - basketPreviewLimit
+		if remaining == 1 {
+			extraText = "1 more item"
+		} else {
+			extraText = fmt.Sprintf("%d more items", remaining)
+		}
+	}
+
+	items := make([]dto.BasketOrderItem, len(preview))
+	for i, line := range preview {
+		items[i] = dto.BasketOrderItem{
+			ID:       line.ID,
+			ImageURL: resolve(ctx, line.ImageKey),
+			Quantity: line.Quantity,
+		}
+	}
+
+	return dto.BasketOrder{
+		ID:        productType,
+		Title:     title,
+		Date:      latest.Format("2006-01-02"),
+		Items:     items,
+		ExtraText: extraText,
+	}
+}
+
+func basketGroupType(productType string) string {
+	pt := strings.ToLower(strings.TrimSpace(productType))
+	if pt == "snack" {
+		return models.ProductTypeFood
+	}
+	return pt
+}
+
+func (s *cartService) resolveURL(ctx context.Context, stored string) string {
+	if stored == "" {
+		return ""
+	}
+	if strings.HasPrefix(stored, "http://") || strings.HasPrefix(stored, "https://") {
+		return stored
+	}
+	if s.storage == nil {
+		return ""
+	}
+	url, err := s.storage.GenerateSignedURL(ctx, stored, imageURLExpiry)
+	if err != nil {
+		return ""
+	}
+	return url
 }
 
 func (s *cartService) AddItem(ctx context.Context, userID uuid.UUID, req *dto.AddCartItemRequest) (*dto.CartMutationResponse, error) {

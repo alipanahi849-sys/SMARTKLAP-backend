@@ -12,10 +12,17 @@ import (
 
 type CartRepository interface {
 	FindLine(ctx context.Context, userID, productID uuid.UUID, size string) (*models.CartItem, error)
+	ListUserLines(ctx context.Context, userID uuid.UUID) ([]UserCartLine, error)
 	Create(ctx context.Context, item *models.CartItem) error
 	UpdateQuantity(ctx context.Context, id uuid.UUID, quantity int) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	CountTotalQuantity(ctx context.Context, userID uuid.UUID) (int, error)
+}
+
+// UserCartLine is a cart row joined with its product for basket display.
+type UserCartLine struct {
+	models.CartItem
+	ImageKey string
 }
 
 type cartRepository struct {
@@ -38,6 +45,21 @@ func (r *cartRepository) FindLine(ctx context.Context, userID, productID uuid.UU
 		return nil, errors.NewInternal("Failed to load cart item", err)
 	}
 	return &item, nil
+}
+
+func (r *cartRepository) ListUserLines(ctx context.Context, userID uuid.UUID) ([]UserCartLine, error) {
+	var lines []UserCartLine
+	err := r.db.WithContext(ctx).
+		Table("cart_items").
+		Select("cart_items.*, products.image_key").
+		Joins("INNER JOIN products ON products.id = cart_items.product_id AND products.deleted_at IS NULL AND products.is_active = ?", true).
+		Where("cart_items.user_id = ?", userID).
+		Order("cart_items.updated_at DESC").
+		Scan(&lines).Error
+	if err != nil {
+		return nil, errors.NewInternal("Failed to load cart", err)
+	}
+	return lines, nil
 }
 
 func (r *cartRepository) Create(ctx context.Context, item *models.CartItem) error {

@@ -311,7 +311,7 @@ Removed — `/api/v1/guess/*` is no longer exposed.
 | Field | Value |
 |---|---|
 | **Screen Name** | Basket Screen |
-| **Endpoint** | `/api/v1/shop/cart` (planned GET) |
+| **Endpoint** | `/api/v1/shop/cart` |
 | **HTTP Method** | GET |
 | **Request** | بدون پارامتر |
 | **Response** | `200 OK` — `{ "orders": [{ "id","title","date","items":[{ "id","image_url","quantity" }],"extra_text" }] }` |
@@ -574,7 +574,7 @@ GET /api/v1/shop?limit=10&cursor=b2000000-0000-4000-8000-000000000010
 | Field | Value |
 |---|---|
 | **Screen Name** | Product detail (+/- buttons) |
-| **Endpoints** | `POST /api/v1/shop/cart/items` · `POST /api/v1/shop/cart/items/decrease` |
+| **Endpoints** | `GET /api/v1/shop/cart` · `POST /api/v1/shop/cart/items` · `POST /api/v1/shop/cart/items/decrease` |
 | **Authentication** | Bearer |
 | **Note** | بخشی از Shop module؛ موجودی محصول تا پرداخت تغییر نمی‌کند |
 
