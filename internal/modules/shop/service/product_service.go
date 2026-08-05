@@ -17,6 +17,7 @@ import (
 	"clap/internal/shared/errors"
 	"clap/internal/shared/logger"
 	"clap/internal/shared/utils"
+	"clap/pkg/media/optimize"
 	"clap/pkg/storage"
 
 	"github.com/google/uuid"
@@ -67,6 +68,7 @@ type productService struct {
 	userRepo    authrepo.UserRepository
 	storage     storage.StorageProvider
 	cartCounter CartCounter
+	optimizer   optimize.Optimizer
 }
 
 func NewProductService(
@@ -75,11 +77,25 @@ func NewProductService(
 	storageProvider storage.StorageProvider,
 	cartCounter CartCounter,
 ) ProductService {
+	return NewProductServiceWithOptimizer(productRepo, userRepo, storageProvider, cartCounter, optimize.Noop{})
+}
+
+func NewProductServiceWithOptimizer(
+	productRepo repository.ProductRepository,
+	userRepo authrepo.UserRepository,
+	storageProvider storage.StorageProvider,
+	cartCounter CartCounter,
+	optimizer optimize.Optimizer,
+) ProductService {
+	if optimizer == nil {
+		optimizer = optimize.Noop{}
+	}
 	return &productService{
 		productRepo: productRepo,
 		userRepo:    userRepo,
 		storage:     storageProvider,
 		cartCounter: cartCounter,
+		optimizer:   optimizer,
 	}
 }
 
@@ -378,8 +394,20 @@ func (s *productService) UploadProductImage(ctx context.Context, productID uuid.
 	}
 	defer src.Close()
 
-	key := fmt.Sprintf("shop/images/%s/%s%s", productID.String(), uuid.NewString(), ext)
-	if err := s.storage.Upload(ctx, key, src, mimeType, file.Size); err != nil {
+	prepared, err := s.optimizer.OptimizeImage(ctx, src, ext, optimize.ImageProfileProduct)
+	if err != nil {
+		return nil, errors.NewInternal("Failed to optimize image", err)
+	}
+	defer prepared.Cleanup()
+
+	reader, err := prepared.Open()
+	if err != nil {
+		return nil, errors.NewInternal("Failed to read optimized image", err)
+	}
+	defer reader.Close()
+
+	key := fmt.Sprintf("shop/images/%s/%s%s", productID.String(), uuid.NewString(), prepared.Extension)
+	if err := s.storage.Upload(ctx, key, reader, prepared.ContentType, prepared.Size); err != nil {
 		logger.Error().Err(err).Str("product_id", productID.String()).Str("key", key).Msg("shop_image_store_failed")
 		return nil, errors.NewInternal("Failed to store image", err)
 	}

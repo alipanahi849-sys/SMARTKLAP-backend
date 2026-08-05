@@ -7,6 +7,7 @@ import (
 	"clap/internal/modules/video/service"
 	"clap/internal/shared/config"
 	"clap/internal/shared/database"
+	"clap/internal/shared/mediainit"
 	"clap/internal/shared/middleware"
 	"clap/internal/shared/storageinit"
 
@@ -22,10 +23,11 @@ func RegisterRoutes(r *gin.RouterGroup) {
 		maxVideoMB = config.AppConfig.Storage.MaxVideoFileSizeMB
 	}
 
-	videoSvc := service.NewVideoService(
+	videoSvc := service.NewVideoServiceWithOptimizer(
 		repository.NewVideoRepository(db),
 		userrepo.NewProfileRepository(),
 		storageinit.Provider(),
+		mediainit.Optimizer(),
 		maxVideoMB,
 	)
 	h := handler.NewVideoHandler(videoSvc)

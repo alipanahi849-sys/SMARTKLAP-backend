@@ -6,6 +6,7 @@ import (
 	"clap/internal/modules/user/repository"
 	"clap/internal/modules/user/service"
 	"clap/internal/shared/middleware"
+	"clap/internal/shared/mediainit"
 	"clap/internal/shared/storageinit"
 
 	"github.com/gin-gonic/gin"
@@ -15,10 +16,11 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	profileRepo := repository.NewProfileRepository()
 	profileService := service.NewProfileService(profileRepo)
 
-	mobileSvc := service.NewMobileProfileService(
+	mobileSvc := service.NewMobileProfileServiceWithOptimizer(
 		authrepo.NewUserRepository(),
 		profileRepo,
 		storageinit.Provider(),
+		mediainit.Optimizer(),
 	)
 	mobileHandler := handler.NewMobileProfileHandler(mobileSvc)
 	profileHandler := handler.NewProfileHandler(mobileSvc, profileService)

@@ -6,6 +6,7 @@ import (
 	"clap/internal/modules/shop/repository"
 	"clap/internal/modules/shop/service"
 	"clap/internal/shared/database"
+	"clap/internal/shared/mediainit"
 	"clap/internal/shared/middleware"
 	"clap/internal/shared/storageinit"
 
@@ -20,11 +21,12 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	cartRepo := repository.NewCartRepository(db)
 	cartSvc := service.NewCartService(cartRepo, productRepo, storageinit.Provider())
 
-	shopSvc := service.NewProductService(
+	shopSvc := service.NewProductServiceWithOptimizer(
 		productRepo,
 		authrepo.NewUserRepository(),
 		storageinit.Provider(),
 		cartSvc,
+		mediainit.Optimizer(),
 	)
 
 	productH := handler.NewProductHandler(shopSvc)

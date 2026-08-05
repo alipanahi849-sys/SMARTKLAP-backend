@@ -16,6 +16,7 @@ import (
 	"clap/internal/modules/user/repository"
 	"clap/internal/shared/errors"
 	"clap/internal/shared/logger"
+	"clap/pkg/media/optimize"
 	"clap/pkg/storage"
 
 	"github.com/google/uuid"
@@ -44,6 +45,7 @@ type mobileProfileService struct {
 	userRepo    authrepo.UserRepository
 	profileRepo repository.ProfileRepository
 	storage     storage.StorageProvider
+	optimizer   optimize.Optimizer
 }
 
 func NewMobileProfileService(
@@ -51,10 +53,23 @@ func NewMobileProfileService(
 	profileRepo repository.ProfileRepository,
 	storageProvider storage.StorageProvider,
 ) MobileProfileService {
+	return NewMobileProfileServiceWithOptimizer(userRepo, profileRepo, storageProvider, optimize.Noop{})
+}
+
+func NewMobileProfileServiceWithOptimizer(
+	userRepo authrepo.UserRepository,
+	profileRepo repository.ProfileRepository,
+	storageProvider storage.StorageProvider,
+	optimizer optimize.Optimizer,
+) MobileProfileService {
+	if optimizer == nil {
+		optimizer = optimize.Noop{}
+	}
 	return &mobileProfileService{
 		userRepo:    userRepo,
 		profileRepo: profileRepo,
 		storage:     storageProvider,
+		optimizer:   optimizer,
 	}
 }
 
@@ -190,9 +205,21 @@ func (s *mobileProfileService) UploadAvatar(ctx context.Context, userID uuid.UUI
 	}
 	defer src.Close()
 
+	prepared, err := s.optimizer.OptimizeImage(ctx, src, ext, optimize.ImageProfileAvatar)
+	if err != nil {
+		return nil, errors.NewInternal("Failed to optimize avatar", err)
+	}
+	defer prepared.Cleanup()
+
+	reader, err := prepared.Open()
+	if err != nil {
+		return nil, errors.NewInternal("Failed to read optimized avatar", err)
+	}
+	defer reader.Close()
+
 	// Unique key per upload so clients never reuse a cached URL for a new image.
-	key := fmt.Sprintf("avatars/%s/%s%s", userID.String(), uuid.NewString(), ext)
-	if err := s.storage.Upload(ctx, key, src, mimeType, file.Size); err != nil {
+	key := fmt.Sprintf("avatars/%s/%s%s", userID.String(), uuid.NewString(), prepared.Extension)
+	if err := s.storage.Upload(ctx, key, reader, prepared.ContentType, prepared.Size); err != nil {
 		logger.Error().Err(err).Str("user_id", userID.String()).Str("key", key).Msg("avatar_store_failed")
 		return nil, errors.NewInternal("Failed to store avatar", err)
 	}

@@ -17,6 +17,7 @@ import (
 	"clap/internal/modules/video/repository"
 	"clap/internal/shared/errors"
 	"clap/internal/shared/logger"
+	"clap/pkg/media/optimize"
 	"clap/pkg/storage"
 
 	"github.com/google/uuid"
@@ -52,6 +53,7 @@ type videoService struct {
 	videoRepo   repository.VideoRepository
 	profileRepo userrepo.ProfileRepository
 	storage     storage.StorageProvider
+	optimizer   optimize.Optimizer
 	maxFileSize int64
 }
 
@@ -61,13 +63,27 @@ func NewVideoService(
 	storageProvider storage.StorageProvider,
 	maxFileSizeMB int,
 ) VideoService {
+	return NewVideoServiceWithOptimizer(videoRepo, profileRepo, storageProvider, optimize.Noop{}, maxFileSizeMB)
+}
+
+func NewVideoServiceWithOptimizer(
+	videoRepo repository.VideoRepository,
+	profileRepo userrepo.ProfileRepository,
+	storageProvider storage.StorageProvider,
+	optimizer optimize.Optimizer,
+	maxFileSizeMB int,
+) VideoService {
 	if maxFileSizeMB <= 0 {
 		maxFileSizeMB = 50
+	}
+	if optimizer == nil {
+		optimizer = optimize.Noop{}
 	}
 	return &videoService{
 		videoRepo:   videoRepo,
 		profileRepo: profileRepo,
 		storage:     storageProvider,
+		optimizer:   optimizer,
 		maxFileSize: int64(maxFileSizeMB) * 1024 * 1024,
 	}
 }
@@ -175,9 +191,26 @@ func (s *videoService) Upload(ctx context.Context, userID uuid.UUID, file *multi
 	}
 	defer src.Close()
 
+	var prepared *optimize.PreparedMedia
+	if mediaType == models.MediaTypeVideo {
+		prepared, err = s.optimizer.OptimizeVideo(ctx, src, ext)
+	} else {
+		prepared, err = s.optimizer.OptimizeImage(ctx, src, ext, optimize.ImageProfileFeed)
+	}
+	if err != nil {
+		return nil, errors.NewInternal("Failed to optimize media", err)
+	}
+	defer prepared.Cleanup()
+
+	reader, err := prepared.Open()
+	if err != nil {
+		return nil, errors.NewInternal("Failed to read optimized media", err)
+	}
+	defer reader.Close()
+
 	videoID := uuid.New()
-	key := fmt.Sprintf("videos/%s/%s%s", userID.String(), videoID.String(), ext)
-	if err := s.storage.Upload(ctx, key, src, mimeType, file.Size); err != nil {
+	key := fmt.Sprintf("videos/%s/%s%s", userID.String(), videoID.String(), prepared.Extension)
+	if err := s.storage.Upload(ctx, key, reader, prepared.ContentType, prepared.Size); err != nil {
 		return nil, errors.NewInternal("Failed to store media", err)
 	}
 
@@ -189,8 +222,8 @@ func (s *videoService) Upload(ctx context.Context, userID uuid.UUID, file *multi
 		Caption:    strings.TrimSpace(caption),
 		Tags:       string(tags),
 		StorageKey: key,
-		MimeType:   mimeType,
-		FileSize:   file.Size,
+		MimeType:   prepared.ContentType,
+		FileSize:   prepared.Size,
 		// No async transcoding pipeline exists — posts publish immediately.
 		Status: models.StatusPublished,
 	}
