@@ -9,6 +9,7 @@ import (
 	"clap/internal/modules/shop/models"
 	"clap/internal/modules/shop/repository"
 	"clap/internal/shared/errors"
+	"clap/internal/shared/utils"
 	"clap/pkg/storage"
 
 	"github.com/google/uuid"
@@ -69,7 +70,19 @@ func (s *cartService) GetBasket(ctx context.Context, userID uuid.UUID) (*dto.Bas
 		orders = append(orders, buildBasketOrder(ctx, models.ProductTypeMerch, merchLines, s.resolveURL))
 	}
 
-	return &dto.BasketResponse{Orders: orders}, nil
+	cartCount, err := s.cartRepo.CountTotalQuantity(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.BasketResponse{
+		Orders:    orders,
+		Items:     buildCheckoutItems(ctx, lines, s.resolveURL),
+		Subtotal:  formatCheckoutSubtotal(lines),
+		Shipping:  "",
+		Total:     formatCheckoutSubtotal(lines),
+		CartCount: cartCount,
+	}, nil
 }
 
 func buildBasketOrder(
@@ -105,9 +118,12 @@ func buildBasketOrder(
 	items := make([]dto.BasketOrderItem, len(preview))
 	for i, line := range preview {
 		items[i] = dto.BasketOrderItem{
-			ID:       line.ID,
-			ImageURL: resolve(ctx, line.ImageKey),
-			Quantity: line.Quantity,
+			ID:          line.ID,
+			ProductID:   line.ProductID,
+			ProductType: line.ProductType,
+			Size:        line.Size,
+			ImageURL:    resolve(ctx, line.ImageKey),
+			Quantity:    line.Quantity,
 		}
 	}
 
@@ -118,6 +134,38 @@ func buildBasketOrder(
 		Items:     items,
 		ExtraText: extraText,
 	}
+}
+
+func buildCheckoutItems(ctx context.Context, lines []repository.UserCartLine, resolve func(context.Context, string) string) []dto.CheckoutLineItem {
+	items := make([]dto.CheckoutLineItem, len(lines))
+	for i, line := range lines {
+		description := strings.TrimSpace(line.Description)
+		subname := strings.TrimSpace(line.Subname)
+		items[i] = dto.CheckoutLineItem{
+			ID:          line.ID,
+			ProductID:   line.ProductID,
+			ProductType: line.ProductType,
+			Size:        line.Size,
+			Name:        line.Name,
+			Subname:     subname,
+			Description: description,
+			Price:       utils.FormatEuro(line.PriceCents),
+			ImageURL:    resolve(ctx, line.ImageKey),
+			Quantity:    line.Quantity,
+		}
+	}
+	return items
+}
+
+func formatCheckoutSubtotal(lines []repository.UserCartLine) string {
+	var totalCents int64
+	for _, line := range lines {
+		totalCents += line.PriceCents * int64(line.Quantity)
+	}
+	if totalCents <= 0 {
+		return ""
+	}
+	return utils.FormatEuro(totalCents)
 }
 
 func basketGroupType(productType string) string {
