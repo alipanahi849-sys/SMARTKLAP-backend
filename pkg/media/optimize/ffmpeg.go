@@ -123,6 +123,50 @@ func (f *FFmpeg) OptimizeVideo(ctx context.Context, src io.Reader, inputExt stri
 	return chosen, nil
 }
 
+func (f *FFmpeg) VideoThumbnail(ctx context.Context, videoPath string) (*PreparedMedia, error) {
+	dir, err := os.MkdirTemp("", "clap-vid-thumb-*")
+	if err != nil {
+		return nil, fmt.Errorf("create temp dir: %w", err)
+	}
+	cleanup := func() { _ = os.RemoveAll(dir) }
+
+	outputPath := filepath.Join(dir, "thumb.webp")
+	tryExtract := func(seek string) error {
+		args := []string{
+			"-hide_banner", "-loglevel", "error", "-y",
+			"-ss", seek,
+			"-i", videoPath,
+			"-frames:v", "1",
+			"-vf", "scale='min(640,iw)':'min(640,ih)':force_original_aspect_ratio=decrease",
+			"-c:v", "libwebp",
+			"-quality", "85",
+			outputPath,
+		}
+		return f.run(ctx, args...)
+	}
+
+	if err = tryExtract("1"); err != nil {
+		if err = tryExtract("0"); err != nil {
+			cleanup()
+			return nil, err
+		}
+	}
+
+	info, err := os.Stat(outputPath)
+	if err != nil {
+		cleanup()
+		return nil, err
+	}
+
+	return &PreparedMedia{
+		Path:        outputPath,
+		Size:        info.Size(),
+		ContentType: "image/webp",
+		Extension:   ".webp",
+		cleanup:     cleanup,
+	}, nil
+}
+
 func originalPrepared(path string, size int64, ext string, cleanup func()) *PreparedMedia {
 	return &PreparedMedia{
 		Path:        path,

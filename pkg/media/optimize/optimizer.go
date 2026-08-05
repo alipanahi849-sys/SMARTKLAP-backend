@@ -40,4 +40,7 @@ func (p *PreparedMedia) Cleanup() {
 type Optimizer interface {
 	OptimizeImage(ctx context.Context, src io.Reader, inputExt string, profile ImageProfile) (*PreparedMedia, error)
 	OptimizeVideo(ctx context.Context, src io.Reader, inputExt string) (*PreparedMedia, error)
+	// VideoThumbnail extracts a poster frame from a local video file path.
+	// Returns nil, nil when thumbnails are not supported.
+	VideoThumbnail(ctx context.Context, videoPath string) (*PreparedMedia, error)
 }

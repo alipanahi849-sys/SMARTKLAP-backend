@@ -48,9 +48,10 @@ type VideoFeedResponse struct {
 
 // VideoUploadResponse is POST /videos (contract §8.3).
 type VideoUploadResponse struct {
-	ID        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Status    string    `json:"status"`
-	VideoURL  *string   `json:"video_url"`
+	ID           uuid.UUID `json:"id"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	Status       string    `json:"status"`
+	VideoURL     *string   `json:"video_url"`
+	ThumbnailURL *string   `json:"thumbnail_url,omitempty"`
 }

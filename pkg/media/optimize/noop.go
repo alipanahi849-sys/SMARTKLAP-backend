@@ -19,6 +19,10 @@ func (Noop) OptimizeVideo(_ context.Context, src io.Reader, inputExt string) (*P
 	return stageOriginal(src, ext, mimeForExt(ext))
 }
 
+func (Noop) VideoThumbnail(context.Context, string) (*PreparedMedia, error) {
+	return nil, nil
+}
+
 func mimeForExt(ext string) string {
 	switch ext {
 	case ".jpg", ".jpeg":

@@ -214,21 +214,34 @@ func (s *videoService) Upload(ctx context.Context, userID uuid.UUID, file *multi
 		return nil, errors.NewInternal("Failed to store media", err)
 	}
 
+	thumbnailKey := key
+	if mediaType == models.MediaTypeVideo {
+		thumbnailKey, err = s.storeVideoThumbnail(ctx, userID, videoID, prepared.Path)
+		if err != nil {
+			_ = s.storage.Delete(ctx, key)
+			return nil, err
+		}
+	}
+
 	tags, _ := json.Marshal(extractHashtags(caption))
 	video := &models.Video{
-		ID:         videoID,
-		UserID:     userID,
-		MediaType:  mediaType,
-		Caption:    strings.TrimSpace(caption),
-		Tags:       string(tags),
-		StorageKey: key,
-		MimeType:   prepared.ContentType,
-		FileSize:   prepared.Size,
+		ID:           videoID,
+		UserID:       userID,
+		MediaType:    mediaType,
+		Caption:      strings.TrimSpace(caption),
+		Tags:         string(tags),
+		StorageKey:   key,
+		ThumbnailKey: thumbnailKey,
+		MimeType:     prepared.ContentType,
+		FileSize:     prepared.Size,
 		// No async transcoding pipeline exists — posts publish immediately.
 		Status: models.StatusPublished,
 	}
 	if err := s.videoRepo.Create(ctx, video); err != nil {
 		_ = s.storage.Delete(ctx, key)
+		if thumbnailKey != "" && thumbnailKey != key {
+			_ = s.storage.Delete(ctx, thumbnailKey)
+		}
 		return nil, err
 	}
 
@@ -245,12 +258,18 @@ func (s *videoService) Upload(ctx context.Context, userID uuid.UUID, file *multi
 		videoURL = &url
 	}
 
+	var thumbnailURL *string
+	if thumb := s.resolveURL(ctx, thumbnailKey); thumb != "" {
+		thumbnailURL = &thumb
+	}
+
 	return &dto.VideoUploadResponse{
-		ID:        video.ID,
-		CreatedAt: video.CreatedAt,
-		UpdatedAt: video.UpdatedAt,
-		Status:    video.Status,
-		VideoURL:  videoURL,
+		ID:           video.ID,
+		CreatedAt:    video.CreatedAt,
+		UpdatedAt:    video.UpdatedAt,
+		Status:       video.Status,
+		VideoURL:     videoURL,
+		ThumbnailURL: thumbnailURL,
 	}, nil
 }
 
@@ -329,7 +348,7 @@ func (s *videoService) buildFeedResponse(ctx context.Context, userID uuid.UUID, 
 			CreatedAt:    v.CreatedAt,
 			UpdatedAt:    v.UpdatedAt,
 			VideoURL:     s.signedURL(ctx, v.StorageKey),
-			ThumbnailURL: s.signedURL(ctx, v.ThumbnailKey),
+			ThumbnailURL: s.videoThumbnailURL(ctx, &v),
 			Author: dto.VideoAuthor{
 				Name:      v.User.DisplayName(),
 				AvatarURL: avatar,
@@ -366,6 +385,37 @@ func (s *videoService) signedURL(ctx context.Context, key string) string {
 		return ""
 	}
 	return url
+}
+
+func (s *videoService) videoThumbnailURL(ctx context.Context, v *models.Video) string {
+	key := v.ThumbnailKey
+	if key == "" && v.MediaType == models.MediaTypeImage {
+		key = v.StorageKey
+	}
+	return s.signedURL(ctx, key)
+}
+
+func (s *videoService) storeVideoThumbnail(ctx context.Context, userID, videoID uuid.UUID, videoPath string) (string, error) {
+	thumb, err := s.optimizer.VideoThumbnail(ctx, videoPath)
+	if err != nil {
+		return "", errors.NewInternal("Failed to generate video thumbnail", err)
+	}
+	if thumb == nil {
+		return "", nil
+	}
+	defer thumb.Cleanup()
+
+	reader, err := thumb.Open()
+	if err != nil {
+		return "", errors.NewInternal("Failed to read video thumbnail", err)
+	}
+	defer reader.Close()
+
+	key := fmt.Sprintf("videos/%s/%s_thumb.webp", userID.String(), videoID.String())
+	if err := s.storage.Upload(ctx, key, reader, thumb.ContentType, thumb.Size); err != nil {
+		return "", errors.NewInternal("Failed to store video thumbnail", err)
+	}
+	return key, nil
 }
 
 // resolveURL passes absolute URLs through and signs storage keys.
