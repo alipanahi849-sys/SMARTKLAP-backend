@@ -64,24 +64,27 @@ type CartCounter interface {
 }
 
 type productService struct {
-	productRepo repository.ProductRepository
-	userRepo    authrepo.UserRepository
-	storage     storage.StorageProvider
-	cartCounter CartCounter
-	optimizer   optimize.Optimizer
+	productRepo     repository.ProductRepository
+	sizeStockRepo   repository.ProductSizeStockRepository
+	userRepo        authrepo.UserRepository
+	storage         storage.StorageProvider
+	cartCounter     CartCounter
+	optimizer       optimize.Optimizer
 }
 
 func NewProductService(
 	productRepo repository.ProductRepository,
+	sizeStockRepo repository.ProductSizeStockRepository,
 	userRepo authrepo.UserRepository,
 	storageProvider storage.StorageProvider,
 	cartCounter CartCounter,
 ) ProductService {
-	return NewProductServiceWithOptimizer(productRepo, userRepo, storageProvider, cartCounter, optimize.Noop{})
+	return NewProductServiceWithOptimizer(productRepo, sizeStockRepo, userRepo, storageProvider, cartCounter, optimize.Noop{})
 }
 
 func NewProductServiceWithOptimizer(
 	productRepo repository.ProductRepository,
+	sizeStockRepo repository.ProductSizeStockRepository,
 	userRepo authrepo.UserRepository,
 	storageProvider storage.StorageProvider,
 	cartCounter CartCounter,
@@ -91,11 +94,12 @@ func NewProductServiceWithOptimizer(
 		optimizer = optimize.Noop{}
 	}
 	return &productService{
-		productRepo: productRepo,
-		userRepo:    userRepo,
-		storage:     storageProvider,
-		cartCounter: cartCounter,
-		optimizer:   optimizer,
+		productRepo:   productRepo,
+		sizeStockRepo: sizeStockRepo,
+		userRepo:      userRepo,
+		storage:       storageProvider,
+		cartCounter:   cartCounter,
+		optimizer:     optimizer,
 	}
 }
 
@@ -155,6 +159,15 @@ func (s *productService) List(ctx context.Context, userID uuid.UUID, filters dto
 		products = products[:limit]
 	}
 
+	productIDs := make([]uuid.UUID, len(products))
+	for i, p := range products {
+		productIDs[i] = p.ID
+	}
+	sizeStockMap, err := s.sizeStockRepo.ListByProductIDs(ctx, productIDs)
+	if err != nil {
+		return nil, err
+	}
+
 	items := make([]dto.ProductItem, len(products))
 	for i, p := range products {
 		items[i] = dto.ProductItem{
@@ -165,7 +178,7 @@ func (s *productService) List(ctx context.Context, userID uuid.UUID, filters dto
 			Description: p.Description,
 			Price:       formatPrice(p, currency),
 			ImageURL:    s.resolveURL(ctx, p.ImageKey),
-			Stock:       toProductStockInfo(&p),
+			Stock:       buildProductStockInfo(&p, sizeStockMap[p.ID], ""),
 		}
 	}
 
@@ -209,7 +222,12 @@ func (s *productService) GetByID(ctx context.Context, id uuid.UUID, filters dto.
 		return nil, err
 	}
 
-	return toProductDetail(product, currency, sizes, s.resolveURL(ctx, product.ImageKey)), nil
+	sizeStocks, err := s.sizeStockRepo.ListByProductID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return toProductDetail(product, currency, sizes, s.resolveURL(ctx, product.ImageKey), sizeStocks, filters.Size), nil
 }
 
 func (s *productService) Create(ctx context.Context, req *dto.CreateProductRequest, authCtx *utils.AuthorizationContext) (*dto.ProductDetailResponse, error) {
@@ -249,7 +267,7 @@ func (s *productService) Create(ctx context.Context, req *dto.CreateProductReque
 		return nil, err
 	}
 
-	stockQuantity, err := validateStockQuantity(req.StockQuantity)
+	stockQuantity, sizeStockRows, err := resolveProductStockInputs(productType, sizes, req.StockQuantity, req.SizeStock)
 	if err != nil {
 		return nil, err
 	}
@@ -272,8 +290,13 @@ func (s *productService) Create(ctx context.Context, req *dto.CreateProductReque
 	if err := s.productRepo.Create(ctx, product); err != nil {
 		return nil, err
 	}
+	if len(sizeStockRows) > 0 {
+		if err := s.sizeStockRepo.ReplaceForProduct(ctx, product.ID, sizeStockRows); err != nil {
+			return nil, err
+		}
+	}
 
-	return toProductDetail(product, dto.CurrencyEUR, sizesForResponse(product, sizes), s.resolveURL(ctx, product.ImageKey)), nil
+	return toProductDetail(product, dto.CurrencyEUR, sizesForResponse(product, sizes), s.resolveURL(ctx, product.ImageKey), sizeStockRows, ""), nil
 }
 
 func (s *productService) Update(ctx context.Context, id uuid.UUID, req *dto.UpdateProductRequest, authCtx *utils.AuthorizationContext) (*dto.ProductDetailResponse, error) {
@@ -311,7 +334,7 @@ func (s *productService) Update(ctx context.Context, id uuid.UUID, req *dto.Upda
 		return nil, err
 	}
 
-	stockQuantity, err := validateStockQuantity(req.StockQuantity)
+	stockQuantity, sizeStockRows, err := resolveProductStockInputs(productType, sizes, req.StockQuantity, req.SizeStock)
 	if err != nil {
 		return nil, err
 	}
@@ -342,8 +365,17 @@ func (s *productService) Update(ctx context.Context, id uuid.UUID, req *dto.Upda
 	if err := s.productRepo.Update(ctx, product); err != nil {
 		return nil, err
 	}
+	if len(sizes) > 0 && productType == models.ProductTypeMerch {
+		if err := s.sizeStockRepo.ReplaceForProduct(ctx, product.ID, sizeStockRows); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := s.sizeStockRepo.ReplaceForProduct(ctx, product.ID, nil); err != nil {
+			return nil, err
+		}
+	}
 
-	return toProductDetail(product, dto.CurrencyEUR, sizesForResponse(product, sizes), s.resolveURL(ctx, product.ImageKey)), nil
+	return toProductDetail(product, dto.CurrencyEUR, sizesForResponse(product, sizes), s.resolveURL(ctx, product.ImageKey), sizeStockRows, ""), nil
 }
 
 func (s *productService) Delete(ctx context.Context, id uuid.UUID, authCtx *utils.AuthorizationContext) error {
@@ -556,7 +588,14 @@ func toProductStockInfo(p *models.Product) dto.ProductStockInfo {
 	return info
 }
 
-func toProductDetail(p *models.Product, currency string, sizes []string, imageURL string) *dto.ProductDetailResponse {
+func toProductDetail(
+	p *models.Product,
+	currency string,
+	sizes []string,
+	imageURL string,
+	sizeStocks []models.ProductSizeStock,
+	filterSize string,
+) *dto.ProductDetailResponse {
 	resp := &dto.ProductDetailResponse{
 		ID:          p.ID,
 		ProductType: p.ProductType,
@@ -564,7 +603,7 @@ func toProductDetail(p *models.Product, currency string, sizes []string, imageUR
 		Description: p.Description,
 		Price:       formatPrice(*p, currency),
 		ImageURL:    imageURL,
-		Stock:       toProductStockInfo(p),
+		Stock:       buildProductStockInfo(p, sizeStocks, filterSize),
 	}
 	if p.Subname != "" {
 		resp.Subname = p.Subname

@@ -33,44 +33,62 @@ type ProductDetailFilters struct {
 	Size     string
 }
 
+// SizeStockInput is per-size inventory on create/update for sized merch.
+type SizeStockInput struct {
+	Size          string `json:"size" binding:"required"`
+	StockQuantity *int   `json:"stock_quantity"`
+}
+
+// SizeStockInfo is inventory for one size in list/detail responses.
+type SizeStockInfo struct {
+	Size          string `json:"size"`
+	StockQuantity *int   `json:"stock_quantity,omitempty"`
+	IsUnlimited   bool   `json:"is_unlimited"`
+	InStock       bool   `json:"in_stock"`
+	SoldOut       bool   `json:"soldout,omitempty"`
+}
+
 // CreateProductRequest is the body for POST /api/v1/shop.
 type CreateProductRequest struct {
-	ProductType    string   `json:"product_type" binding:"required"`
-	Name           string   `json:"name" binding:"required"`
-	Subname        string   `json:"subname" binding:"max=60"`
-	Description    string   `json:"description"`
-	Category       string   `json:"category" binding:"required"`
-	PriceCents     int64    `json:"price_cents" binding:"required,min=0"`
-	PricePoints    int      `json:"price_points" binding:"required,min=0"`
-	ImageURL       string   `json:"image_url"`
-	SellerName     string   `json:"seller_name"`
-	AvailableSizes []string `json:"available_sizes"`
-	IsActive       *bool    `json:"is_active"`
-	StockQuantity  *int     `json:"stock_quantity"`
+	ProductType    string           `json:"product_type" binding:"required"`
+	Name           string           `json:"name" binding:"required"`
+	Subname        string           `json:"subname" binding:"max=60"`
+	Description    string           `json:"description"`
+	Category       string           `json:"category" binding:"required"`
+	PriceCents     int64            `json:"price_cents" binding:"required,min=0"`
+	PricePoints    int            `json:"price_points" binding:"required,min=0"`
+	ImageURL       string           `json:"image_url"`
+	SellerName     string           `json:"seller_name"`
+	AvailableSizes []string         `json:"available_sizes"`
+	IsActive       *bool            `json:"is_active"`
+	StockQuantity  *int             `json:"stock_quantity"`
+	SizeStock      []SizeStockInput `json:"size_stock"`
 }
 
 // UpdateProductRequest is the body for PUT /api/v1/shop/{id}.
 type UpdateProductRequest struct {
-	ProductType    string   `json:"product_type" binding:"required"`
-	Name           string   `json:"name" binding:"required"`
-	Subname        string   `json:"subname" binding:"max=60"`
-	Description    string   `json:"description"`
-	Category       string   `json:"category" binding:"required"`
-	PriceCents     int64    `json:"price_cents" binding:"required,min=0"`
-	PricePoints    int      `json:"price_points" binding:"required,min=0"`
-	ImageURL       string   `json:"image_url"`
-	SellerName     string   `json:"seller_name"`
-	AvailableSizes []string `json:"available_sizes"`
-	IsActive       *bool    `json:"is_active"`
-	StockQuantity  *int     `json:"stock_quantity"`
+	ProductType    string           `json:"product_type" binding:"required"`
+	Name           string           `json:"name" binding:"required"`
+	Subname        string           `json:"subname" binding:"max=60"`
+	Description    string           `json:"description"`
+	Category       string           `json:"category" binding:"required"`
+	PriceCents     int64            `json:"price_cents" binding:"required,min=0"`
+	PricePoints    int            `json:"price_points" binding:"required,min=0"`
+	ImageURL       string           `json:"image_url"`
+	SellerName     string           `json:"seller_name"`
+	AvailableSizes []string         `json:"available_sizes"`
+	IsActive       *bool            `json:"is_active"`
+	StockQuantity  *int             `json:"stock_quantity"`
+	SizeStock      []SizeStockInput `json:"size_stock"`
 }
 
 // ProductStockInfo describes inventory availability for list and detail responses.
 type ProductStockInfo struct {
-	StockQuantity *int `json:"stock_quantity,omitempty"`
-	IsUnlimited   bool `json:"is_unlimited"`
-	InStock       bool `json:"in_stock"`
-	SoldOut       bool `json:"soldout,omitempty"`
+	StockQuantity *int            `json:"stock_quantity,omitempty"`
+	IsUnlimited   bool            `json:"is_unlimited"`
+	InStock       bool            `json:"in_stock"`
+	SoldOut       bool            `json:"soldout,omitempty"`
+	BySize        []SizeStockInfo `json:"by_size,omitempty"`
 }
 
 // ProductItem is a single row on the shop list screen.

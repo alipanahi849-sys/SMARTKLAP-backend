@@ -26,20 +26,23 @@ type CartService interface {
 }
 
 type cartService struct {
-	cartRepo    repository.CartRepository
-	productRepo repository.ProductRepository
-	storage     storage.StorageProvider
+	cartRepo      repository.CartRepository
+	productRepo   repository.ProductRepository
+	sizeStockRepo repository.ProductSizeStockRepository
+	storage       storage.StorageProvider
 }
 
 func NewCartService(
 	cartRepo repository.CartRepository,
 	productRepo repository.ProductRepository,
+	sizeStockRepo repository.ProductSizeStockRepository,
 	storageProvider storage.StorageProvider,
 ) CartService {
 	return &cartService{
-		cartRepo:    cartRepo,
-		productRepo: productRepo,
-		storage:     storageProvider,
+		cartRepo:      cartRepo,
+		productRepo:   productRepo,
+		sizeStockRepo: sizeStockRepo,
+		storage:       storageProvider,
 	}
 }
 
@@ -256,6 +259,14 @@ func (s *cartService) AddItem(ctx context.Context, userID uuid.UUID, req *dto.Ad
 		return nil, err
 	}
 
+	sizeStocks, err := s.sizeStockRepo.ListByProductID(ctx, req.ProductID)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateProductForCartStock(product, size, sizeStocks); err != nil {
+		return nil, err
+	}
+
 	existing, err := s.cartRepo.FindLine(ctx, userID, req.ProductID, size)
 	if err != nil {
 		return nil, err
@@ -266,7 +277,7 @@ func (s *cartService) AddItem(ctx context.Context, userID uuid.UUID, req *dto.Ad
 		newQty = existing.Quantity + qty
 	}
 
-	if err := validateCartQuantityAgainstStock(product, newQty); err != nil {
+	if err := validateCartQuantityAgainstStock(product, size, sizeStocks, newQty); err != nil {
 		return nil, err
 	}
 
@@ -362,13 +373,12 @@ func normalizeCartSize(productType, raw string) (string, error) {
 }
 
 func validateProductForCart(product *models.Product, size string) error {
-	if !product.InStock() {
-		return errors.NewUnprocessable("Product is out of stock", nil)
-	}
-
-	if product.ProductType == models.ProductTypeMerch && size != "" {
+	if product.ProductType == models.ProductTypeMerch {
 		sizes := parseAvailableSizes(product.AvailableSizes)
-		if len(sizes) > 0 {
+		if len(sizes) > 0 && strings.TrimSpace(size) == "" {
+			return errors.NewBadRequest("size is required for this product", nil)
+		}
+		if size != "" {
 			found := false
 			for _, s := range sizes {
 				if s == size {
@@ -376,7 +386,7 @@ func validateProductForCart(product *models.Product, size string) error {
 					break
 				}
 			}
-			if !found {
+			if len(sizes) > 0 && !found {
 				return errors.NewBadRequest("Size not available", nil)
 			}
 		}
@@ -385,7 +395,35 @@ func validateProductForCart(product *models.Product, size string) error {
 	return nil
 }
 
-func validateCartQuantityAgainstStock(product *models.Product, requestedQty int) error {
+func validateProductForCartStock(product *models.Product, size string, sizeStocks []models.ProductSizeStock) error {
+	sizes := parseAvailableSizes(product.AvailableSizes)
+	if usesSizeStock(sizes, sizeStocks) {
+		row, ok := findSizeStock(sizeStocks, size)
+		if !ok {
+			return errors.NewBadRequest("Size not available", nil)
+		}
+		if !row.InStock() {
+			return errors.NewUnprocessable("Product size is out of stock", nil)
+		}
+		return nil
+	}
+
+	if !product.InStock() {
+		return errors.NewUnprocessable("Product is out of stock", nil)
+	}
+	return nil
+}
+
+func validateCartQuantityAgainstStock(product *models.Product, size string, sizeStocks []models.ProductSizeStock, requestedQty int) error {
+	sizes := parseAvailableSizes(product.AvailableSizes)
+	if usesSizeStock(sizes, sizeStocks) {
+		row, ok := findSizeStock(sizeStocks, size)
+		if !ok {
+			return errors.NewBadRequest("Size not available", nil)
+		}
+		return validateCartQuantityAgainstSizeStock(row, requestedQty)
+	}
+
 	if product.IsUnlimitedStock() {
 		return nil
 	}

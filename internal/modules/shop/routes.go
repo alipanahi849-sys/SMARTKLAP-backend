@@ -18,11 +18,13 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	db := database.GetDB()
 
 	productRepo := repository.NewProductRepository(db)
+	sizeStockRepo := repository.NewProductSizeStockRepository(db)
 	cartRepo := repository.NewCartRepository(db)
-	cartSvc := service.NewCartService(cartRepo, productRepo, storageinit.Provider())
+	cartSvc := service.NewCartService(cartRepo, productRepo, sizeStockRepo, storageinit.Provider())
 
 	shopSvc := service.NewProductServiceWithOptimizer(
 		productRepo,
+		sizeStockRepo,
 		authrepo.NewUserRepository(),
 		storageinit.Provider(),
 		cartSvc,
