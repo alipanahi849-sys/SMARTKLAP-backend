@@ -238,9 +238,14 @@ func (h *videoHandler) MarkSeen(c *gin.Context) {
 		return
 	}
 
-	if svcErr := h.svc.MarkSeen(c.Request.Context(), userID, videoID); svcErr != nil {
+	result, svcErr := h.svc.MarkSeen(c.Request.Context(), userID, videoID)
+	if svcErr != nil {
 		response.Error(c, svcErr)
 		return
 	}
-	response.SuccessWithMessage(c, response.EmptyObject, "Video marked as seen")
+	msg := "Video marked as seen"
+	if !result.FirstSeen {
+		msg = "Video already marked as seen"
+	}
+	response.SuccessWithMessage(c, result, msg)
 }

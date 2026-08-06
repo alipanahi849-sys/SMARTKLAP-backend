@@ -579,21 +579,49 @@ func TestVideo_MarkSeenIsIdempotentAndCounted(t *testing.T) {
 	videoRepo.videos[video.ID] = video
 	userID := uuid.New()
 
-	if err := svc.MarkSeen(context.Background(), userID, video.ID); err != nil {
+	resp, err := svc.MarkSeen(context.Background(), userID, video.ID)
+	if err != nil {
 		t.Fatalf("MarkSeen failed: %v", err)
 	}
-	if err := svc.MarkSeen(context.Background(), userID, video.ID); err != nil {
+	if !resp.FirstSeen || !resp.IsSeen || resp.ViewsCount != 1 {
+		t.Fatalf("unexpected first MarkSeen response: %+v", resp)
+	}
+	resp, err = svc.MarkSeen(context.Background(), userID, video.ID)
+	if err != nil {
 		t.Fatalf("second MarkSeen failed (should be idempotent): %v", err)
+	}
+	if resp.FirstSeen || !resp.IsSeen || resp.ViewsCount != 1 {
+		t.Fatalf("unexpected second MarkSeen response: %+v", resp)
 	}
 	if video.ViewsCount != 1 {
 		t.Fatalf("expected views_count 1, got %d", video.ViewsCount)
 	}
 }
 
+func TestVideo_MarkSeenCountsEachUserOnce(t *testing.T) {
+	videoRepo := newStubVideoRepo()
+	svc := videosvc.NewVideoService(videoRepo, stubProfileRepo{}, newMemoryStorage(), 50)
+
+	video := &videomodels.Video{ID: uuid.New(), UserID: uuid.New(), Status: videomodels.StatusPublished, Tags: "[]"}
+	videoRepo.videos[video.ID] = video
+	userA := uuid.New()
+	userB := uuid.New()
+
+	if _, err := svc.MarkSeen(context.Background(), userA, video.ID); err != nil {
+		t.Fatalf("MarkSeen userA failed: %v", err)
+	}
+	if _, err := svc.MarkSeen(context.Background(), userB, video.ID); err != nil {
+		t.Fatalf("MarkSeen userB failed: %v", err)
+	}
+	if video.ViewsCount != 2 {
+		t.Fatalf("expected views_count 2, got %d", video.ViewsCount)
+	}
+}
+
 func TestVideo_MarkSeenUnknownVideoNotFound(t *testing.T) {
 	svc := videosvc.NewVideoService(newStubVideoRepo(), stubProfileRepo{}, newMemoryStorage(), 50)
 
-	err := svc.MarkSeen(context.Background(), uuid.New(), uuid.New())
+	_, err := svc.MarkSeen(context.Background(), uuid.New(), uuid.New())
 	if err == nil {
 		t.Fatal("expected not-found error")
 	}
@@ -610,7 +638,7 @@ func TestVideo_FeedMarksSeenVideos(t *testing.T) {
 	videoRepo.videos[video.ID] = video
 	userID := uuid.New()
 
-	if err := svc.MarkSeen(context.Background(), userID, video.ID); err != nil {
+	if _, err := svc.MarkSeen(context.Background(), userID, video.ID); err != nil {
 		t.Fatalf("MarkSeen failed: %v", err)
 	}
 

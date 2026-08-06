@@ -128,7 +128,10 @@ func (r *videoRepository) Like(ctx context.Context, videoID, userID uuid.UUID) (
 	var created bool
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		like := models.VideoLike{VideoID: videoID, UserID: userID}
-		res := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&like)
+		res := tx.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "video_id"}, {Name: "user_id"}},
+			DoNothing: true,
+		}).Create(&like)
 		if res.Error != nil {
 			return errors.NewInternal("Failed to like video", res.Error)
 		}
@@ -189,7 +192,10 @@ func (r *videoRepository) MarkSeen(ctx context.Context, videoID, userID uuid.UUI
 	var created bool
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		view := models.VideoView{VideoID: videoID, UserID: userID}
-		res := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&view)
+		res := tx.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "video_id"}, {Name: "user_id"}},
+			DoNothing: true,
+		}).Create(&view)
 		if res.Error != nil {
 			return errors.NewInternal("Failed to mark video as seen", res.Error)
 		}
