@@ -263,12 +263,14 @@ func TestChant_ListGroupsIntoSections(t *testing.T) {
 type stubVideoRepo struct {
 	videos map[uuid.UUID]*videomodels.Video
 	likes  map[uuid.UUID]map[uuid.UUID]bool
+	views  map[uuid.UUID]map[uuid.UUID]bool
 }
 
 func newStubVideoRepo() *stubVideoRepo {
 	return &stubVideoRepo{
 		videos: map[uuid.UUID]*videomodels.Video{},
 		likes:  map[uuid.UUID]map[uuid.UUID]bool{},
+		views:  map[uuid.UUID]map[uuid.UUID]bool{},
 	}
 }
 
@@ -339,6 +341,28 @@ func (r *stubVideoRepo) Unlike(_ context.Context, videoID, userID uuid.UUID) (bo
 		return true, nil
 	}
 	return false, nil
+}
+
+func (r *stubVideoRepo) SeenVideoIDs(_ context.Context, userID uuid.UUID, videoIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
+	seen := map[uuid.UUID]bool{}
+	for _, id := range videoIDs {
+		if users, ok := r.views[id]; ok && users[userID] {
+			seen[id] = true
+		}
+	}
+	return seen, nil
+}
+
+func (r *stubVideoRepo) MarkSeen(_ context.Context, videoID, userID uuid.UUID) (bool, error) {
+	if users, ok := r.views[videoID]; ok && users[userID] {
+		return false, nil
+	}
+	if r.views[videoID] == nil {
+		r.views[videoID] = map[uuid.UUID]bool{}
+	}
+	r.views[videoID][userID] = true
+	r.videos[videoID].ViewsCount++
+	return true, nil
 }
 
 type stubProfileRepo struct{}
@@ -544,5 +568,63 @@ func TestVideo_FeedMarksLikedVideos(t *testing.T) {
 	}
 	if feed.Items[0].LikesCount != 1 {
 		t.Fatalf("expected likes_count 1, got %d", feed.Items[0].LikesCount)
+	}
+}
+
+func TestVideo_MarkSeenIsIdempotentAndCounted(t *testing.T) {
+	videoRepo := newStubVideoRepo()
+	svc := videosvc.NewVideoService(videoRepo, stubProfileRepo{}, newMemoryStorage(), 50)
+
+	video := &videomodels.Video{ID: uuid.New(), UserID: uuid.New(), Status: videomodels.StatusPublished, Tags: "[]"}
+	videoRepo.videos[video.ID] = video
+	userID := uuid.New()
+
+	if err := svc.MarkSeen(context.Background(), userID, video.ID); err != nil {
+		t.Fatalf("MarkSeen failed: %v", err)
+	}
+	if err := svc.MarkSeen(context.Background(), userID, video.ID); err != nil {
+		t.Fatalf("second MarkSeen failed (should be idempotent): %v", err)
+	}
+	if video.ViewsCount != 1 {
+		t.Fatalf("expected views_count 1, got %d", video.ViewsCount)
+	}
+}
+
+func TestVideo_MarkSeenUnknownVideoNotFound(t *testing.T) {
+	svc := videosvc.NewVideoService(newStubVideoRepo(), stubProfileRepo{}, newMemoryStorage(), 50)
+
+	err := svc.MarkSeen(context.Background(), uuid.New(), uuid.New())
+	if err == nil {
+		t.Fatal("expected not-found error")
+	}
+	if status := appErrorStatus(t, err); status != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", status)
+	}
+}
+
+func TestVideo_FeedMarksSeenVideos(t *testing.T) {
+	videoRepo := newStubVideoRepo()
+	svc := videosvc.NewVideoService(videoRepo, stubProfileRepo{}, newMemoryStorage(), 50)
+
+	video := &videomodels.Video{ID: uuid.New(), UserID: uuid.New(), Status: videomodels.StatusPublished, Tags: "[]"}
+	videoRepo.videos[video.ID] = video
+	userID := uuid.New()
+
+	if err := svc.MarkSeen(context.Background(), userID, video.ID); err != nil {
+		t.Fatalf("MarkSeen failed: %v", err)
+	}
+
+	feed, err := svc.Feed(context.Background(), userID, videodto.VideoListFilters{Limit: 20})
+	if err != nil {
+		t.Fatalf("Feed failed: %v", err)
+	}
+	if len(feed.Items) != 1 {
+		t.Fatalf("expected 1 feed item, got %d", len(feed.Items))
+	}
+	if !feed.Items[0].IsSeen {
+		t.Fatal("expected item to be marked seen")
+	}
+	if feed.Items[0].ViewsCount != 1 {
+		t.Fatalf("expected views_count 1, got %d", feed.Items[0].ViewsCount)
 	}
 }

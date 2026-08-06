@@ -33,6 +33,11 @@ type VideoRepository interface {
 	// Unlike removes a like and decrements the counter. Returns false when no
 	// like existed (idempotent).
 	Unlike(ctx context.Context, videoID, userID uuid.UUID) (bool, error)
+	// SeenVideoIDs returns which of the given videos the user has seen.
+	SeenVideoIDs(ctx context.Context, userID uuid.UUID, videoIDs []uuid.UUID) (map[uuid.UUID]bool, error)
+	// MarkSeen records a view and bumps the denormalized counter atomically.
+	// Returns false when the video was already seen (idempotent).
+	MarkSeen(ctx context.Context, videoID, userID uuid.UUID) (bool, error)
 }
 
 type videoRepository struct {
@@ -160,4 +165,44 @@ func (r *videoRepository) Unlike(ctx context.Context, videoID, userID uuid.UUID)
 		return nil
 	})
 	return removed, err
+}
+
+func (r *videoRepository) SeenVideoIDs(ctx context.Context, userID uuid.UUID, videoIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
+	seen := make(map[uuid.UUID]bool, len(videoIDs))
+	if len(videoIDs) == 0 {
+		return seen, nil
+	}
+
+	var ids []uuid.UUID
+	if err := r.db.WithContext(ctx).Model(&models.VideoView{}).
+		Where("user_id = ? AND video_id IN ?", userID, videoIDs).
+		Pluck("video_id", &ids).Error; err != nil {
+		return nil, errors.NewInternal("Failed to load views", err)
+	}
+	for _, id := range ids {
+		seen[id] = true
+	}
+	return seen, nil
+}
+
+func (r *videoRepository) MarkSeen(ctx context.Context, videoID, userID uuid.UUID) (bool, error) {
+	var created bool
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		view := models.VideoView{VideoID: videoID, UserID: userID}
+		res := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&view)
+		if res.Error != nil {
+			return errors.NewInternal("Failed to mark video as seen", res.Error)
+		}
+		if res.RowsAffected == 0 {
+			return nil // already seen — idempotent
+		}
+		created = true
+		if err := tx.Model(&models.Video{}).
+			Where("id = ?", videoID).
+			UpdateColumn("views_count", gorm.Expr("views_count + 1")).Error; err != nil {
+			return errors.NewInternal("Failed to update view counter", err)
+		}
+		return nil
+	})
+	return created, err
 }

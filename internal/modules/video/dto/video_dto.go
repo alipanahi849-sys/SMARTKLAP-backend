@@ -25,6 +25,7 @@ type VideoItem struct {
 	LikesCount   int         `json:"likes_count"`
 	ViewsCount   int         `json:"views_count"`
 	IsLiked      bool        `json:"is_liked"`
+	IsSeen       bool        `json:"is_seen"`
 }
 
 // VideoListFilters are query params for GET /videos/feed and GET /videos/mine.

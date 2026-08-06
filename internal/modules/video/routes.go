@@ -40,5 +40,6 @@ func RegisterRoutes(r *gin.RouterGroup) {
 		videos.POST("", h.Upload)
 		videos.POST("/:video_id/like", h.Like)
 		videos.DELETE("/:video_id/like", h.Unlike)
+		videos.POST("/:video_id/seen", h.MarkSeen)
 	}
 }

@@ -20,6 +20,7 @@ type VideoHandler interface {
 	Upload(c *gin.Context)
 	Like(c *gin.Context)
 	Unlike(c *gin.Context)
+	MarkSeen(c *gin.Context)
 }
 
 type videoHandler struct {
@@ -210,4 +211,36 @@ func (h *videoHandler) toggleLike(c *gin.Context, like bool) {
 		return
 	}
 	response.SuccessWithMessage(c, response.EmptyObject, "Video unliked successfully")
+}
+
+// Mark video as seen godoc
+//
+//	@Summary		Mark video as seen
+//	@Tags			videos
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			video_id	path	string	true	"Video ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
+//	@Failure		404	{object}	response.Response
+//	@Router			/api/v1/videos/{video_id}/seen [post]
+func (h *videoHandler) MarkSeen(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == uuid.Nil {
+		response.Unauthorized(c, "Invalid user")
+		return
+	}
+
+	videoID, err := uuid.Parse(c.Param("video_id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid video ID")
+		return
+	}
+
+	if svcErr := h.svc.MarkSeen(c.Request.Context(), userID, videoID); svcErr != nil {
+		response.Error(c, svcErr)
+		return
+	}
+	response.SuccessWithMessage(c, response.EmptyObject, "Video marked as seen")
 }

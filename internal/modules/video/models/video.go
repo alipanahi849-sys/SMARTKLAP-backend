@@ -57,3 +57,14 @@ type VideoLike struct {
 func (VideoLike) TableName() string {
 	return "video_likes"
 }
+
+// VideoView records that a user has seen a video (composite PK, one view per user).
+type VideoView struct {
+	VideoID   uuid.UUID `gorm:"type:uuid;primaryKey" json:"video_id"`
+	UserID    uuid.UUID `gorm:"type:uuid;primaryKey" json:"user_id"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (VideoView) TableName() string {
+	return "video_views"
+}

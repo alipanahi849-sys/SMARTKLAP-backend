@@ -47,6 +47,7 @@ type VideoService interface {
 	Upload(ctx context.Context, userID uuid.UUID, file *multipart.FileHeader, mediaType, caption string) (*dto.VideoUploadResponse, error)
 	Like(ctx context.Context, userID, videoID uuid.UUID) error
 	Unlike(ctx context.Context, userID, videoID uuid.UUID) error
+	MarkSeen(ctx context.Context, userID, videoID uuid.UUID) error
 }
 
 type videoService struct {
@@ -307,6 +308,27 @@ func (s *videoService) Unlike(ctx context.Context, userID, videoID uuid.UUID) er
 	return nil
 }
 
+func (s *videoService) MarkSeen(ctx context.Context, userID, videoID uuid.UUID) error {
+	video, err := s.videoRepo.FindByID(ctx, videoID)
+	if err != nil {
+		return err
+	}
+	if video.Status != models.StatusPublished {
+		return errors.NewNotFound("Video not found", nil)
+	}
+	created, err := s.videoRepo.MarkSeen(ctx, videoID, userID)
+	if err != nil {
+		return err
+	}
+	if created {
+		logger.Info().
+			Str("user_id", userID.String()).
+			Str("video_id", videoID.String()).
+			Msg("video_seen")
+	}
+	return nil
+}
+
 // ─── internals ────────────────────────────────────────────────────────────────
 
 func (s *videoService) buildFeedResponse(ctx context.Context, userID uuid.UUID, videos []models.Video, limit int) (*dto.VideoFeedResponse, error) {
@@ -323,6 +345,10 @@ func (s *videoService) buildFeedResponse(ctx context.Context, userID uuid.UUID, 
 	}
 
 	liked, err := s.videoRepo.LikedVideoIDs(ctx, userID, videoIDs)
+	if err != nil {
+		return nil, err
+	}
+	seen, err := s.videoRepo.SeenVideoIDs(ctx, userID, videoIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -358,6 +384,7 @@ func (s *videoService) buildFeedResponse(ctx context.Context, userID uuid.UUID, 
 			LikesCount: v.LikesCount,
 			ViewsCount: v.ViewsCount,
 			IsLiked:    liked[v.ID],
+			IsSeen:     seen[v.ID],
 		}
 	}
 
