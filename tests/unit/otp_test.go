@@ -96,6 +96,20 @@ func (r *stubUserRepo) AddPoints(_ context.Context, userID uuid.UUID, delta int)
 	return u.Points, nil
 }
 
+func (r *stubUserRepo) SpendPoints(_ context.Context, userID uuid.UUID, amount int) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	u, ok := r.byID[userID]
+	if !ok {
+		return 0, sharederrors.ErrUserNotFound
+	}
+	if u.Points < amount {
+		return 0, sharederrors.NewUnprocessable("Insufficient points balance", nil)
+	}
+	u.Points -= amount
+	return u.Points, nil
+}
+
 func (r *stubUserRepo) CountActive(context.Context) (int64, error) {
 	return int64(len(r.byID)), nil
 }

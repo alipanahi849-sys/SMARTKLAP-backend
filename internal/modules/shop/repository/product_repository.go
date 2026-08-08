@@ -32,6 +32,7 @@ type ProductRepository interface {
 	Create(ctx context.Context, product *models.Product) error
 	Update(ctx context.Context, product *models.Product) error
 	UpdateImageKey(ctx context.Context, id uuid.UUID, imageKey string) error
+	ImageKeysByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]string, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	// DecrementStockForOrder reduces limited stock after payment; sets sold_out when it reaches 0.
 	DecrementStockForOrder(ctx context.Context, id uuid.UUID, quantity int) error
@@ -116,6 +117,29 @@ func (r *productRepository) UpdateImageKey(ctx context.Context, id uuid.UUID, im
 		return errors.NewNotFound("Product not found", nil)
 	}
 	return nil
+}
+
+func (r *productRepository) ImageKeysByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]string, error) {
+	if len(ids) == 0 {
+		return map[uuid.UUID]string{}, nil
+	}
+
+	var rows []struct {
+		ID       uuid.UUID
+		ImageKey string
+	}
+	if err := r.db.WithContext(ctx).Model(&models.Product{}).
+		Select("id", "image_key").
+		Where("id IN ?", ids).
+		Scan(&rows).Error; err != nil {
+		return nil, errors.NewInternal("Failed to load product images", err)
+	}
+
+	out := make(map[uuid.UUID]string, len(rows))
+	for _, row := range rows {
+		out[row.ID] = row.ImageKey
+	}
+	return out, nil
 }
 
 func (r *productRepository) Create(ctx context.Context, product *models.Product) error {

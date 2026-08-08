@@ -32,6 +32,8 @@ type UserRepository interface {
 	// AddPoints atomically increments (or decrements) a user's points balance
 	// and returns the new balance.
 	AddPoints(ctx context.Context, userID uuid.UUID, delta int) (int, error)
+	// SpendPoints deducts points when the user has sufficient balance.
+	SpendPoints(ctx context.Context, userID uuid.UUID, amount int) (int, error)
 	// CountActive returns the number of active users (leaderboard total).
 	CountActive(ctx context.Context) (int64, error)
 	// CountWithMorePoints returns how many active users outrank the given
@@ -137,6 +139,38 @@ func (r *userRepository) AddPoints(ctx context.Context, userID uuid.UUID, delta 
 	}
 	if res.RowsAffected == 0 {
 		return 0, errors.ErrUserNotFound
+	}
+
+	var points int
+	if err := r.db.WithContext(ctx).Model(&models.User{}).
+		Where("id = ?", userID).
+		Pluck("points", &points).Error; err != nil {
+		return 0, errors.NewInternal("Failed to read user points", err)
+	}
+	return points, nil
+}
+
+func (r *userRepository) SpendPoints(ctx context.Context, userID uuid.UUID, amount int) (int, error) {
+	if amount <= 0 {
+		return 0, errors.NewBadRequest("amount must be positive", nil)
+	}
+
+	res := r.db.WithContext(ctx).Model(&models.User{}).
+		Where("id = ? AND points >= ?", userID, amount).
+		UpdateColumn("points", gorm.Expr("points - ?", amount))
+	if res.Error != nil {
+		return 0, errors.NewInternal("Failed to spend points", res.Error)
+	}
+	if res.RowsAffected == 0 {
+		var user models.User
+		err := r.db.WithContext(ctx).Select("points").First(&user, "id = ?", userID).Error
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return 0, errors.ErrUserNotFound
+			}
+			return 0, errors.NewInternal("Failed to read user points", err)
+		}
+		return 0, errors.NewUnprocessable("Insufficient points balance", nil)
 	}
 
 	var points int

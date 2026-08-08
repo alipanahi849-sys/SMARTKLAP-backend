@@ -112,6 +112,9 @@ services:
       STORAGE_PROVIDER: local
       STORAGE_LOCAL_ROOT: /data/uploads
       STORAGE_LOCAL_PUBLIC_URL: /uploads
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_APP_URL_SCHEME: ${STRIPE_APP_URL_SCHEME:-smartklap}
     volumes:
       - uploads_data:/data/uploads
     depends_on:

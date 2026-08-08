@@ -23,6 +23,9 @@ type CartRepository interface {
 	ListUserLines(ctx context.Context, userID uuid.UUID) ([]UserCartLine, error)
 	ListUserLinesAfter(ctx context.Context, userID uuid.UUID, limit int, after *CartCursorAnchor) ([]UserCartLine, error)
 	SumSubtotalCents(ctx context.Context, userID uuid.UUID) (int64, error)
+	SumSubtotalPoints(ctx context.Context, userID uuid.UUID) (int, error)
+	DeleteAllForUser(ctx context.Context, userID uuid.UUID) error
+	ClearUserCart(ctx context.Context, userID uuid.UUID) error
 	Create(ctx context.Context, item *models.CartItem) error
 	UpdateQuantity(ctx context.Context, id uuid.UUID, quantity int) error
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -126,6 +129,31 @@ func (r *cartRepository) SumSubtotalCents(ctx context.Context, userID uuid.UUID)
 		return 0, errors.NewInternal("Failed to sum cart subtotal", err)
 	}
 	return total, nil
+}
+
+func (r *cartRepository) SumSubtotalPoints(ctx context.Context, userID uuid.UUID) (int, error) {
+	var total int64
+	err := r.db.WithContext(ctx).
+		Table("cart_items").
+		Select("COALESCE(SUM(products.price_points * cart_items.quantity), 0)").
+		Joins("INNER JOIN products ON products.id = cart_items.product_id AND products.deleted_at IS NULL AND products.is_active = ?", true).
+		Where("cart_items.user_id = ?", userID).
+		Scan(&total).Error
+	if err != nil {
+		return 0, errors.NewInternal("Failed to sum cart subtotal points", err)
+	}
+	return int(total), nil
+}
+
+func (r *cartRepository) DeleteAllForUser(ctx context.Context, userID uuid.UUID) error {
+	return r.ClearUserCart(ctx, userID)
+}
+
+func (r *cartRepository) ClearUserCart(ctx context.Context, userID uuid.UUID) error {
+	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Delete(&models.CartItem{}).Error; err != nil {
+		return errors.NewInternal("Failed to clear cart", err)
+	}
+	return nil
 }
 
 func (r *cartRepository) Create(ctx context.Context, item *models.CartItem) error {

@@ -19,6 +19,19 @@ type Config struct {
 	Storage     Storage   `mapstructure:"storage"`
 	Realtime    Realtime  `mapstructure:"realtime"`
 	SMTP        SMTP      `mapstructure:"smtp"`
+	Stripe      Stripe    `mapstructure:"stripe"`
+}
+
+// Stripe holds card payment credentials (Stripe).
+type Stripe struct {
+	SecretKey      string `mapstructure:"secret_key"`
+	WebhookSecret  string `mapstructure:"webhook_secret"`
+	PublishableKey string `mapstructure:"publishable_key"`
+	AppURLScheme   string `mapstructure:"app_url_scheme"`
+}
+
+func (s Stripe) Enabled() bool {
+	return strings.TrimSpace(s.SecretKey) != ""
 }
 
 // SMTP holds outbound mail settings for OTP delivery.
@@ -249,6 +262,12 @@ func LoadFromEnv() error {
 			From:     getEnv("SMTP_FROM", "noreply@clap.local"),
 			FromName: getEnv("SMTP_FROM_NAME", "Clap"),
 			UseTLS:   getEnvAsBool("SMTP_USE_TLS", false),
+		},
+		Stripe: Stripe{
+			SecretKey:      getEnv("STRIPE_SECRET_KEY", ""),
+			WebhookSecret:  getEnv("STRIPE_WEBHOOK_SECRET", ""),
+			PublishableKey: getEnv("STRIPE_PUBLISHABLE_KEY", ""),
+			AppURLScheme:   getEnv("STRIPE_APP_URL_SCHEME", "smartklap"),
 		},
 	}
 
