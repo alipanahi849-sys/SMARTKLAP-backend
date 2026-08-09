@@ -16,7 +16,7 @@ import (
 // WebSocketRealtimeGateway is the production implementation of RealtimeGateway
 // and the supplementary typed-delivery methods used by business services.
 //
-// Business modules (matchruntime, playback, lyricssync) never import this package
+// Business modules (playback, lyricssync) never import this package
 // directly — they use the transport-agnostic interfaces defined at their own layer.
 type WebSocketRealtimeGateway struct {
 	cm      *ws.ConnectionManager
@@ -158,10 +158,7 @@ func (g *WebSocketRealtimeGateway) BroadcastEnvelope(ctx context.Context, env *d
 	return nil
 }
 
-// ─── MatchEventPublisher interface (used by matchruntime/service) ─────────────
-
 // PublishMatchEvent creates an EventEnvelope and publishes it to the match channel.
-// This method satisfies the matchruntime/service.MatchEventPublisher interface.
 func (g *WebSocketRealtimeGateway) PublishMatchEvent(
 	ctx context.Context,
 	matchID uuid.UUID,

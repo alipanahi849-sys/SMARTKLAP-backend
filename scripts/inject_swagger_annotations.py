@@ -178,13 +178,6 @@ def build_catalog() -> dict[str, dict[str, str]]:
     add(C, f, "UploadAvatar", summary="Upload avatar", method_path="post /api/v1/profile/me/avatar", tags="mobile-profile", auth=True, form=True, form_fields=[("file", "file", True, "Avatar image")])
     add(C, f, "Leaderboard", summary="Leaderboard", method_path="get /api/v1/profile/leaderboard", tags="mobile-profile", auth=True)
 
-    f = "internal/modules/matchruntime/handler/match_runtime_handler.go"
-    add(C, f, "Start", summary="Start match runtime", method_path="post /api/v1/matches/{id}/runtime/start", tags="match-runtime", auth=True, params=[("id", "string", "Match ID")])
-    add(C, f, "Pause", summary="Pause match runtime", method_path="post /api/v1/matches/{id}/runtime/pause", tags="match-runtime", auth=True, params=[("id", "string", "Match ID")])
-    add(C, f, "Resume", summary="Resume match runtime", method_path="post /api/v1/matches/{id}/runtime/resume", tags="match-runtime", auth=True, params=[("id", "string", "Match ID")])
-    add(C, f, "End", summary="End match runtime", method_path="post /api/v1/matches/{id}/runtime/end", tags="match-runtime", auth=True, params=[("id", "string", "Match ID")])
-    add(C, f, "GetState", summary="Get match runtime state", method_path="get /api/v1/matches/{id}/runtime", tags="match-runtime", params=[("id", "string", "Match ID")])
-
     f = "internal/modules/playback/handler/playback_handler.go"
     add(C, f, "ScheduleSong", summary="Schedule song playback", method_path="post /api/v1/songs/schedule", tags="playback", auth=True, body="dto.ScheduleSongRequest", success="201")
     add(C, f, "CancelSong", summary="Cancel scheduled song", method_path="delete /api/v1/songs/schedule/{id}", tags="playback", auth=True, params=[("id", "string", "Schedule ID")])

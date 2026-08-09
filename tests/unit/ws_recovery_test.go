@@ -33,17 +33,6 @@ func TestEventEnvelope_Timestamp_IsRecent(t *testing.T) {
 
 // ─── ReconnectionState stub tests ────────────────────────────────────────────
 
-// stubRuntimeRepo simulates a MatchRuntimeRepository with a predefined error.
-type stubRuntimeRepo struct {
-	err error
-}
-
-func (r *stubRuntimeRepo) Create(_ context.Context, _ interface{}) error { return nil }
-func (r *stubRuntimeRepo) FindByMatchID(_ context.Context, _ uuid.UUID) (interface{}, error) {
-	return nil, r.err
-}
-func (r *stubRuntimeRepo) Update(_ context.Context, _ interface{}) error { return nil }
-
 func TestReconnectionState_ServerTimePresent(t *testing.T) {
 	before := time.Now().UnixMilli()
 	state := &realtimesvc.ReconnectionState{

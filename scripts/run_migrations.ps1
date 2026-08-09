@@ -41,7 +41,8 @@ $migrations = @(
     "pkg/migrations/033_create_quizzes.up.sql",
     "pkg/migrations/035_create_news.up.sql",
     "pkg/migrations/036_create_videos.up.sql",
-    "pkg/migrations/037_create_match_statistics.up.sql"
+    "pkg/migrations/037_create_match_statistics.up.sql",
+    "pkg/migrations/052_drop_match_runtime_states.up.sql"
 )
 
 foreach ($migration in $migrations) {

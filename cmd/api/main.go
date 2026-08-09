@@ -36,8 +36,6 @@ import (
 	schedulerrepo "clap/internal/modules/eventscheduler/repository"
 	schedulersvc "clap/internal/modules/eventscheduler/service"
 	lyricssvc "clap/internal/modules/lyricssync/service"
-	"clap/internal/modules/matchruntime"
-	matchruntimerepo "clap/internal/modules/matchruntime/repository"
 	"clap/internal/modules/media"
 	"clap/internal/modules/order"
 	"clap/internal/modules/playback"
@@ -140,7 +138,6 @@ func run() error {
 
 	// Reconnection recovery service (cross-module read), now wired with lyrics.
 	recoverySvc := realtimesvc.NewReconnectionRecoveryService(
-		matchruntimerepo.NewMatchRuntimeRepository(db),
 		playbackrepo.NewPlaybackRepository(db),
 		lyricsSvc,
 	)
@@ -330,7 +327,6 @@ func setupRouter(deps routerDeps) *gin.Engine {
 			RetentionSvc: deps.retentionSvc,
 			HeartbeatSvc: deps.heartbeatSvc,
 		})
-		matchruntime.RegisterRoutesWithPublisher(v1, deps.wsGateway)
 		playback.RegisterRoutesWithEvents(v1, deps.songEventScheduler)
 	}
 
