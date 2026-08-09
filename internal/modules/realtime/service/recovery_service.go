@@ -8,6 +8,7 @@ import (
 	lyricssvc "clap/internal/modules/lyricssync/service"
 	playbackrepo "clap/internal/modules/playback/repository"
 	realtimeddto "clap/internal/modules/realtime/dto"
+	sharederrors "clap/internal/shared/errors"
 
 	"github.com/google/uuid"
 )
@@ -113,4 +114,15 @@ func (s *reconnectionRecoveryService) GetMatchState(ctx context.Context, matchID
 // Implemented by WebSocketRealtimeGateway.
 type EnvelopePublisher interface {
 	PublishToMatch(ctx context.Context, matchID uuid.UUID, env *realtimeddto.EventEnvelope) error
+}
+
+func isNotFound(err error) bool {
+	type coder interface{ StatusCode() int }
+	if c, ok := err.(coder); ok {
+		return c.StatusCode() == 404
+	}
+	if appErr, ok := err.(*sharederrors.AppError); ok {
+		return appErr.StatusCode == 404
+	}
+	return false
 }
