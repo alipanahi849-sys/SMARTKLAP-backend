@@ -147,6 +147,16 @@ func (r *stubChantRepo) HasIncompleteAtOrBefore(_ context.Context, _ uuid.UUID, 
 	return false, nil
 }
 
+func (r *stubChantRepo) FindStartingBetween(_ context.Context, from, to time.Time) ([]chantmodels.Chant, error) {
+	var result []chantmodels.Chant
+	for _, c := range r.chants {
+		if c.IsActive && c.ScheduledAt.After(from) && !c.ScheduledAt.After(to) {
+			result = append(result, *c)
+		}
+	}
+	return result, nil
+}
+
 func (r *stubChantRepo) CompletedChantIDs(_ context.Context, userID uuid.UUID, chantIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
 	done := map[uuid.UUID]bool{}
 	for _, id := range chantIDs {

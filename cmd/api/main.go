@@ -33,6 +33,7 @@ import (
 	"clap/cmd/api/docs"
 	"clap/internal/modules/auth"
 	"clap/internal/modules/chant"
+	chantrepo "clap/internal/modules/chant/repository"
 	schedulerrepo "clap/internal/modules/eventscheduler/repository"
 	schedulersvc "clap/internal/modules/eventscheduler/service"
 	lyricssvc "clap/internal/modules/lyricssync/service"
@@ -123,6 +124,17 @@ func run() error {
 	// Start the event dispatcher that polls the scheduler and publishes events.
 	dispatcher := realtimesvc.NewEventDispatcher(sched, schedEventRepo, wsGateway, 0)
 	go dispatcher.Run(appCtx)
+
+	// Notify match-channel subscribers ~2 minutes before an active chant starts
+	// (lyrics + user's today points + chant points, per user).
+	chantNotifier := realtimesvc.NewChantUpcomingNotifier(
+		chantrepo.NewChantRepository(db),
+		chant.NewService(),
+		cm,
+		wsGateway,
+		0, 0,
+	)
+	go chantNotifier.Run(appCtx)
 
 	// Periodic watchdog: reclaim stale processing events and rehydrate (CR-2).
 	go schedRecovery.RunWatchdog(appCtx, time.Duration(rtCfg.WatchdogIntervalMinutes)*time.Minute)
@@ -300,11 +312,19 @@ func setupRouter(deps routerDeps) *gin.Engine {
 
 	// Swagger UI (disabled in production). Empty Host = same origin as the page
 	// (important behind nginx / remote servers; avoids localhost:8080 in Try it out).
+	// /swagger and /swagger/ otherwise 404 under /*any — redirect to the UI entrypoint.
 	if config.AppConfig.Environment != "production" {
 		docs.SwaggerInfo.Host = ""
 		docs.SwaggerInfo.BasePath = "/"
 		docs.SwaggerInfo.Schemes = []string{"http", "https"}
-		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+		swaggerHandler := ginSwagger.WrapHandler(swaggerFiles.Handler)
+		router.GET("/swagger/*any", func(c *gin.Context) {
+			if any := c.Param("any"); any == "" || any == "/" {
+				c.Redirect(http.StatusFound, "/swagger/index.html")
+				return
+			}
+			swaggerHandler(c)
+		})
 	}
 
 	v1 := router.Group("/api/v1")
@@ -322,6 +342,7 @@ func setupRouter(deps routerDeps) *gin.Engine {
 		// Phase 4 + 4.2: Realtime Engine Foundation + WebSocket Delivery Layer
 		realtime.RegisterRoutesWithWS(v1, realtime.WSConfig{
 			CM:           deps.cm,
+			Gateway:      deps.wsGateway,
 			RecoverySvc:  deps.recoverySvc,
 			Metrics:      deps.wsMetrics,
 			RetentionSvc: deps.retentionSvc,

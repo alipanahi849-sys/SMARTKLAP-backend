@@ -35,6 +35,15 @@ type disconnectMsg struct {
 	userID uuid.UUID
 }
 
+// usersQuery asks the Hub loop for a snapshot of distinct user IDs — either
+// every connected user (all=true) or the subscribers of one channel.
+// reply MUST be buffered (cap >= 1) so the loop never blocks on a slow caller.
+type usersQuery struct {
+	channel string
+	all     bool
+	reply   chan []uuid.UUID
+}
+
 // ─── Hub ──────────────────────────────────────────────────────────────────────
 
 // Hub is the central message broker for WebSocket connections.
@@ -56,6 +65,7 @@ type Hub struct {
 	subscribe      chan subscriptionMsg
 	publish        chan publishMsg
 	disconnectUser chan disconnectMsg
+	usersQueries   chan usersQuery
 	done           chan struct{} // closed when Run() exits
 
 	metrics *metrics.Metrics
@@ -68,6 +78,7 @@ const (
 	hubSubscribeBuf      = 256
 	hubPublishBuf        = 1024
 	hubDisconnectUserBuf = 32
+	hubUsersQueryBuf     = 32
 
 	// hubShutdownDrainTimeout bounds how long teardown waits to drain
 	// unregister sends from per-client readPump goroutines so they never
@@ -83,6 +94,7 @@ func NewHub(m *metrics.Metrics) *Hub {
 		subscribe:      make(chan subscriptionMsg, hubSubscribeBuf),
 		publish:        make(chan publishMsg, hubPublishBuf),
 		disconnectUser: make(chan disconnectMsg, hubDisconnectUserBuf),
+		usersQueries:   make(chan usersQuery, hubUsersQueryBuf),
 		done:           make(chan struct{}),
 		metrics:        m,
 	}
@@ -129,6 +141,9 @@ func (h *Hub) Run(ctx context.Context) {
 
 		case d := <-h.disconnectUser:
 			h.safe("disconnect_user", func() { h.doDisconnectUser(d, clients, channels, users) })
+
+		case q := <-h.usersQueries:
+			h.safe("users_query", func() { h.doUsersQuery(q, channels, users) })
 
 		case msg := <-h.publish:
 			h.safe("publish", func() { h.dispatch(msg, clients, channels, users) })
@@ -259,6 +274,35 @@ func (h *Hub) doDisconnectUser(
 		Str("user_id", d.userID.String()).
 		Int("connections_closed", len(victims)).
 		Msg("user_disconnected")
+}
+
+// doUsersQuery snapshots distinct user IDs — all connected users or one
+// channel's subscribers. The reply channel is buffered, so this never blocks
+// the event loop.
+func (h *Hub) doUsersQuery(
+	q usersQuery,
+	channels map[string]map[*Client]bool,
+	users map[uuid.UUID]map[*Client]bool,
+) {
+	if q.all {
+		ids := make([]uuid.UUID, 0, len(users))
+		for id := range users {
+			ids = append(ids, id)
+		}
+		q.reply <- ids
+		return
+	}
+
+	members := channels[q.channel]
+	seen := make(map[uuid.UUID]bool, len(members))
+	ids := make([]uuid.UUID, 0, len(members))
+	for c := range members {
+		if !seen[c.UserID] {
+			seen[c.UserID] = true
+			ids = append(ids, c.UserID)
+		}
+	}
+	q.reply <- ids
 }
 
 // dispatch routes a publishMsg to the appropriate clients.

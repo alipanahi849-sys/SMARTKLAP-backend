@@ -2,9 +2,13 @@ package ws
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 )
+
+// ErrHubStopped is returned when a query reaches a Hub that has shut down.
+var ErrHubStopped = errors.New("websocket hub stopped")
 
 // ConnectionManager is the high-level API that the WebSocket gateway and handlers
 // use to interact with the Hub.  It hides Hub internals from the rest of the
@@ -58,6 +62,38 @@ func (cm *ConnectionManager) DisconnectUser(ctx context.Context, userID uuid.UUI
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
+	}
+}
+
+// ConnectedUserIDs returns the distinct user IDs of every connected client.
+// The snapshot is taken inside the Hub event loop, so it is consistent but
+// may be stale by the time it is used.
+func (cm *ConnectionManager) ConnectedUserIDs(ctx context.Context) ([]uuid.UUID, error) {
+	return cm.queryUsers(ctx, usersQuery{all: true, reply: make(chan []uuid.UUID, 1)})
+}
+
+// ChannelUserIDs returns the distinct user IDs currently subscribed to the
+// named channel.
+func (cm *ConnectionManager) ChannelUserIDs(ctx context.Context, channel string) ([]uuid.UUID, error) {
+	return cm.queryUsers(ctx, usersQuery{channel: channel, reply: make(chan []uuid.UUID, 1)})
+}
+
+func (cm *ConnectionManager) queryUsers(ctx context.Context, q usersQuery) ([]uuid.UUID, error) {
+	select {
+	case cm.hub.usersQueries <- q:
+	case <-cm.hub.done:
+		return nil, ErrHubStopped
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+
+	select {
+	case ids := <-q.reply:
+		return ids, nil
+	case <-cm.hub.done:
+		return nil, ErrHubStopped
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
 }
 

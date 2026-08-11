@@ -38,6 +38,10 @@ type ChantRepository interface {
 	// Complete records a completion and atomically credits the user's points.
 	// Returns created=false when the chant was already completed (idempotent).
 	Complete(ctx context.Context, chantID, userID uuid.UUID, points int) (totalPoints int, created bool, err error)
+	// FindStartingBetween returns active chants scheduled to start within
+	// (from, to], ordered by schedule time. Used by the realtime upcoming-chant
+	// notifier.
+	FindStartingBetween(ctx context.Context, from, to time.Time) ([]models.Chant, error)
 }
 
 type chantRepository struct {
@@ -163,6 +167,17 @@ func (r *chantRepository) TodayCompletions(ctx context.Context, userID uuid.UUID
 		}
 	}
 	return completions, chantByID, nil
+}
+
+func (r *chantRepository) FindStartingBetween(ctx context.Context, from, to time.Time) ([]models.Chant, error) {
+	var chants []models.Chant
+	if err := r.db.WithContext(ctx).Preload("Song").
+		Where("is_active = ? AND scheduled_at > ? AND scheduled_at <= ?", true, from, to).
+		Order("scheduled_at ASC").
+		Find(&chants).Error; err != nil {
+		return nil, errors.NewInternal("Failed to list upcoming chants", err)
+	}
+	return chants, nil
 }
 
 func (r *chantRepository) Complete(ctx context.Context, chantID, userID uuid.UUID, points int) (int, bool, error) {

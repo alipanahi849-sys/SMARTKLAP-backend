@@ -2,6 +2,7 @@ package realtime
 
 import (
 	realtimehandler "clap/internal/modules/realtime/handler"
+	"clap/internal/modules/realtime/gateway"
 	"clap/internal/modules/realtime/metrics"
 	realtimeservice "clap/internal/modules/realtime/service"
 	"clap/internal/modules/realtime/ws"
@@ -28,6 +29,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 // WSConfig holds the runtime dependencies needed to mount WebSocket endpoints.
 type WSConfig struct {
 	CM           *ws.ConnectionManager
+	Gateway      *gateway.WebSocketRealtimeGateway
 	RecoverySvc  realtimeservice.ReconnectionRecoveryService
 	Metrics      *metrics.Metrics
 	RetentionSvc realtimeservice.DataRetentionService
@@ -41,6 +43,7 @@ type WSConfig struct {
 //	GET  /realtime/ws                            — WebSocket upgrade (JWT required)
 //	GET  /realtime/session/:matchId              — reconnection recovery (JWT required)
 //	GET  /realtime/metrics                       — metrics snapshot (admin only)
+//	POST /realtime/admin/test-emit               — push a test WS event (admin only)
 //	POST /realtime/admin/cleanup/*               — data retention (admin only)
 func RegisterRoutesWithWS(r *gin.RouterGroup, cfg WSConfig) {
 	// Time-sync (always present)
@@ -75,16 +78,24 @@ func RegisterRoutesWithWS(r *gin.RouterGroup, cfg WSConfig) {
 			metricsHandler.GetMetrics,
 		)
 
-		// Data retention — admin only (CR-14).
-		if cfg.RetentionSvc != nil && cfg.HeartbeatSvc != nil {
-			retentionHandler := realtimehandler.NewRetentionHandler(cfg.RetentionSvc, cfg.HeartbeatSvc)
-			admin := rt.Group("/admin/cleanup")
-			admin.Use(middleware.Auth(), middleware.RequireRole(string(utils.RoleAdmin)))
-			{
-				admin.POST("/scheduler-events", retentionHandler.CleanupSchedulerEvents)
-				admin.POST("/realtime-events", retentionHandler.CleanupRealtimeEvents)
-				admin.POST("/heartbeats", retentionHandler.CleanupHeartbeats)
-				admin.POST("/all", retentionHandler.CleanupAll)
+		admin := rt.Group("/admin")
+		admin.Use(middleware.Auth(), middleware.RequireRole(string(utils.RoleAdmin)))
+		{
+			if cfg.Gateway != nil {
+				testEmit := realtimehandler.NewTestEmitHandler(cfg.Gateway)
+				admin.POST("/test-emit", testEmit.Emit)
+			}
+
+			// Data retention — admin only (CR-14).
+			if cfg.RetentionSvc != nil && cfg.HeartbeatSvc != nil {
+				retentionHandler := realtimehandler.NewRetentionHandler(cfg.RetentionSvc, cfg.HeartbeatSvc)
+				cleanup := admin.Group("/cleanup")
+				{
+					cleanup.POST("/scheduler-events", retentionHandler.CleanupSchedulerEvents)
+					cleanup.POST("/realtime-events", retentionHandler.CleanupRealtimeEvents)
+					cleanup.POST("/heartbeats", retentionHandler.CleanupHeartbeats)
+					cleanup.POST("/all", retentionHandler.CleanupAll)
+				}
 			}
 		}
 	}

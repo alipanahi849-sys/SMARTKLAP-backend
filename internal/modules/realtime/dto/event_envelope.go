@@ -14,6 +14,9 @@ const (
 	EventTypeSongPlaybackCancelled = "song.playback.cancelled"
 	EventTypeLyricsLineChanged     = "lyrics.line.changed"
 	EventTypeServerNotification    = "server.notification"
+	// EventTypeChantUpcoming is emitted (per user) when an active chant is
+	// about to start (~2 minutes before its scheduled time).
+	EventTypeChantUpcoming = "chant.upcoming"
 
 	// Control events (client ↔ server)
 	EventTypePing = "ping"
