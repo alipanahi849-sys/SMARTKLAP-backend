@@ -326,7 +326,7 @@ func newRealtimeRouter(t *testing.T) *gin.Engine {
 	t.Cleanup(cancel)
 	cm := ws.NewConnectionManager(hub)
 
-	recoverySvc := realtimesvc.NewReconnectionRecoveryService(nil, nil)
+	recoverySvc := realtimesvc.NewReconnectionRecoveryService(nil, nil, nil)
 
 	r := gin.New()
 	v1 := r.Group("/api/v1")

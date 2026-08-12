@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	chantrepo "clap/internal/modules/chant/repository"
 	lyricsdto "clap/internal/modules/lyricssync/dto"
 	lyricssvc "clap/internal/modules/lyricssync/service"
 	playbackrepo "clap/internal/modules/playback/repository"
@@ -19,6 +20,7 @@ import (
 type ReconnectionState struct {
 	ServerTimeMs int64                               `json:"server_time_ms"`
 	ActiveSong   *ActiveSongSnapshot                 `json:"active_song,omitempty"`
+	ActiveChant  *ActiveChantSnapshot                `json:"active_chant,omitempty"`
 	CurrentLyric *lyricsdto.LyricAtTimestampResponse `json:"current_lyric,omitempty"`
 }
 
@@ -30,6 +32,16 @@ type ActiveSongSnapshot struct {
 	DurationMs  int64     `json:"duration_ms"`
 }
 
+// ActiveChantSnapshot describes a chant currently in progress for a match.
+type ActiveChantSnapshot struct {
+	ChantID    string    `json:"chant_id"`
+	SongID     string    `json:"song_id"`
+	Title      string    `json:"title"`
+	StartsAt   time.Time `json:"starts_at"`
+	DurationMs int64     `json:"duration_ms"`
+	OffsetMs   int64     `json:"offset_ms"`
+}
+
 // ReconnectionRecoveryService aggregates cross-module state for the reconnection
 // endpoint.  It reads from repositories directly, bypassing service-layer auth,
 // to stay lightweight and fast.
@@ -39,6 +51,7 @@ type ReconnectionRecoveryService interface {
 
 type reconnectionRecoveryService struct {
 	playbackRepo playbackrepo.PlaybackRepository
+	chantRepo    chantrepo.ChantRepository
 	lyricsSvc    lyricssvc.LyricsSyncService
 }
 
@@ -46,24 +59,45 @@ type reconnectionRecoveryService struct {
 // lyricsSvc is optional — pass nil to skip lyrics recovery.
 func NewReconnectionRecoveryService(
 	playbackRepo playbackrepo.PlaybackRepository,
+	chantRepo chantrepo.ChantRepository,
 	lyricsSvc lyricssvc.LyricsSyncService,
 ) ReconnectionRecoveryService {
 	return &reconnectionRecoveryService{
 		playbackRepo: playbackRepo,
+		chantRepo:    chantRepo,
 		lyricsSvc:    lyricsSvc,
 	}
 }
 
 func (s *reconnectionRecoveryService) GetMatchState(ctx context.Context, matchID uuid.UUID) (*ReconnectionState, error) {
+	now := time.Now().UTC()
 	state := &ReconnectionState{
-		ServerTimeMs: time.Now().UnixMilli(),
+		ServerTimeMs: now.UnixMilli(),
 	}
 
-	// Active song (currently playing or the next pending one).
-	upcoming, err := s.playbackRepo.FindUpcoming(ctx, matchID, time.Now().Add(-time.Hour))
+	// Active chant takes priority — it drives the mobile countdown/live flow.
+	if s.chantRepo != nil {
+		if chant, err := s.chantRepo.FindActiveByMatch(ctx, matchID, now); err == nil && chant != nil {
+			offsetMs := now.Sub(chant.ScheduledAt).Milliseconds()
+			if offsetMs < 0 {
+				offsetMs = 0
+			}
+			state.ActiveChant = &ActiveChantSnapshot{
+				ChantID:    chant.ID.String(),
+				SongID:     chant.SongID.String(),
+				Title:      chant.Title,
+				StartsAt:   chant.ScheduledAt,
+				DurationMs: int64(chant.DurationSeconds) * 1000,
+				OffsetMs:   offsetMs,
+			}
+			s.populateCurrentLyric(ctx, chant.SongID, offsetMs, state)
+			return state, nil
+		}
+	}
+
+	// Fallback: active scheduled song playback.
+	upcoming, err := s.playbackRepo.FindUpcoming(ctx, matchID, now.Add(-time.Hour))
 	if err == nil && len(upcoming) > 0 {
-		// Take the most recent schedule that started in the past or is the next one.
-		now := time.Now()
 		var active *ActiveSongSnapshot
 		for _, sch := range upcoming {
 			if sch.ScheduledAt.Before(now) || sch.ScheduledAt.Equal(now) {
@@ -75,8 +109,7 @@ func (s *reconnectionRecoveryService) GetMatchState(ctx context.Context, matchID
 				}
 			}
 		}
-		if active == nil && len(upcoming) > 0 {
-			// No song started yet — use the next upcoming one.
+		if active == nil {
 			sch := upcoming[0]
 			active = &ActiveSongSnapshot{
 				ScheduleID:  sch.ID.String(),
@@ -86,26 +119,35 @@ func (s *reconnectionRecoveryService) GetMatchState(ctx context.Context, matchID
 			}
 		}
 		state.ActiveSong = active
-	}
-
-	// Current lyric (optional, best-effort). Language is resolved from stored
-	// lyrics rather than hardcoded (F-021). The lyric offset is measured from
-	// the song's start, not from match elapsed time.
-	if s.lyricsSvc != nil && state.ActiveSong != nil {
-		songID, parseErr := uuid.Parse(state.ActiveSong.SongID)
-		if parseErr == nil {
-			if language, langErr := s.lyricsSvc.FirstAvailableLanguage(ctx, songID); langErr == nil {
-				songOffsetMs := time.Now().UnixMilli() - state.ActiveSong.ScheduledAt.UnixMilli()
-				if songOffsetMs >= 0 {
-					if lyricResp, lyricErr := s.lyricsSvc.GetLyricsAtTimestamp(ctx, songID, language, songOffsetMs); lyricErr == nil {
-						state.CurrentLyric = lyricResp
-					}
+		if active != nil {
+			songOffsetMs := now.UnixMilli() - active.ScheduledAt.UnixMilli()
+			if songOffsetMs >= 0 {
+				if songID, parseErr := uuid.Parse(active.SongID); parseErr == nil {
+					s.populateCurrentLyric(ctx, songID, songOffsetMs, state)
 				}
 			}
 		}
 	}
 
 	return state, nil
+}
+
+func (s *reconnectionRecoveryService) populateCurrentLyric(
+	ctx context.Context,
+	songID uuid.UUID,
+	offsetMs int64,
+	state *ReconnectionState,
+) {
+	if s.lyricsSvc == nil || offsetMs < 0 {
+		return
+	}
+	language, langErr := s.lyricsSvc.FirstAvailableLanguage(ctx, songID)
+	if langErr != nil {
+		return
+	}
+	if lyricResp, lyricErr := s.lyricsSvc.GetLyricsAtTimestamp(ctx, songID, language, offsetMs); lyricErr == nil {
+		state.CurrentLyric = lyricResp
+	}
 }
 
 // ─── EventEnvelopePublisher (used by lyric scheduler) ────────────────────────

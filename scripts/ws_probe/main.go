@@ -61,7 +61,7 @@ func main() {
 		var pretty map[string]any
 		if json.Unmarshal(raw, &pretty) == nil {
 			out, _ := json.MarshalIndent(pretty, "", "  ")
-			fmt.Printf("--- event @ %s ---\n%s\n", time.Now().Format("15:04:05"), out)
+			fmt.Printf("--- event @ %s ---\n%s\n", time.Now().Format("15:04:05.000"), out)
 			if pretty["type"] == "chant.upcoming" {
 				fmt.Println("SUCCESS: chant.upcoming received")
 				return

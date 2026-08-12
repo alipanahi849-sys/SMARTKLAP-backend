@@ -168,3 +168,14 @@ func (g *WebSocketRealtimeGateway) PublishMatchEvent(
 	env := dto.NewEnvelope(eventType, &matchID, payload)
 	return g.PublishToMatch(ctx, matchID, env)
 }
+
+// BroadcastEvent creates an EventEnvelope and delivers it to every connected client.
+func (g *WebSocketRealtimeGateway) BroadcastEvent(
+	ctx context.Context,
+	matchID uuid.UUID,
+	eventType string,
+	payload any,
+) error {
+	env := dto.NewEnvelope(eventType, &matchID, payload)
+	return g.BroadcastEnvelope(ctx, env)
+}

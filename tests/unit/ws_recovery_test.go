@@ -108,6 +108,10 @@ func (g *stubDispatchGateway) PublishMatchEvent(_ context.Context, matchID uuid.
 	return nil
 }
 
+func (g *stubDispatchGateway) BroadcastEvent(_ context.Context, matchID uuid.UUID, eventType string, payload any) error {
+	return g.PublishMatchEvent(context.Background(), matchID, eventType, payload)
+}
+
 func TestEventTypeConstants(t *testing.T) {
 	assert.Equal(t, "match.runtime.updated", dto.EventTypeMatchRuntimeUpdated)
 	assert.Equal(t, "song.playback.started", dto.EventTypeSongPlaybackStarted)

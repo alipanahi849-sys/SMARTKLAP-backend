@@ -157,6 +157,19 @@ func (r *stubChantRepo) FindStartingBetween(_ context.Context, from, to time.Tim
 	return result, nil
 }
 
+func (r *stubChantRepo) FindActiveByMatch(_ context.Context, matchID uuid.UUID, now time.Time) (*chantmodels.Chant, error) {
+	for _, c := range r.chants {
+		if !c.IsActive || c.MatchID != matchID {
+			continue
+		}
+		end := c.ScheduledAt.Add(time.Duration(c.DurationSeconds) * time.Second)
+		if !c.ScheduledAt.After(now) && end.After(now) {
+			return c, nil
+		}
+	}
+	return nil, nil
+}
+
 func (r *stubChantRepo) CompletedChantIDs(_ context.Context, userID uuid.UUID, chantIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
 	done := map[uuid.UUID]bool{}
 	for _, id := range chantIDs {

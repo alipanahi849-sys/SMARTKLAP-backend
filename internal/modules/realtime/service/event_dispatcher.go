@@ -17,18 +17,22 @@ import (
 // EventDispatcher.  The production implementation is WebSocketRealtimeGateway.
 type DispatchGateway interface {
 	PublishMatchEvent(ctx context.Context, matchID uuid.UUID, eventType string, payload any) error
+	// BroadcastEvent delivers to every connected client (used for chant.started).
+	BroadcastEvent(ctx context.Context, matchID uuid.UUID, eventType string, payload any) error
 }
 
 // dispatchPayload is the expected structure stored in SchedulerEvent.PayloadJSON
 // for events dispatched through the realtime gateway.
 type dispatchPayload struct {
 	MatchID     string `json:"match_id"`
+	ChantID     string `json:"chant_id,omitempty"`
 	SongID      string `json:"song_id,omitempty"`
 	ScheduleID  string `json:"schedule_id,omitempty"`
 	EventType   string `json:"event_type"`
 	Line        string `json:"line,omitempty"`
 	Index       int    `json:"index,omitempty"`
 	TimestampMs int64  `json:"timestamp_ms,omitempty"`
+	StartsAt    string `json:"starts_at,omitempty"`
 }
 
 // EventDispatcher is a background service that polls the in-memory scheduler
@@ -162,7 +166,13 @@ func (d *EventDispatcher) process(ctx context.Context, item *schedulersvc.Schedu
 	}
 	clientPayload := d.buildClientPayload(eventType, &p)
 
-	publishErr := d.gateway.PublishMatchEvent(ctx, matchID, eventType, clientPayload)
+	var publishErr error
+	switch eventType {
+	case realtimedto.EventTypeChantStarted:
+		publishErr = d.gateway.BroadcastEvent(ctx, matchID, eventType, clientPayload)
+	default:
+		publishErr = d.gateway.PublishMatchEvent(ctx, matchID, eventType, clientPayload)
+	}
 	if publishErr != nil {
 		reason := "gateway publish failed: " + publishErr.Error()
 		_ = d.eventRepo.MarkFailed(ctx, itemID, reason)
@@ -209,13 +219,27 @@ func (d *EventDispatcher) buildClientPayload(eventType string, p *dispatchPayloa
 			"match_id":    p.MatchID,
 		}
 	case realtimedto.EventTypeLyricsLineChanged, "lyric_sync":
-		return map[string]any{
+		out := map[string]any{
 			"line":         p.Line,
 			"index":        p.Index,
 			"timestamp_ms": p.TimestampMs,
 			"match_id":     p.MatchID,
 			"song_id":      p.SongID,
 		}
+		if p.ChantID != "" {
+			out["chant_id"] = p.ChantID
+		}
+		return out
+	case realtimedto.EventTypeChantStarted:
+		out := map[string]any{
+			"chant_id": p.ChantID,
+			"match_id": p.MatchID,
+			"song_id":  p.SongID,
+		}
+		if p.StartsAt != "" {
+			out["starts_at"] = p.StartsAt
+		}
+		return out
 	default:
 		return map[string]any{
 			"event_type":  eventType,

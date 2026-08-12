@@ -17,9 +17,10 @@ const (
 	// defaultChantLeadTime is how far before a chant's scheduled start the
 	// upcoming notification is emitted.
 	defaultChantLeadTime = 2 * time.Minute
-	// defaultChantNotifierInterval is how often the DB is polled for chants
-	// entering the lead-time window.
-	defaultChantNotifierInterval = 15 * time.Second
+	// defaultChantNotifierInterval is how often the DB is polled and the
+	// upcoming event is re-broadcast. Kept short so a device that connects
+	// (or reconnects) mid-window joins the countdown almost immediately.
+	defaultChantNotifierInterval = 5 * time.Second
 )
 
 // ChantLyricsProvider builds the full synced-lyrics payload for a chant.
@@ -54,13 +55,12 @@ type ChantUpcomingPayload struct {
 	ChantPoints     int                           `json:"chant_points"`
 }
 
-// pendingChant tracks one chant inside the lead-time window: its cached lyrics
-// and which users have already been notified (so each user gets the event
-// exactly once, including users who subscribe mid-window).
+// pendingChant caches per-chant data (lyrics) for the duration of the
+// lead-time window so they are loaded from the DB only once.
 type pendingChant struct {
-	chant  chantmodels.Chant
-	lyrics *chantdto.ChantLyricsResponse
-	sent   map[uuid.UUID]bool
+	chant           chantmodels.Chant
+	lyrics          *chantdto.ChantLyricsResponse
+	eventsScheduled bool
 }
 
 // ChantUpcomingNotifier is a background service that watches for active chants
@@ -68,18 +68,26 @@ type pendingChant struct {
 // event to every connected user, regardless of channel subscriptions — the
 // mobile app must surface the countdown no matter which screen is open.
 //
+// The event is deliberately re-broadcast on every tick for the whole window:
+// devices that connect or reconnect mid-window still receive it (at most one
+// interval late), and multiple devices on the same account all get their own
+// copy. The app deduplicates by chant_id and simply refreshes the countdown
+// data on repeats. Because the countdown is anchored to the absolute starts_at
+// timestamp, late delivery never shifts the actual start moment.
+//
 // Lifecycle mirrors EventDispatcher:
 //
 //	n := NewChantUpcomingNotifier(...)
 //	go n.Run(ctx)   // blocks until ctx is cancelled
 //	<-n.Done()
 type ChantUpcomingNotifier struct {
-	chantRepo chantrepo.ChantRepository
-	lyricsSvc ChantLyricsProvider
-	users     ConnectedUserLister
-	publisher UserEnvelopePublisher
-	interval  time.Duration
-	leadTime  time.Duration
+	chantRepo      chantrepo.ChantRepository
+	lyricsSvc      ChantLyricsProvider
+	eventScheduler ChantEventScheduler
+	users          ConnectedUserLister
+	publisher      UserEnvelopePublisher
+	interval       time.Duration
+	leadTime       time.Duration
 
 	// pending is touched only by the Run goroutine — no locking needed.
 	pending map[uuid.UUID]*pendingChant
@@ -87,10 +95,11 @@ type ChantUpcomingNotifier struct {
 }
 
 // NewChantUpcomingNotifier constructs the notifier.
-// Pass 0 for interval/leadTime to use the defaults (15s poll, 2min lead).
+// Pass 0 for interval/leadTime to use the defaults (5s poll, 2min lead).
 func NewChantUpcomingNotifier(
 	chantRepo chantrepo.ChantRepository,
 	lyricsSvc ChantLyricsProvider,
+	eventScheduler ChantEventScheduler,
 	users ConnectedUserLister,
 	publisher UserEnvelopePublisher,
 	interval, leadTime time.Duration,
@@ -102,14 +111,15 @@ func NewChantUpcomingNotifier(
 		leadTime = defaultChantLeadTime
 	}
 	return &ChantUpcomingNotifier{
-		chantRepo: chantRepo,
-		lyricsSvc: lyricsSvc,
-		users:     users,
-		publisher: publisher,
-		interval:  interval,
-		leadTime:  leadTime,
-		pending:   make(map[uuid.UUID]*pendingChant),
-		done:      make(chan struct{}),
+		chantRepo:      chantRepo,
+		lyricsSvc:      lyricsSvc,
+		eventScheduler: eventScheduler,
+		users:          users,
+		publisher:      publisher,
+		interval:       interval,
+		leadTime:       leadTime,
+		pending:        make(map[uuid.UUID]*pendingChant),
+		done:           make(chan struct{}),
 	}
 }
 
@@ -144,8 +154,12 @@ func (n *ChantUpcomingNotifier) tick(ctx context.Context, now time.Time) {
 		chant := chants[i]
 		entry := n.pending[chant.ID]
 		if entry == nil {
-			entry = &pendingChant{chant: chant, sent: make(map[uuid.UUID]bool)}
+			entry = &pendingChant{chant: chant}
 			n.pending[chant.ID] = entry
+			logger.Info().
+				Str("chant_id", chant.ID.String()).
+				Time("starts_at", chant.ScheduledAt).
+				Msg("chant notifier: chant entered notify window")
 		}
 
 		// Load lyrics once per chant; retry on later ticks if it failed.
@@ -161,6 +175,17 @@ func (n *ChantUpcomingNotifier) tick(ctx context.Context, now time.Time) {
 			}
 		}
 
+		if n.eventScheduler != nil && !entry.eventsScheduled {
+			if schedErr := n.eventScheduler.ScheduleChantEvents(ctx, chant); schedErr != nil {
+				logger.Warn().
+					Str("chant_id", chant.ID.String()).
+					Err(schedErr).
+					Msg("chant notifier: failed to schedule chant events; will retry next tick")
+			} else {
+				entry.eventsScheduled = true
+			}
+		}
+
 		n.notifyUsers(ctx, entry)
 	}
 
@@ -172,8 +197,9 @@ func (n *ChantUpcomingNotifier) tick(ctx context.Context, now time.Time) {
 	}
 }
 
-// notifyUsers sends the event to every connected user that has not been
-// notified about this chant yet.
+// notifyUsers re-broadcasts the event to every currently connected user.
+// Repeats are intentional (see the type comment); per-user failures are
+// logged and simply retried on the next tick.
 func (n *ChantUpcomingNotifier) notifyUsers(ctx context.Context, entry *pendingChant) {
 	chant := entry.chant
 
@@ -191,14 +217,10 @@ func (n *ChantUpcomingNotifier) notifyUsers(ctx context.Context, entry *pendingC
 		startsIn = 0
 	}
 
+	notified := 0
 	for _, userID := range userIDs {
-		if entry.sent[userID] {
-			continue
-		}
-
 		todayPoints, pointsErr := n.chantRepo.TodayPoints(ctx, userID)
 		if pointsErr != nil {
-			// Skip so the user is retried on the next tick.
 			logger.Warn().
 				Str("chant_id", chant.ID.String()).
 				Str("user_id", userID.String()).
@@ -227,12 +249,14 @@ func (n *ChantUpcomingNotifier) notifyUsers(ctx context.Context, entry *pendingC
 				Msg("chant notifier: publish failed")
 			continue
 		}
-		entry.sent[userID] = true
+		notified++
+	}
 
-		logger.Info().
+	if notified > 0 {
+		logger.Debug().
 			Str("chant_id", chant.ID.String()).
-			Str("user_id", userID.String()).
+			Int("users", notified).
 			Int64("starts_in_seconds", startsIn).
-			Msg("chant notifier: upcoming chant notified")
+			Msg("chant notifier: upcoming chant broadcast")
 	}
 }

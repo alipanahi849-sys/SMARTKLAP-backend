@@ -184,6 +184,10 @@ func (g *capturingGateway) PublishMatchEvent(_ context.Context, matchID uuid.UUI
 	g.captured = append(g.captured, capturedEvent{MatchID: matchID, EventType: eventType, Payload: payload})
 	return nil
 }
+
+func (g *capturingGateway) BroadcastEvent(_ context.Context, matchID uuid.UUID, eventType string, payload any) error {
+	return g.PublishMatchEvent(context.Background(), matchID, eventType, payload)
+}
 func (g *capturingGateway) count() int {
 	g.mu.Lock()
 	defer g.mu.Unlock()

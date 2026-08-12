@@ -125,11 +125,21 @@ func run() error {
 	dispatcher := realtimesvc.NewEventDispatcher(sched, schedEventRepo, wsGateway, 0)
 	go dispatcher.Run(appCtx)
 
-	// Notify match-channel subscribers ~2 minutes before an active chant starts
-	// (lyrics + user's today points + chant points, per user).
+	// Lyrics + durable event scheduler powering the realtime song/chant pipeline.
+	lyricsSvc := lyricssvc.NewLyricsSyncService(db)
+	eventSchedulerSvc := schedulersvc.NewEventSchedulerService(schedEventRepo, sched)
+	chantEventScheduler := realtimesvc.NewChantEventScheduler(
+		realtimerepo.NewRealtimeSessionRepository(db),
+		lyricsSvc,
+		eventSchedulerSvc,
+	)
+
+	// Notify connected users ~2 minutes before an active chant starts and
+	// auto-schedule chant.started + lyric sync events.
 	chantNotifier := realtimesvc.NewChantUpcomingNotifier(
 		chantrepo.NewChantRepository(db),
 		chant.NewService(),
+		chantEventScheduler,
 		cm,
 		wsGateway,
 		0, 0,
@@ -139,9 +149,6 @@ func run() error {
 	// Periodic watchdog: reclaim stale processing events and rehydrate (CR-2).
 	go schedRecovery.RunWatchdog(appCtx, time.Duration(rtCfg.WatchdogIntervalMinutes)*time.Minute)
 
-	// Lyrics + durable event scheduler powering the realtime song pipeline (CR-5).
-	lyricsSvc := lyricssvc.NewLyricsSyncService(db)
-	eventSchedulerSvc := schedulersvc.NewEventSchedulerService(schedEventRepo, sched)
 	songEventScheduler := playbacksvc.NewSongEventScheduler(
 		realtimerepo.NewRealtimeSessionRepository(db),
 		lyricsSvc,
@@ -151,6 +158,7 @@ func run() error {
 	// Reconnection recovery service (cross-module read), now wired with lyrics.
 	recoverySvc := realtimesvc.NewReconnectionRecoveryService(
 		playbackrepo.NewPlaybackRepository(db),
+		chantrepo.NewChantRepository(db),
 		lyricsSvc,
 	)
 

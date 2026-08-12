@@ -42,6 +42,8 @@ type ChantRepository interface {
 	// (from, to], ordered by schedule time. Used by the realtime upcoming-chant
 	// notifier.
 	FindStartingBetween(ctx context.Context, from, to time.Time) ([]models.Chant, error)
+	// FindActiveByMatch returns the chant currently in progress for a match, if any.
+	FindActiveByMatch(ctx context.Context, matchID uuid.UUID, now time.Time) (*models.Chant, error)
 }
 
 type chantRepository struct {
@@ -178,6 +180,24 @@ func (r *chantRepository) FindStartingBetween(ctx context.Context, from, to time
 		return nil, errors.NewInternal("Failed to list upcoming chants", err)
 	}
 	return chants, nil
+}
+
+func (r *chantRepository) FindActiveByMatch(ctx context.Context, matchID uuid.UUID, now time.Time) (*models.Chant, error) {
+	var chant models.Chant
+	err := r.db.WithContext(ctx).Preload("Song").
+		Where(
+			"match_id = ? AND is_active = ? AND scheduled_at <= ? AND scheduled_at + make_interval(secs => duration_seconds) > ?",
+			matchID, true, now, now,
+		).
+		Order("scheduled_at DESC").
+		First(&chant).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, errors.NewInternal("Failed to find active chant", err)
+	}
+	return &chant, nil
 }
 
 func (r *chantRepository) Complete(ctx context.Context, chantID, userID uuid.UUID, points int) (int, bool, error) {
