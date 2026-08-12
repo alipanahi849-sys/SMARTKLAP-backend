@@ -99,6 +99,19 @@ type ChantStartedPayload struct {
 type ClientMessage struct {
 	Type    string `json:"type"`
 	Channel string `json:"channel,omitempty"` // for subscribe/unsubscribe
+	// ClientTimeMs is the client's clock at ping-send time. When present the
+	// pong echoes it back so the client can compute an NTP-style offset over
+	// the WebSocket itself (lower, more stable RTT than HTTP).
+	ClientTimeMs int64 `json:"client_time_ms,omitempty"`
+}
+
+// PongMessage is the app-level pong reply. ServerTimeMs plus the echoed
+// ClientTimeMs let clients measure round-trip time and clock offset on the
+// same connection that delivers realtime events.
+type PongMessage struct {
+	Type         string `json:"type"`
+	ClientTimeMs int64  `json:"client_time_ms,omitempty"`
+	ServerTimeMs int64  `json:"server_time_ms"`
 }
 
 // ErrorPayload is the body of a server→client error event.

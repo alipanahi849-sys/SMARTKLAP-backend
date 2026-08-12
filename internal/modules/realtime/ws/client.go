@@ -224,7 +224,7 @@ func (c *Client) handleInbound(raw []byte) {
 
 	switch msg.Type {
 	case dto.EventTypePing:
-		c.sendPong()
+		c.sendPong(msg.ClientTimeMs)
 
 	case "subscribe":
 		channel := sanitiseChannel(msg.Channel)
@@ -274,9 +274,14 @@ func (c *Client) sendError(code, message, channel string) {
 	}
 }
 
-// sendPong replies with an application-level pong envelope.
-func (c *Client) sendPong() {
-	pong, _ := json.Marshal(dto.ClientMessage{Type: dto.EventTypePong})
+// sendPong replies with an application-level pong, echoing the client's
+// timestamp (when provided) alongside the server clock for WS time sync.
+func (c *Client) sendPong(clientTimeMs int64) {
+	pong, _ := json.Marshal(dto.PongMessage{
+		Type:         dto.EventTypePong,
+		ClientTimeMs: clientTimeMs,
+		ServerTimeMs: time.Now().UnixMilli(),
+	})
 	select {
 	case c.Send <- pong:
 		c.lastHeartbeatMs.Store(time.Now().UnixMilli())
