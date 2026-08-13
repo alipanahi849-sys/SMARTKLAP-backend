@@ -93,7 +93,7 @@ services:
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
       JWT_SECRET: your-secret-key-change-in-production
-      JWT_ACCESS_EXPIRY: 900
+      JWT_ACCESS_EXPIRY: 7200
       JWT_REFRESH_EXPIRY: 604800
       JWT_ISSUER: clap
       JWT_REFRESH_SECRET: your-refresh-secret-key-change-in-production

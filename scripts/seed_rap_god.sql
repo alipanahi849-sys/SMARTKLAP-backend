@@ -1,0 +1,214 @@
+-- Rap God — Eminem (musicdel.ir/505595)
+-- Adds a NEW chant; does not modify or delete existing chants.
+
+INSERT INTO songs (
+    id, title, artist, album, duration, audio_url, is_active,
+    storage_key, mime_type, duration_ms
+) VALUES (
+    'a5000000-0000-4000-8000-000000000006',
+    'Rap God',
+    'Eminem',
+    'The Marshall Mathers LP 2',
+    364,
+    '/uploads/chants/eminem-rap-god.mp3',
+    true,
+    'chants/eminem-rap-god.mp3',
+    'audio/mpeg',
+    363586
+) ON CONFLICT (id) DO UPDATE SET
+    title = EXCLUDED.title,
+    artist = EXCLUDED.artist,
+    album = EXCLUDED.album,
+    duration = EXCLUDED.duration,
+    audio_url = EXCLUDED.audio_url,
+    storage_key = EXCLUDED.storage_key,
+    mime_type = EXCLUDED.mime_type,
+    duration_ms = EXCLUDED.duration_ms,
+    updated_at = NOW();
+
+INSERT INTO song_lyrics (song_id, language, lyrics) VALUES (
+    'a5000000-0000-4000-8000-000000000006',
+    'en',
+    $lrc$[00:01.00]Look, I was gonna go easy on you and not to hurt your feelings
+[00:04.69]But I'm only going to get this one chance (six minutes, six minutes)
+[00:09.48]Something's wrong, I can feel it (six minutes, six minutes, Slim Shady, you're on)
+[00:13.00]Just a feeling I've got, like something's about to happen, but I don't know what
+[00:17.75]If that means what I think it means, we're in trouble, big trouble
+[00:21.02]And if he is as bananas as you say, I'm not taking any chances
+[00:24.57]You are just what the doctor ordered
+[00:25.66]I'm beginning to feel like a Rap God, Rap God
+[00:28.63]All my people from the front to the back nod, back nod
+[00:31.87]Now who thinks their arms are long enough to slap box, slap box?
+[00:35.10]They said I rap like a robot, so call me Rapbot
+[00:37.86]But for me to rap like a computer must be in my genes
+[00:39.92]I got a laptop in my back pocket
+[00:41.81]My pen'll go off when I half-cock it
+[00:43.46]Got a fat knot from that rap profit
+[00:45.02]Made a livin' and a killin' off it
+[00:46.28]Ever since Bill Clinton was still in office
+[00:47.99]With Monica Lewinsky feelin' on his nutsack
+[00:49.82]I'm an MC still as honest
+[00:51.15]But as rude and indecent as all hell syllables, killaholic (kill 'em all with)
+[00:54.60]This flippity dippity-hippity hip-hop
+[00:56.17]You don't really wanna get into a pissing match with this rappidy brat
+[00:58.12]Packin' a MAC in the back of the Ac', backpack rap crap, yap-yap, yackity-yack
+[01:01.29]And at the exact same time, I attempt these lyrical acrobat stunts while I'm practicin' that
+[01:04.38]I'll still be able to break a motherfuckin' table
+[01:06.19]Over the back of a couple of faggots and crack it in half
+[01:07.87]Only realized it was ironic I was signed to Aftermath after the fact
+[01:11.21]How could I not blow? All I do is drop F-bombs, feel my wrath of attack
+[01:14.30]Rappers are having a rough time period, here's a Maxipad
+[01:16.58]It's actually disastrously bad
+[01:18.46]For the wack, while I'm masterfully constructing this masterpièce
+[01:20.72]'Cause I'm beginning to feel like a Rap God, Rap God
+[01:24.22]All my people from the front to the back nod, back nod
+[01:27.00]Now who thinks their arms are long enough to slap box, slap box?
+[01:30.31]Let me show you maintaining this shit ain't that hard, that hard
+[01:33.69]Everybody want the key and the secret to rap immortality like I have got
+[01:37.05]Well, to be truthful the blueprint's simply rage and youthful exuberance
+[01:39.71]Everybody loves to root for a nuisance
+[01:41.33]Hit the Earth like an asteroid, did nothin' but shoot for the moon since (pew)
+[01:43.86]Mc's get taken to school with this music
+[01:45.99]'Cause I use it as a vehicle to bus the rhyme
+[01:47.78]Now I lead a new school full of students
+[01:49.50]Me? I'm a product of Rakim
+[01:51.21]Lakim Shabazz, 2Pac, N.W.A, Cube, hey Doc, Ren, Yella, Eazy, thank you, they got Slim
+[01:55.64]Inspired enough to one day grow up, blow up and be in a position
+[01:58.87]To meet Run-D.M.C and induct them into the motherfuckin' Rock n' Roll Hall of Fame
+[02:03.31]Even though I walk in the church and burst in a ball of flames
+[02:05.65]Only hall of fame I'll be inducted in is the alcohol of fame on the wall of (shame)
+[02:09.68]You fags think it's all a game 'til I walk a flock of flames
+[02:12.98]Off a plank and tell me what in the fuck are you thinkin'?
+[02:15.64]Little gay lookin' boy
+[02:16.80]So gay I can barely say it with a straight face lookin' boy
+[02:19.20]You witnessin' a mass-occur
+[02:20.25]Like you're watchin' a church gathering take place lookin' boy
+[02:22.60]"Oy vey, that boy's gay", that's all they say, lookin' boy
+[02:25.74]You get a thumbs up, pat on the back
+[02:27.08]And a "Way-to-go" from your label every day, lookin' boy
+[02:28.93]Hey, lookin' boy, what you say, lookin' boy?
+[02:30.52]I get a "Hell yeah" from Dre, lookin' boy
+[02:32.18]I'ma work for everything I have
+[02:33.61]Never asked nobody for shit, get outta my face, lookin' boy
+[02:35.58]Basically boy, you're never gonna be capable
+[02:37.25]Of keepin' up with the same pace, lookin' boy
+[02:38.64]'Cause I'm beginning to feel like a Rap God, Rap God
+[02:41.94]All my people from the front to the back nod, back nod
+[02:45.21]The way I'm racin' around the track, call me NASCAR, NASCAR
+[02:48.21]Dale Earnhardt of the trailer park, the White Trash God
+[02:50.94]Kneel before General Zod, this planet's Krypton, no Asgard, Asgard
+[02:54.89]So you be Thor and I'll be Odin, you rodent, I'm omnipotent
+[02:58.12]Let off then I'm reloadin' immediately with these bombs I'm totin'
+[03:01.42]And I should not be woken
+[03:03.14]I'm the walkin' dead, but I'm just a talkin' head, a zombie floatin'
+[03:06.16]But I got your mom deep-throatin'
+[03:07.93]I'm out my ramen noodle, we have nothin' in common, poodle
+[03:11.00]I'm a Doberman, pinch yourself in the arm and pay homage, pupil
+[03:14.33]It's me, my honesty's brutal
+[03:17.02]But it's honestly futile if I don't utilize what I do though
+[03:20.22]For good at least once in a while
+[03:21.44]So I wanna make sure somewhere in this chicken scratch I scribble and doodle
+[03:23.94]Enough rhymes to maybe to try to help get some people through tough times
+[03:26.99]But I gotta keep a few punchlines just in case 'cause even you unsigned
+[03:30.30]Rappers are hungry lookin' at me like it's lunchtime
+[03:32.71]I know there was a time where once I
+[03:34.30]Was king of the underground, but I still rap like I'm on my Pharoahe Monch grind
+[03:37.75]So I crunch rhymes, but sometimes when you combine
+[03:40.17]Appeal with the skin color of mine
+[03:41.67]You get too big, and here they come tryin' to
+[03:43.68]Censor you like that one line I said on "I'm Back" from the Mathers LP One
+[03:46.79]When I tried to say, "I'll take seven kids from Columbine
+[03:49.57]Put 'em all in a line, add an AK-47, a revolver and a nine"
+[03:53.36]See if I get away with it now that I ain't as big as I was, but I'm
+[03:56.72]Morphin' into an immortal comin' through the portal
+[03:58.82]You're stuck in a time warp from 2004 though
+[04:01.18]And I don't know what the fuck that you rhyme for
+[04:03.28]You're pointless as Rapunzel with fuckin' cornrows
+[04:06.03]You write normal? Fuck being normal
+[04:07.65]And I just bought a new ray-gun from the future
+[04:09.88]Just to come and shoot ya like when Fabolous made Ray J mad
+[04:12.28]'Cause Fab said he looked like a fag at Mayweather's pad
+[04:13.89]Singin' to a man while he played piano
+[04:15.42]Man, oh man, that was a 24/7 special on the cable channel
+[04:18.46]So Ray J went straight to the radio station the very next day
+[04:21.37]"Hey, Fab, I'ma kill you"
+[04:22.61]Lyrics coming at you at supersonic speed, (JJ Fad)
+[04:25.01]Uh, sama lama duma lama, you assumin' I'm a human
+[04:26.89]What I gotta do to get it through to you, I'm superhuman?
+[04:28.52]Innovative and I'm made of rubber
+[04:29.63]So that anything you say is ricochetin' off of me and it'll glue to you
+[04:31.62]I'm devastating, more than ever demonstrating
+[04:32.95]How to give a motherfuckin' audience a feelin' like it's levitating
+[04:34.80]Never fading, and I know that the haters are forever waiting
+[04:36.61]For the day that they can say I fell off, they'll be celebrating
+[04:38.17]'Cause I know the way to get 'em motivated
+[04:39.37]I make elevating music, you make elevator music
+[04:41.30]Oh, he's too mainstream
+[04:42.90]Well, that's what they do when they get jealous, they confuse it
+[04:44.92]It's not hip-hop, it's pop, 'cause I found a hella way to fuse it
+[04:48.04]With rock, shock rap with Doc
+[04:49.94]Throw on Lose Yourself and make 'em lose it
+[04:51.27]I don't know how to make songs like that
+[04:52.96]I don't know what words to use
+[04:54.51]Let me know when it occurs to you
+[04:55.92]While I'm rippin' any one of these verses diverse as you
+[04:57.66]It's curtains, I'm inadvertently hurtin' you
+[04:59.30]How many verses I gotta murder to
+[05:00.91]Prove that if you were half as nice, your songs you can sacrifice virgins too? Uh
+[05:04.72]School flunkie, pill junkie
+[05:06.40]But look at the accolades the skills brung me
+[05:08.88]Full of myself, but still hungry
+[05:10.62]I bully myself 'cause I make me do what I put my mind to
+[05:13.78]And I'm a million leagues above you, ill when I speak in tongues
+[05:17.40]But it's still tongue in cheek, fuck you
+[05:19.01]I'm drunk so Satan take the fucking wheel, I'm asleep in the front seat
+[05:22.08]Bumping Heavy D and the Boys, still chunky but funky
+[05:25.15]But in my head, there's something I can feel tugging and struggling
+[05:28.46]Angels fight with devils and here's what they want from me
+[05:32.20]They're askin' me to eliminate some of the women-hate
+[05:34.35]But if you take into consideration the bitter hatred I have
+[05:36.29]Then you may be a little patient and more sympathetic to the situation
+[05:38.95]And understand the discrimination
+[05:41.26]But fuck it, life's handing you lemons, make lemonade then
+[05:44.23]But if I can't batter the women, how the fuck am I supposed to bake them a cake then?
+[05:47.66]Don't mistake him for (Satan)
+[05:48.63]It's a fatal mistake if you think I need to be overseas
+[05:50.90]And take a vacation to trip a broad
+[05:52.87]And make her fall on her face and
+[05:54.53]Don't be a retard, be a king? Think not
+[05:57.17]Why be a king when you can be a God?$lrc$
+) ON CONFLICT (song_id, language) DO UPDATE SET
+    lyrics = EXCLUDED.lyrics,
+    updated_at = NOW();
+
+INSERT INTO chants (
+    id, match_id, song_id, title, points, duration_seconds,
+    scheduled_at, flash_duration_ms, vibration_duration_ms,
+    is_preview, is_active
+) VALUES (
+    'b1000000-0000-4000-8000-000000000006',
+    'a4000000-0000-4000-8000-000000000001',
+    'a5000000-0000-4000-8000-000000000006',
+    'Rap God — Eminem',
+    200,
+    364,
+    NOW() + INTERVAL '130 seconds',
+    900,
+    900,
+    false,
+    true
+) ON CONFLICT (id) DO UPDATE SET
+    song_id = EXCLUDED.song_id,
+    title = EXCLUDED.title,
+    points = EXCLUDED.points,
+    duration_seconds = EXCLUDED.duration_seconds,
+    scheduled_at = EXCLUDED.scheduled_at,
+    flash_duration_ms = EXCLUDED.flash_duration_ms,
+    vibration_duration_ms = EXCLUDED.vibration_duration_ms,
+    is_active = EXCLUDED.is_active,
+    updated_at = NOW();
+
+SELECT c.id, c.title, c.scheduled_at, c.flash_duration_ms, c.vibration_duration_ms, s.audio_url
+FROM chants c
+JOIN songs s ON s.id = c.song_id
+WHERE c.id = 'b1000000-0000-4000-8000-000000000006';

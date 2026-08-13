@@ -1,19 +1,20 @@
-.PHONY: help build run test clean docker-up docker-down migrate seed migrate-seed dev swagger
+.PHONY: help build run test clean docker-up docker-down migrate seed migrate-seed dev swagger loadtest
 
 # Default target
 help:
 	@echo "Available commands:"
-	@echo "  make build      - Build the application"
-	@echo "  make run        - Run the application"
-	@echo "  make dev        - Run with hot reload (air)"
-	@echo "  make test       - Run tests"
-	@echo "  make clean      - Clean build artifacts"
-	@echo "  make docker-up  - Start Docker Compose services"
-	@echo "  make docker-down- Stop Docker Compose services"
-	@echo "  make migrate      - Run database migrations"
-	@echo "  make seed         - Seed default roles"
-	@echo "  make migrate-seed - Migrate + seed (Docker does this automatically)"
-	@echo "  make swagger      - Generate Swagger docs (swag)"
+	@echo "  make build           - Build the application"
+	@echo "  make run             - Run the application"
+	@echo "  make dev             - Run with hot reload (air)"
+	@echo "  make test            - Run tests"
+	@echo "  make clean           - Clean build artifacts"
+	@echo "  make docker-up       - Start Docker Compose services"
+	@echo "  make docker-down     - Stop Docker Compose services"
+	@echo "  make loadtest        - Run WebSocket load test (set CLAP_WS_TOKEN)"
+	@echo "  make migrate         - Run database migrations"
+	@echo "  make seed            - Seed default roles"
+	@echo "  make migrate-seed    - Migrate + seed (Docker does this automatically)"
+	@echo "  make swagger         - Generate Swagger docs (swag)"
 
 # Build the application
 build:
@@ -54,6 +55,11 @@ docker-down:
 	@echo "Stopping Docker Compose services..."
 	@docker-compose down
 	@echo "Services stopped"
+
+# WebSocket load test — export CLAP_WS_TOKEN first
+loadtest:
+	@chmod +x scripts/run_ws_loadtest.sh
+	@./scripts/run_ws_loadtest.sh $(ARGS)
 
 # Run database migrations (idempotent; tracks schema_migrations)
 migrate:

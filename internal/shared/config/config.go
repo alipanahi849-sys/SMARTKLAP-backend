@@ -216,7 +216,7 @@ func LoadFromEnv() error {
 		},
 		JWT: JWT{
 			Secret:        getEnv("JWT_SECRET", "your-secret-key-change-in-production"),
-			AccessExpiry:  getEnvAsInt("JWT_ACCESS_EXPIRY", 900),
+			AccessExpiry:  getEnvAsInt("JWT_ACCESS_EXPIRY", 7200),
 			RefreshExpiry: getEnvAsInt("JWT_REFRESH_EXPIRY", 604800),
 			Issuer:        getEnv("JWT_ISSUER", "clap"),
 			RefreshSecret: getEnv("JWT_REFRESH_SECRET", "your-refresh-secret-key-change-in-production"),

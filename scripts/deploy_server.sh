@@ -14,8 +14,9 @@ git checkout main
 git pull --ff-only origin main
 
 echo "==> Rebuild and restart containers"
-docker compose pull || true
-docker compose up -d --build
+COMPOSE_FILES="-f docker-compose.yml"
+docker compose $COMPOSE_FILES pull || true
+docker compose $COMPOSE_FILES up -d --build
 
 echo "==> Wait for API health"
 i=0
@@ -23,13 +24,13 @@ until wget -qO- http://127.0.0.1:8080/health >/dev/null 2>&1 || wget -qO- http:/
 	i=$((i + 1))
 	if [ "$i" -ge 60 ]; then
 		echo "Health check timed out" >&2
-		docker compose ps
-		docker compose logs --tail 50 api migrate nginx
+		docker compose $COMPOSE_FILES ps
+		docker compose $COMPOSE_FILES logs --tail 50 api migrate nginx
 		exit 1
 	fi
 	sleep 2
 done
 
 echo "==> Deploy complete"
-docker compose ps
+docker compose $COMPOSE_FILES ps
 wget -qO- http://127.0.0.1:8081/health || wget -qO- http://127.0.0.1/health

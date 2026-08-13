@@ -288,7 +288,7 @@ curl -X GET http://localhost:8080/api/v1/profile/me \
 | `REDIS_PORT` | Redis port | 6379 |
 | `REDIS_PASSWORD` | Redis password | - |
 | `JWT_SECRET` | JWT signing secret | - |
-| `JWT_ACCESS_EXPIRY` | Access token expiry (seconds) | 900 |
+| `JWT_ACCESS_EXPIRY` | Access token expiry (seconds) | 7200 |
 | `JWT_REFRESH_EXPIRY` | Refresh token expiry (seconds) | 604800 |
 | `CORS_ALLOWED_ORIGINS` | CORS allowed origins | * |
 | `SMTP_HOST` | SMTP host (MailHog in Docker: `mailhog`) | localhost |
@@ -376,7 +376,6 @@ Migration files are located in `pkg/migrations/`:
 - Club management panels
 - E-commerce/shop functionality
 - Advanced rate limiting
-- Metrics and monitoring (Prometheus)
 - Distributed tracing
 - Richer per-endpoint response schemas in Swagger
 

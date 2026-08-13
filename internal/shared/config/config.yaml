@@ -25,7 +25,7 @@ redis:
 
 jwt:
   secret: "your-secret-key-change-in-production"
-  access_expiry: 900
+  access_expiry: 7200
   refresh_expiry: 604800
   issuer: "clap"
   refresh_secret: "your-refresh-secret-key-change-in-production"
