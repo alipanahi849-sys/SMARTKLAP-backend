@@ -1,5 +1,62 @@
 basePath: /
 definitions:
+  clap_internal_modules_notification_dto.RegisterDeviceRequest:
+    properties:
+      fcm_token:
+        type: string
+      platform:
+        type: string
+    required:
+    - fcm_token
+    - platform
+    type: object
+  clap_internal_modules_notification_dto.UnregisterDeviceRequest:
+    properties:
+      fcm_token:
+        type: string
+    required:
+    - fcm_token
+    type: object
+  clap_internal_modules_order_dto.CalculateOrderRequest:
+    properties:
+      delivery_method:
+        enum:
+        - seat
+        - pickup
+        type: string
+      payment_method:
+        enum:
+        - points
+        - card
+        type: string
+    required:
+    - delivery_method
+    - payment_method
+    type: object
+  clap_internal_modules_order_dto.CreateOrderRequest:
+    properties:
+      currency:
+        type: string
+      delivery_method:
+        enum:
+        - seat
+        - pickup
+        type: string
+      seat_number:
+        type: string
+    required:
+    - delivery_method
+    type: object
+  clap_internal_modules_order_dto.PayOrderRequest:
+    properties:
+      payment_method:
+        enum:
+        - points
+        - card
+        type: string
+    required:
+    - payment_method
+    type: object
   clap_internal_modules_playback_dto.ScheduleSongRequest:
     properties:
       duration_ms:
@@ -25,6 +82,126 @@ definitions:
         type: integer
     required:
     - client_timestamp_ms
+    type: object
+  clap_internal_modules_shop_dto.AddCartItemRequest:
+    properties:
+      product_id:
+        type: string
+      product_type:
+        type: string
+      quantity:
+        minimum: 1
+        type: integer
+      size:
+        type: string
+    required:
+    - product_id
+    - product_type
+    type: object
+  clap_internal_modules_shop_dto.CreateProductRequest:
+    properties:
+      available_sizes:
+        items:
+          type: string
+        type: array
+      category:
+        type: string
+      description:
+        type: string
+      image_url:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      price_cents:
+        minimum: 0
+        type: integer
+      price_points:
+        minimum: 0
+        type: integer
+      product_type:
+        type: string
+      seller_name:
+        type: string
+      size_stock:
+        items:
+          $ref: '#/definitions/clap_internal_modules_shop_dto.SizeStockInput'
+        type: array
+      stock_quantity:
+        type: integer
+      subname:
+        maxLength: 60
+        type: string
+    required:
+    - category
+    - name
+    - price_cents
+    - price_points
+    - product_type
+    type: object
+  clap_internal_modules_shop_dto.DecreaseCartItemRequest:
+    properties:
+      product_id:
+        type: string
+      quantity:
+        minimum: 1
+        type: integer
+      size:
+        type: string
+    required:
+    - product_id
+    type: object
+  clap_internal_modules_shop_dto.SizeStockInput:
+    properties:
+      size:
+        type: string
+      stock_quantity:
+        type: integer
+    required:
+    - size
+    type: object
+  clap_internal_modules_shop_dto.UpdateProductRequest:
+    properties:
+      available_sizes:
+        items:
+          type: string
+        type: array
+      category:
+        type: string
+      description:
+        type: string
+      image_url:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      price_cents:
+        minimum: 0
+        type: integer
+      price_points:
+        minimum: 0
+        type: integer
+      product_type:
+        type: string
+      seller_name:
+        type: string
+      size_stock:
+        items:
+          $ref: '#/definitions/clap_internal_modules_shop_dto.SizeStockInput'
+        type: array
+      stock_quantity:
+        type: integer
+      subname:
+        maxLength: 60
+        type: string
+    required:
+    - category
+    - name
+    - price_cents
+    - price_points
+    - product_type
     type: object
   clap_internal_modules_song_dto.CreateSongRequest:
     properties:
@@ -173,6 +350,15 @@ definitions:
     required:
     - code
     - email
+    type: object
+  internal_modules_realtime_handler.TestEmitRequest:
+    properties:
+      broadcast:
+        type: boolean
+      match_id:
+        type: string
+      message:
+        type: string
     type: object
 info:
   contact:
@@ -395,6 +581,18 @@ paths:
         in: query
         name: search
         type: string
+      - description: Match ID filter
+        in: query
+        name: match_id
+        type: string
+      - description: Chant ID of the last item from the previous page
+        in: query
+        name: cursor
+        type: string
+      - description: Items per page (default 20, max 100)
+        in: query
+        name: limit
+        type: integer
       produces:
       - application/json
       responses:
@@ -415,8 +613,8 @@ paths:
       summary: List chants
       tags:
       - chants
-  /api/v1/chants/{chant_id}/countdown:
-    get:
+  /api/v1/chants/{chant_id}/complete:
+    post:
       parameters:
       - description: Chant ID
         in: path
@@ -438,9 +636,13 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/clap_internal_shared_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
       security:
       - BearerAuth: []
-      summary: Chant countdown
+      summary: Complete chant
       tags:
       - chants
   /api/v1/chants/{chant_id}/lyrics:
@@ -533,8 +735,277 @@ paths:
       summary: Upload media
       tags:
       - media
+  /api/v1/notifications/devices:
+    delete:
+      consumes:
+      - application/json
+      description: Removes the FCM token for the caller (used on logout). Idempotent
+        if the token is already gone.
+      parameters:
+      - description: FCM token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/clap_internal_modules_notification_dto.UnregisterDeviceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Unregister FCM device token
+      tags:
+      - notifications
+    post:
+      consumes:
+      - application/json
+      description: Stores or updates the caller's FCM token so the backend can send
+        push notifications to this device
+      parameters:
+      - description: FCM token and platform
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/clap_internal_modules_notification_dto.RegisterDeviceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Register FCM device token
+      tags:
+      - notifications
+  /api/v1/orders:
+    get:
+      description: Returns the authenticated user's orders with cursor pagination
+      parameters:
+      - description: Order ID of the last item from the previous page
+        in: query
+        name: cursor
+        type: string
+      - description: Items per page (default 20, max 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: List user orders
+      tags:
+      - orders
+    post:
+      consumes:
+      - application/json
+      description: Creates an order from the user's cart (Mobile API Contract §6.4)
+      parameters:
+      - description: Request body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/clap_internal_modules_order_dto.CreateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Create checkout order
+      tags:
+      - orders
+  /api/v1/orders/{order_id}:
+    get:
+      description: Returns one order with all line items, images, and quantities
+      parameters:
+      - description: Order ID
+        in: path
+        name: order_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get order detail
+      tags:
+      - orders
+  /api/v1/orders/{order_id}/confirm-payment:
+    post:
+      description: Verifies Stripe Checkout Session status and marks the order paid
+      parameters:
+      - description: Order ID
+        in: path
+        name: order_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Confirm browser card payment
+      tags:
+      - orders
+  /api/v1/orders/{order_id}/pay:
+    post:
+      consumes:
+      - application/json
+      description: Completes payment with points or initiates Stripe card payment
+      parameters:
+      - description: Order ID
+        in: path
+        name: order_id
+        required: true
+        type: string
+      - description: Request body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/clap_internal_modules_order_dto.PayOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Pay for an order
+      tags:
+      - orders
+  /api/v1/orders/calculate:
+    post:
+      consumes:
+      - application/json
+      description: Preview subtotal, shipping, total, and points required for the
+        current cart
+      parameters:
+      - description: Request body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/clap_internal_modules_order_dto.CalculateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Calculate checkout totals
+      tags:
+      - orders
   /api/v1/profile/leaderboard:
     get:
+      parameters:
+      - description: User ID of the last item from the previous page
+        in: query
+        name: cursor
+        type: string
+      - description: Items per page (default 4, max 50)
+        in: query
+        name: limit
+        type: integer
       produces:
       - application/json
       responses:
@@ -750,6 +1221,37 @@ paths:
       summary: Cleanup scheduler events
       tags:
       - realtime
+  /api/v1/realtime/admin/test-emit:
+    post:
+      consumes:
+      - application/json
+      description: Admin only — smoke-test realtime delivery
+      parameters:
+      - description: Optional match_id / message / broadcast
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/internal_modules_realtime_handler.TestEmitRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Emit a test WebSocket event
+      tags:
+      - realtime
   /api/v1/realtime/metrics:
     get:
       description: Admin only
@@ -865,6 +1367,352 @@ paths:
       summary: WebSocket connect
       tags:
       - realtime
+  /api/v1/shop:
+    get:
+      parameters:
+      - description: Search by name, subname or description
+        in: query
+        name: search
+        type: string
+      - description: Product type filter (food or merch)
+        in: query
+        name: product_type
+        type: string
+      - description: Category filter
+        in: query
+        name: category
+        type: string
+      - description: Price display currency (EUR or POINT)
+        in: query
+        name: currency
+        type: string
+      - description: Product ID of the last item from the previous page
+        in: query
+        name: cursor
+        type: string
+      - description: Items per page (default 20, max 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: List shop products
+      tags:
+      - shop
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Request body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/clap_internal_modules_shop_dto.CreateProductRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Create shop product
+      tags:
+      - shop
+  /api/v1/shop/{id}:
+    delete:
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete shop product
+      tags:
+      - shop
+    get:
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Price display currency (EUR or POINT)
+        in: query
+        name: currency
+        type: string
+      - description: 'Merch only: filter available size (M, L, XL, XXL)'
+        in: query
+        name: size
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get shop product
+      tags:
+      - shop
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Request body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/clap_internal_modules_shop_dto.UpdateProductRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Update shop product
+      tags:
+      - shop
+  /api/v1/shop/{id}/image:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Product image (JPEG, PNG or WebP)
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Upload image for a shop product
+      tags:
+      - shop
+  /api/v1/shop/cart:
+    get:
+      description: Returns grouped cart preview for the Basket screen
+      parameters:
+      - description: Cart item ID of the last item from the previous page
+        in: query
+        name: cursor
+        type: string
+      - description: Items per page (default 20, max 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get shop basket
+      tags:
+      - shop
+  /api/v1/shop/cart/items:
+    post:
+      consumes:
+      - application/json
+      description: Increments cart quantity without changing product stock
+      parameters:
+      - description: Request body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/clap_internal_modules_shop_dto.AddCartItemRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Add item to shop cart
+      tags:
+      - shop
+  /api/v1/shop/cart/items/decrease:
+    post:
+      consumes:
+      - application/json
+      description: Decrements cart quantity without changing product stock
+      parameters:
+      - description: Request body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/clap_internal_modules_shop_dto.DecreaseCartItemRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Decrease item in shop cart
+      tags:
+      - shop
   /api/v1/song-lyrics:
     post:
       consumes:
@@ -1453,8 +2301,49 @@ paths:
       summary: Like video
       tags:
       - videos
+  /api/v1/videos/{video_id}/seen:
+    post:
+      parameters:
+      - description: Video ID
+        in: path
+        name: video_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Mark video as seen
+      tags:
+      - videos
   /api/v1/videos/feed:
     get:
+      parameters:
+      - description: Video ID of the last item from the previous page
+        in: query
+        name: cursor
+        type: string
+      - description: Items per page (default 20, max 100)
+        in: query
+        name: limit
+        type: integer
       produces:
       - application/json
       responses:
@@ -1477,6 +2366,15 @@ paths:
       - videos
   /api/v1/videos/mine:
     get:
+      parameters:
+      - description: Video ID of the last item from the previous page
+        in: query
+        name: cursor
+        type: string
+      - description: Items per page (default 20, max 100)
+        in: query
+        name: limit
+        type: integer
       produces:
       - application/json
       responses:
@@ -1497,6 +2395,25 @@ paths:
       summary: My videos
       tags:
       - videos
+  /api/v1/webhooks/stripe:
+    post:
+      consumes:
+      - application/json
+      description: Receives Stripe payment events and fulfills paid card orders
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      summary: Stripe webhook
+      tags:
+      - orders
   /health:
     get:
       description: Returns API, database, and Redis health status

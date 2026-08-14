@@ -351,6 +351,24 @@ const docTemplate = `{
                         "description": "Search query",
                         "name": "search",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Match ID filter",
+                        "name": "match_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Chant ID of the last item from the previous page",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -375,8 +393,8 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/chants/{chant_id}/countdown": {
-            "get": {
+        "/api/v1/chants/{chant_id}/complete": {
+            "post": {
                 "security": [
                     {
                         "BearerAuth": []
@@ -388,7 +406,7 @@ const docTemplate = `{
                 "tags": [
                     "chants"
                 ],
-                "summary": "Chant countdown",
+                "summary": "Complete chant",
                 "parameters": [
                     {
                         "type": "string",
@@ -413,6 +431,12 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/clap_internal_shared_response.Response"
                         }
@@ -564,6 +588,413 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/notifications/devices": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Stores or updates the caller's FCM token so the backend can send push notifications to this device",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "notifications"
+                ],
+                "summary": "Register FCM device token",
+                "parameters": [
+                    {
+                        "description": "FCM token and platform",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_notification_dto.RegisterDeviceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Removes the FCM token for the caller (used on logout). Idempotent if the token is already gone.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "notifications"
+                ],
+                "summary": "Unregister FCM device token",
+                "parameters": [
+                    {
+                        "description": "FCM token",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_notification_dto.UnregisterDeviceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orders": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the authenticated user's orders with cursor pagination",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "List user orders",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID of the last item from the previous page",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates an order from the user's cart (Mobile API Contract §6.4)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Create checkout order",
+                "parameters": [
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_order_dto.CreateOrderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orders/calculate": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Preview subtotal, shipping, total, and points required for the current cart",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Calculate checkout totals",
+                "parameters": [
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_order_dto.CalculateOrderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orders/{order_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns one order with all line items, images, and quantities",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Get order detail",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "order_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orders/{order_id}/confirm-payment": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Verifies Stripe Checkout Session status and marks the order paid",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Confirm browser card payment",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "order_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orders/{order_id}/pay": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Completes payment with points or initiates Stripe card payment",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Pay for an order",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "order_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_order_dto.PayOrderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/profile/leaderboard": {
             "get": {
                 "security": [
@@ -578,6 +1009,20 @@ const docTemplate = `{
                     "profile"
                 ],
                 "summary": "Leaderboard",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID of the last item from the previous page",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 4, max 50)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -914,6 +1359,56 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/realtime/admin/test-emit": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin only — smoke-test realtime delivery",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "realtime"
+                ],
+                "summary": "Emit a test WebSocket event",
+                "parameters": [
+                    {
+                        "description": "Optional match_id / message / broadcast",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/internal_modules_realtime_handler.TestEmitRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/realtime/metrics": {
             "get": {
                 "security": [
@@ -1087,6 +1582,551 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/shop": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "List shop products",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search by name, subname or description",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Product type filter (food or merch)",
+                        "name": "product_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category filter",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Price display currency (EUR or POINT)",
+                        "name": "currency",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Product ID of the last item from the previous page",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "Create shop product",
+                "parameters": [
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_shop_dto.CreateProductRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/shop/cart": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns grouped cart preview for the Basket screen",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "Get shop basket",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cart item ID of the last item from the previous page",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/shop/cart/items": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Increments cart quantity without changing product stock",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "Add item to shop cart",
+                "parameters": [
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_shop_dto.AddCartItemRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/shop/cart/items/decrease": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Decrements cart quantity without changing product stock",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "Decrease item in shop cart",
+                "parameters": [
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_shop_dto.DecreaseCartItemRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/shop/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "Get shop product",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Price display currency (EUR or POINT)",
+                        "name": "currency",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Merch only: filter available size (M, L, XL, XXL)",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "Update shop product",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_shop_dto.UpdateProductRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "Delete shop product",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/shop/{id}/image": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "Upload image for a shop product",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Product image (JPEG, PNG or WebP)",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/clap_internal_shared_response.Response"
                         }
@@ -1948,6 +2988,20 @@ const docTemplate = `{
                     "videos"
                 ],
                 "summary": "Video feed",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Video ID of the last item from the previous page",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -1984,6 +3038,20 @@ const docTemplate = `{
                     "videos"
                 ],
                 "summary": "My videos",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Video ID of the last item from the previous page",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -2094,6 +3162,86 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/videos/{video_id}/seen": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "videos"
+                ],
+                "summary": "Mark video as seen",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Video ID",
+                        "name": "video_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/webhooks/stripe": {
+            "post": {
+                "description": "Receives Stripe payment events and fulfills paid card orders",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Stripe webhook",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "description": "Returns API, database, and Redis health status",
@@ -2124,6 +3272,91 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "clap_internal_modules_notification_dto.RegisterDeviceRequest": {
+            "type": "object",
+            "required": [
+                "fcm_token",
+                "platform"
+            ],
+            "properties": {
+                "fcm_token": {
+                    "type": "string"
+                },
+                "platform": {
+                    "type": "string"
+                }
+            }
+        },
+        "clap_internal_modules_notification_dto.UnregisterDeviceRequest": {
+            "type": "object",
+            "required": [
+                "fcm_token"
+            ],
+            "properties": {
+                "fcm_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "clap_internal_modules_order_dto.CalculateOrderRequest": {
+            "type": "object",
+            "required": [
+                "delivery_method",
+                "payment_method"
+            ],
+            "properties": {
+                "delivery_method": {
+                    "type": "string",
+                    "enum": [
+                        "seat",
+                        "pickup"
+                    ]
+                },
+                "payment_method": {
+                    "type": "string",
+                    "enum": [
+                        "points",
+                        "card"
+                    ]
+                }
+            }
+        },
+        "clap_internal_modules_order_dto.CreateOrderRequest": {
+            "type": "object",
+            "required": [
+                "delivery_method"
+            ],
+            "properties": {
+                "currency": {
+                    "type": "string"
+                },
+                "delivery_method": {
+                    "type": "string",
+                    "enum": [
+                        "seat",
+                        "pickup"
+                    ]
+                },
+                "seat_number": {
+                    "type": "string"
+                }
+            }
+        },
+        "clap_internal_modules_order_dto.PayOrderRequest": {
+            "type": "object",
+            "required": [
+                "payment_method"
+            ],
+            "properties": {
+                "payment_method": {
+                    "type": "string",
+                    "enum": [
+                        "points",
+                        "card"
+                    ]
+                }
+            }
+        },
         "clap_internal_modules_playback_dto.ScheduleSongRequest": {
             "type": "object",
             "required": [
@@ -2155,6 +3388,180 @@ const docTemplate = `{
             "properties": {
                 "client_timestamp_ms": {
                     "type": "integer"
+                }
+            }
+        },
+        "clap_internal_modules_shop_dto.AddCartItemRequest": {
+            "type": "object",
+            "required": [
+                "product_id",
+                "product_type"
+            ],
+            "properties": {
+                "product_id": {
+                    "type": "string"
+                },
+                "product_type": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "size": {
+                    "type": "string"
+                }
+            }
+        },
+        "clap_internal_modules_shop_dto.CreateProductRequest": {
+            "type": "object",
+            "required": [
+                "category",
+                "name",
+                "price_cents",
+                "price_points",
+                "product_type"
+            ],
+            "properties": {
+                "available_sizes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "category": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price_cents": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "price_points": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "product_type": {
+                    "type": "string"
+                },
+                "seller_name": {
+                    "type": "string"
+                },
+                "size_stock": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/clap_internal_modules_shop_dto.SizeStockInput"
+                    }
+                },
+                "stock_quantity": {
+                    "type": "integer"
+                },
+                "subname": {
+                    "type": "string",
+                    "maxLength": 60
+                }
+            }
+        },
+        "clap_internal_modules_shop_dto.DecreaseCartItemRequest": {
+            "type": "object",
+            "required": [
+                "product_id"
+            ],
+            "properties": {
+                "product_id": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "size": {
+                    "type": "string"
+                }
+            }
+        },
+        "clap_internal_modules_shop_dto.SizeStockInput": {
+            "type": "object",
+            "required": [
+                "size"
+            ],
+            "properties": {
+                "size": {
+                    "type": "string"
+                },
+                "stock_quantity": {
+                    "type": "integer"
+                }
+            }
+        },
+        "clap_internal_modules_shop_dto.UpdateProductRequest": {
+            "type": "object",
+            "required": [
+                "category",
+                "name",
+                "price_cents",
+                "price_points",
+                "product_type"
+            ],
+            "properties": {
+                "available_sizes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "category": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price_cents": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "price_points": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "product_type": {
+                    "type": "string"
+                },
+                "seller_name": {
+                    "type": "string"
+                },
+                "size_stock": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/clap_internal_modules_shop_dto.SizeStockInput"
+                    }
+                },
+                "stock_quantity": {
+                    "type": "integer"
+                },
+                "subname": {
+                    "type": "string",
+                    "maxLength": 60
                 }
             }
         },
@@ -2378,6 +3785,20 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "email": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_modules_realtime_handler.TestEmitRequest": {
+            "type": "object",
+            "properties": {
+                "broadcast": {
+                    "type": "boolean"
+                },
+                "match_id": {
+                    "type": "string"
+                },
+                "message": {
                     "type": "string"
                 }
             }

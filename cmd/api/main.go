@@ -38,17 +38,18 @@ import (
 	schedulersvc "clap/internal/modules/eventscheduler/service"
 	lyricssvc "clap/internal/modules/lyricssync/service"
 	"clap/internal/modules/media"
+	"clap/internal/modules/notification"
 	"clap/internal/modules/order"
 	"clap/internal/modules/playback"
 	playbackrepo "clap/internal/modules/playback/repository"
 	playbacksvc "clap/internal/modules/playback/service"
-	"clap/internal/modules/shop"
 	"clap/internal/modules/realtime"
 	realtimegw "clap/internal/modules/realtime/gateway"
 	realtimemetrics "clap/internal/modules/realtime/metrics"
 	realtimerepo "clap/internal/modules/realtime/repository"
 	realtimesvc "clap/internal/modules/realtime/service"
 	realtimews "clap/internal/modules/realtime/ws"
+	"clap/internal/modules/shop"
 	"clap/internal/modules/song"
 	"clap/internal/modules/songlyric"
 	"clap/internal/modules/user"
@@ -347,6 +348,7 @@ func setupRouter(deps routerDeps) *gin.Engine {
 		video.RegisterRoutes(v1)
 		shop.RegisterRoutes(v1)
 		order.RegisterRoutes(v1)
+		notification.RegisterRoutes(v1)
 		// Phase 4 + 4.2: Realtime Engine Foundation + WebSocket Delivery Layer
 		realtime.RegisterRoutesWithWS(v1, realtime.WSConfig{
 			CM:           deps.cm,
