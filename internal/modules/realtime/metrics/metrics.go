@@ -1,5 +1,6 @@
 // Package metrics holds in-process atomic counters for the realtime WebSocket layer.
-// Counters are used internally and in tests; they are not exposed over HTTP.
+// No external dependency required: counters are read by a /metrics endpoint and
+// included in structured log lines.
 package metrics
 
 import "sync/atomic"

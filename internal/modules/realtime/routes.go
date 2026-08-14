@@ -42,6 +42,7 @@ type WSConfig struct {
 //	POST /realtime/time-sync                     — drift correction (no auth)
 //	GET  /realtime/ws                            — WebSocket upgrade (JWT required)
 //	GET  /realtime/session/:matchId              — reconnection recovery (JWT required)
+//	GET  /realtime/metrics                       — metrics snapshot (admin only)
 //	POST /realtime/admin/test-emit               — push a test WS event (admin only)
 //	POST /realtime/admin/cleanup/*               — data retention (admin only)
 func RegisterRoutesWithWS(r *gin.RouterGroup, cfg WSConfig) {
@@ -51,6 +52,7 @@ func RegisterRoutesWithWS(r *gin.RouterGroup, cfg WSConfig) {
 
 	wsHandler := realtimehandler.NewWSHandler(cfg.CM, cfg.Metrics)
 	recoveryHandler := realtimehandler.NewRecoveryHandler(cfg.RecoverySvc)
+	metricsHandler := realtimehandler.NewMetricsHandler(cfg.Metrics)
 
 	rt := r.Group("/realtime")
 	{
@@ -67,6 +69,13 @@ func RegisterRoutesWithWS(r *gin.RouterGroup, cfg WSConfig) {
 		rt.GET("/session/:matchId",
 			middleware.Auth(),
 			recoveryHandler.GetMatchState,
+		)
+
+		// Metrics snapshot — admin only (CR-7 / F-015).
+		rt.GET("/metrics",
+			middleware.Auth(),
+			middleware.RequireRole(string(utils.RoleAdmin)),
+			metricsHandler.GetMetrics,
 		)
 
 		admin := rt.Group("/admin")
