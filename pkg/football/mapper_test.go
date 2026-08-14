@@ -1,6 +1,9 @@
 package football
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestMapStatus(t *testing.T) {
 	cases := map[string]string{
@@ -52,4 +55,37 @@ func TestParseStatValue(t *testing.T) {
 	if got := ParseStatValue(nil); got != 0 {
 		t.Fatalf("nil=%d", got)
 	}
+}
+
+func TestSelectFixtureWindow(t *testing.T) {
+	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
+	all := []Fixture{
+		{ProviderID: "old", Status: "finished", Kickoff: "2024-05-01T19:00:00Z"},
+		{ProviderID: "recent", Status: "finished", Kickoff: "2024-05-25T19:00:00Z"},
+		{ProviderID: "older", Status: "finished", Kickoff: "2024-04-01T19:00:00Z"},
+		{ProviderID: "soon", Status: "scheduled", Kickoff: "2026-08-16T19:00:00Z"},
+		{ProviderID: "later", Status: "scheduled", Kickoff: "2026-08-23T19:00:00Z"},
+		{ProviderID: "live", Status: "live", Kickoff: "2026-08-15T11:00:00Z"},
+	}
+	got := SelectFixtureWindow(all, 1, 2, now)
+	if len(got) != 4 {
+		t.Fatalf("len=%d want 4: %+v", len(got), ids(got))
+	}
+	if got[0].ProviderID != "live" {
+		t.Fatalf("first=%q want live", got[0].ProviderID)
+	}
+	if got[1].ProviderID != "soon" {
+		t.Fatalf("upcoming=%q want soon", got[1].ProviderID)
+	}
+	if got[2].ProviderID != "recent" || got[3].ProviderID != "old" {
+		t.Fatalf("finished=%v want recent,old", ids(got[2:]))
+	}
+}
+
+func ids(items []Fixture) []string {
+	out := make([]string, len(items))
+	for i, item := range items {
+		out[i] = item.ProviderID
+	}
+	return out
 }

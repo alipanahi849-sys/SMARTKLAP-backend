@@ -1,8 +1,10 @@
 package football
 
 import (
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // MapStatus converts an API-Football short status into our match status.
@@ -160,4 +162,49 @@ func ParseStatValue(raw any) int {
 // PreferredStatOrder is the Statistics tab order from the stadium mock.
 func PreferredStatOrder() []string {
 	return append([]string(nil), preferredStatOrder...)
+}
+
+// SelectFixtureWindow keeps live matches, the next upcoming fixtures, and the
+// most recent finished ones from a full-season payload.
+func SelectFixtureWindow(all []Fixture, next, last int, now time.Time) []Fixture {
+	if next < 0 {
+		next = 0
+	}
+	if last < 0 {
+		last = 0
+	}
+
+	var live, upcoming, finished []Fixture
+	for _, item := range all {
+		switch item.Status {
+		case "live", "halftime":
+			live = append(live, item)
+		case "finished", "cancelled":
+			finished = append(finished, item)
+		default:
+			kickoff, err := time.Parse(time.RFC3339, item.Kickoff)
+			if err == nil && kickoff.Before(now) {
+				finished = append(finished, item)
+			} else {
+				upcoming = append(upcoming, item)
+			}
+		}
+	}
+
+	sort.Slice(live, func(i, j int) bool { return live[i].Kickoff < live[j].Kickoff })
+	sort.Slice(upcoming, func(i, j int) bool { return upcoming[i].Kickoff < upcoming[j].Kickoff })
+	sort.Slice(finished, func(i, j int) bool { return finished[i].Kickoff > finished[j].Kickoff })
+
+	if next > 0 && len(upcoming) > next {
+		upcoming = upcoming[:next]
+	}
+	if last > 0 && len(finished) > last {
+		finished = finished[:last]
+	}
+
+	out := make([]Fixture, 0, len(live)+len(upcoming)+len(finished))
+	out = append(out, live...)
+	out = append(out, upcoming...)
+	out = append(out, finished...)
+	return out
 }

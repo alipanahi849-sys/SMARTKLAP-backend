@@ -124,12 +124,6 @@ func (s *SyncService) SyncFeaturedClub(ctx context.Context) (*dto.SyncResponse, 
 	if err != nil {
 		return nil, err
 	}
-	live, err := s.provider.ListLiveFixtures(ctx, club.ProviderTeamID)
-	if err != nil {
-		logger.Warn().Err(err).Msg("live fixture list failed")
-	} else {
-		fixtures = appendLiveUnique(fixtures, live)
-	}
 
 	result := &dto.SyncResponse{}
 	for _, fixture := range fixtures {
@@ -143,7 +137,9 @@ func (s *SyncService) SyncFeaturedClub(ctx context.Context) (*dto.SyncResponse, 
 		} else {
 			result.Updated++
 		}
-		if shouldRefreshDetails(match.Status) && needsDetailsSync(match) {
+		// Finished-match stats/events are fetched on demand when the user
+		// opens game detail, so a list sync does not burn provider quota.
+		if (match.Status == "live" || match.Status == "halftime") && needsDetailsSync(match) {
 			if err := s.refreshDetails(ctx, match); err != nil {
 				logger.Warn().Err(err).Str("match", match.ID.String()).Msg("match details sync failed")
 			}
@@ -168,6 +164,9 @@ func (s *SyncService) refreshLive(ctx context.Context) error {
 	if club.ProviderTeamID == "" {
 		return nil
 	}
+	if !s.shouldPollLive(ctx, club.ID) {
+		return nil
+	}
 
 	fixtures, err := s.provider.ListLiveFixtures(ctx, club.ProviderTeamID)
 	if err != nil {
@@ -179,6 +178,24 @@ func (s *SyncService) refreshLive(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func (s *SyncService) shouldPollLive(ctx context.Context, clubID uuid.UUID) bool {
+	live, err := s.matches.FindLiveByClub(ctx, clubID)
+	if err == nil && len(live) > 0 {
+		return true
+	}
+	current, err := s.matches.FindCurrentForClub(ctx, clubID)
+	if err != nil || current == nil {
+		return false
+	}
+	if current.Status == "live" || current.Status == "halftime" {
+		return true
+	}
+	if current.Status == "scheduled" && !current.MatchDateTime.After(time.Now().UTC().Add(30*time.Minute)) {
+		return true
+	}
+	return false
 }
 
 func (s *SyncService) RefreshDetailsIfStale(ctx context.Context, match *models.Match, maxAge time.Duration) error {

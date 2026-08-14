@@ -7,8 +7,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"clap/internal/shared/errors"
@@ -17,10 +19,20 @@ import (
 
 const defaultAPIFootballBase = "https://v3.football.api-sports.io"
 
+type planLimitedError struct {
+	msg string
+}
+
+func (e planLimitedError) Error() string { return e.msg }
+
 type apiFootballClient struct {
 	httpClient *http.Client
 	baseURL    string
 	apiKey     string
+
+	mu             sync.Mutex
+	workingSeason  int
+	blockedSeasons map[int]time.Time
 }
 
 // NewAPIFootball builds the API-Sports football provider. An empty key disables it.
@@ -29,9 +41,10 @@ func NewAPIFootball(apiKey, baseURL string) Provider {
 		baseURL = defaultAPIFootballBase
 	}
 	return &apiFootballClient{
-		httpClient: &http.Client{Timeout: 15 * time.Second},
-		baseURL:    strings.TrimRight(baseURL, "/"),
-		apiKey:     strings.TrimSpace(apiKey),
+		httpClient:     &http.Client{Timeout: 15 * time.Second},
+		baseURL:        strings.TrimRight(baseURL, "/"),
+		apiKey:         strings.TrimSpace(apiKey),
+		blockedSeasons: map[int]time.Time{},
 	}
 }
 
@@ -217,41 +230,17 @@ func (c *apiFootballClient) ListFixtures(ctx context.Context, providerTeamID str
 	if err := c.requireEnabled(); err != nil {
 		return nil, err
 	}
-	seen := map[int]struct{}{}
-	var out []Fixture
-	if next > 0 {
-		var rows []fixtureRow
-		if err := c.get(ctx, "/fixtures", url.Values{
-			"team": {providerTeamID},
-			"next": {strconv.Itoa(next)},
-		}, &rows); err != nil {
-			return nil, err
-		}
-		for _, row := range rows {
-			if _, ok := seen[row.Fixture.ID]; ok {
-				continue
-			}
-			seen[row.Fixture.ID] = struct{}{}
-			out = append(out, mapFixtureRow(row))
-		}
+	// Free plans reject `next`/`last` and current-season queries. Load a
+	// full season the key can access, then pick the window in-process.
+	rows, err := c.fetchSeasonFixtures(ctx, providerTeamID)
+	if err != nil {
+		return nil, err
 	}
-	if last > 0 {
-		var rows []fixtureRow
-		if err := c.get(ctx, "/fixtures", url.Values{
-			"team": {providerTeamID},
-			"last": {strconv.Itoa(last)},
-		}, &rows); err != nil {
-			return nil, err
-		}
-		for _, row := range rows {
-			if _, ok := seen[row.Fixture.ID]; ok {
-				continue
-			}
-			seen[row.Fixture.ID] = struct{}{}
-			out = append(out, mapFixtureRow(row))
-		}
+	all := make([]Fixture, 0, len(rows))
+	for _, row := range rows {
+		all = append(all, mapFixtureRow(row))
 	}
-	return out, nil
+	return SelectFixtureWindow(all, next, last, time.Now().UTC()), nil
 }
 
 func (c *apiFootballClient) ListLiveFixtures(ctx context.Context, providerTeamID string) ([]Fixture, error) {
@@ -394,6 +383,12 @@ func (c *apiFootballClient) get(ctx context.Context, path string, query url.Valu
 	if err := json.Unmarshal(body, &envelope); err != nil {
 		return errors.NewInternal("Failed to decode football provider response", err)
 	}
+	if msg := parseEnvelopeErrors(envelope.Errors); msg != "" {
+		logger.Warn().Str("path", path).Str("provider_errors", msg).Msg("football provider errors")
+		if isPlanLimitMessage(msg) {
+			return planLimitedError{msg: msg}
+		}
+	}
 	if dest == nil || len(envelope.Response) == 0 || string(envelope.Response) == "null" {
 		return nil
 	}
@@ -401,6 +396,101 @@ func (c *apiFootballClient) get(ctx context.Context, path string, query url.Valu
 		return errors.NewInternal("Failed to decode football provider payload", err)
 	}
 	return nil
+}
+
+func parseEnvelopeErrors(raw json.RawMessage) string {
+	if len(raw) == 0 || string(raw) == "null" || string(raw) == "[]" {
+		return ""
+	}
+	var asMap map[string]string
+	if json.Unmarshal(raw, &asMap) == nil && len(asMap) > 0 {
+		parts := make([]string, 0, len(asMap))
+		for key, value := range asMap {
+			parts = append(parts, key+": "+value)
+		}
+		sort.Strings(parts)
+		return strings.Join(parts, "; ")
+	}
+	var asList []string
+	if json.Unmarshal(raw, &asList) == nil && len(asList) > 0 {
+		return strings.Join(asList, "; ")
+	}
+	return strings.TrimSpace(string(raw))
+}
+
+func isPlanLimitMessage(msg string) bool {
+	lower := strings.ToLower(msg)
+	return strings.Contains(lower, "plan") || strings.Contains(lower, "do not have access")
+}
+
+func (c *apiFootballClient) fetchSeasonFixtures(ctx context.Context, teamID string) ([]fixtureRow, error) {
+	for _, season := range c.seasonCandidates() {
+		if c.isSeasonBlocked(season) {
+			continue
+		}
+		var rows []fixtureRow
+		err := c.get(ctx, "/fixtures", url.Values{
+			"team":   {teamID},
+			"season": {strconv.Itoa(season)},
+		}, &rows)
+		if err != nil {
+			if _, ok := err.(planLimitedError); ok {
+				c.blockSeason(season)
+				continue
+			}
+			return nil, err
+		}
+		if len(rows) == 0 {
+			continue
+		}
+		c.setWorkingSeason(season)
+		return rows, nil
+	}
+	return nil, nil
+}
+
+func (c *apiFootballClient) seasonCandidates() []int {
+	year := time.Now().UTC().Year()
+	c.mu.Lock()
+	hint := c.workingSeason
+	c.mu.Unlock()
+
+	ordered := []int{hint, year, year - 1, 2024, 2023, 2022}
+	seen := map[int]struct{}{}
+	out := make([]int, 0, len(ordered))
+	for _, season := range ordered {
+		if season < 2022 || season > year {
+			continue
+		}
+		if _, ok := seen[season]; ok {
+			continue
+		}
+		seen[season] = struct{}{}
+		out = append(out, season)
+	}
+	return out
+}
+
+func (c *apiFootballClient) isSeasonBlocked(season int) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	until, ok := c.blockedSeasons[season]
+	return ok && time.Now().Before(until)
+}
+
+func (c *apiFootballClient) blockSeason(season int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.blockedSeasons == nil {
+		c.blockedSeasons = map[int]time.Time{}
+	}
+	c.blockedSeasons[season] = time.Now().Add(24 * time.Hour)
+}
+
+func (c *apiFootballClient) setWorkingSeason(season int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.workingSeason = season
 }
 
 func mapTeamRow(row teamRow) Team {
