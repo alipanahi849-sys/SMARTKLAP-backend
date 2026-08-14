@@ -17,7 +17,6 @@ import (
 	realtimerepo "clap/internal/modules/realtime/repository"
 	realtimesvc "clap/internal/modules/realtime/service"
 	"clap/internal/modules/realtime/ws"
-	"clap/internal/shared/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -338,50 +337,10 @@ func newRealtimeRouter(t *testing.T) *gin.Engine {
 	return r
 }
 
-func adminToken(t *testing.T) string {
-	t.Helper()
-	tok, _, err := utils.GenerateAccessToken(uuid.New(), "admin@example.com", []string{string(utils.RoleAdmin)})
-	require.NoError(t, err)
-	return tok
-}
-
-func userToken(t *testing.T) string {
-	t.Helper()
-	tok, _, err := utils.GenerateAccessToken(uuid.New(), "user@example.com", []string{string(utils.RoleUser)})
-	require.NoError(t, err)
-	return tok
-}
-
 func TestRecoveryEndpoint_RequiresAuth(t *testing.T) {
 	r := newRealtimeRouter(t)
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/realtime/session/"+uuid.New().String(), nil)
 	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusUnauthorized, w.Code, "recovery endpoint must reject unauthenticated requests")
-}
-
-func TestMetricsEndpoint_RequiresAuth(t *testing.T) {
-	r := newRealtimeRouter(t)
-	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/api/v1/realtime/metrics", nil)
-	r.ServeHTTP(w, req)
-	assert.Equal(t, http.StatusUnauthorized, w.Code)
-}
-
-func TestMetricsEndpoint_RejectsNonAdmin(t *testing.T) {
-	r := newRealtimeRouter(t)
-	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/api/v1/realtime/metrics", nil)
-	req.Header.Set("Authorization", "Bearer "+userToken(t))
-	r.ServeHTTP(w, req)
-	assert.Equal(t, http.StatusForbidden, w.Code, "non-admin users must not read metrics")
-}
-
-func TestMetricsEndpoint_AllowsAdmin(t *testing.T) {
-	r := newRealtimeRouter(t)
-	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/api/v1/realtime/metrics", nil)
-	req.Header.Set("Authorization", "Bearer "+adminToken(t))
-	r.ServeHTTP(w, req)
-	assert.Equal(t, http.StatusOK, w.Code)
 }

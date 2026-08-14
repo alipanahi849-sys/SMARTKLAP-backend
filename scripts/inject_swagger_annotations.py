@@ -203,15 +203,6 @@ def build_catalog() -> dict[str, dict[str, str]]:
     f = "internal/modules/realtime/handler/recovery_handler.go"
     add(C, f, "GetMatchState", summary="Realtime session recovery", method_path="get /api/v1/realtime/session/{matchId}", tags="realtime", auth=True, params=[("matchId", "string", "Match ID")])
 
-    f = "internal/modules/realtime/handler/metrics_handler.go"
-    C.setdefault(f, {})["GetMetrics"] = ann(
-        "Realtime metrics",
-        "get /api/v1/realtime/metrics",
-        "realtime",
-        auth=True,
-        desc="Admin only",
-    ).replace("response.Response", "map[string]interface{}")
-
     f = "internal/modules/realtime/handler/retention_handler.go"
     add(C, f, "CleanupSchedulerEvents", summary="Cleanup scheduler events", method_path="post /api/v1/realtime/admin/cleanup/scheduler-events", tags="realtime", auth=True, desc="Admin only")
     add(C, f, "CleanupRealtimeEvents", summary="Cleanup realtime events", method_path="post /api/v1/realtime/admin/cleanup/realtime-events", tags="realtime", auth=True, desc="Admin only")

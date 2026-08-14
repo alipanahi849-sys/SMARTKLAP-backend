@@ -1252,29 +1252,6 @@ paths:
       summary: Emit a test WebSocket event
       tags:
       - realtime
-  /api/v1/realtime/metrics:
-    get:
-      description: Admin only
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/clap_internal_shared_response.Response'
-      security:
-      - BearerAuth: []
-      summary: Realtime metrics
-      tags:
-      - realtime
   /api/v1/realtime/session/{matchId}:
     get:
       parameters:
