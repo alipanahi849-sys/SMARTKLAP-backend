@@ -12,6 +12,7 @@ import (
 type AuthHandler interface {
 	Register(c *gin.Context)
 	Login(c *gin.Context)
+	LoginWithGoogle(c *gin.Context)
 	VerifyOTP(c *gin.Context)
 	RequestChangeEmail(c *gin.Context)
 	VerifyChangeEmail(c *gin.Context)
@@ -37,6 +38,11 @@ type RegisterRequest struct {
 // LoginRequest requests an OTP for an existing account: { "email" }.
 type LoginRequest struct {
 	Email string `json:"email" binding:"required,email"`
+}
+
+// GoogleLoginRequest is the native Google Sign-In payload: { "id_token" }.
+type GoogleLoginRequest struct {
+	IDToken string `json:"id_token" binding:"required"`
 }
 
 type VerifyOTPRequest struct {
@@ -112,6 +118,41 @@ func (h *authHandler) Login(c *gin.Context) {
 	}
 
 	response.SuccessWithMessage(c, response.EmptyObject, "OTP sent successfully")
+}
+
+// LoginWithGoogle godoc
+//
+//	@Summary		Login with Google
+//	@Description	Verify a Google ID token from native Sign-In and issue access/refresh tokens. Creates the user if the email is new; links an existing OTP account.
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		GoogleLoginRequest	true	"Google ID token"
+//	@Success		200		{object}	response.Response
+//	@Failure		400		{object}	response.Response
+//	@Failure		401		{object}	response.Response
+//	@Failure		503		{object}	response.Response
+//	@Router			/api/v1/auth/google [post]
+func (h *authHandler) LoginWithGoogle(c *gin.Context) {
+	var req GoogleLoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, middleware.ValidationMessage(err))
+		return
+	}
+
+	_, tokenPair, err := h.authService.LoginWithGoogle(
+		c.Request.Context(), req.IDToken, c.ClientIP(), c.Request.UserAgent(),
+	)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.SuccessWithMessage(c, gin.H{
+		"access_token":  tokenPair.AccessToken,
+		"refresh_token": tokenPair.RefreshToken,
+		"expires_in":    tokenPair.ExpiresIn,
+	}, "Logged in with Google")
 }
 
 // VerifyOTP godoc

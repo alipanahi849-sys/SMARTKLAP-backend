@@ -16,6 +16,9 @@ type AuthService interface {
 	Login(ctx context.Context, email string) (*OTPResult, error)
 	VerifyOTP(ctx context.Context, email, code, ipAddress, userAgent string) (*models.User, *utils.TokenPair, error)
 
+	// Google Sign-In: verify a Google ID token and issue the same JWT pair as OTP.
+	LoginWithGoogle(ctx context.Context, idToken, ipAddress, userAgent string) (*models.User, *utils.TokenPair, error)
+
 	// Change email: OTP is sent to the new address; verify applies the update.
 	RequestChangeEmail(ctx context.Context, userID uuid.UUID, newEmail string) (*OTPResult, error)
 	VerifyChangeEmail(ctx context.Context, userID uuid.UUID, newEmail, code, ipAddress, userAgent string) (*models.User, *utils.TokenPair, error)
@@ -29,6 +32,7 @@ type authService struct {
 	refreshTokenRepo repository.RefreshTokenRepository
 	otpStore         OTPStore
 	otpSender        OTPSender
+	googleVerifier   GoogleTokenVerifier
 }
 
 func NewAuthService(
@@ -48,12 +52,37 @@ func NewAuthServiceWithOTP(
 	otpStore OTPStore,
 	otpSender OTPSender,
 ) AuthService {
+	return newAuthService(userRepo, roleRepo, refreshTokenRepo, otpStore, otpSender, googleVerifierFromConfig())
+}
+
+// NewAuthServiceWithGoogle is NewAuthServiceWithOTP with an explicit Google
+// ID-token verifier. Pass nil to disable Google login (used by OTP unit tests).
+func NewAuthServiceWithGoogle(
+	userRepo repository.UserRepository,
+	roleRepo repository.RoleRepository,
+	refreshTokenRepo repository.RefreshTokenRepository,
+	otpStore OTPStore,
+	otpSender OTPSender,
+	googleVerifier GoogleTokenVerifier,
+) AuthService {
+	return newAuthService(userRepo, roleRepo, refreshTokenRepo, otpStore, otpSender, googleVerifier)
+}
+
+func newAuthService(
+	userRepo repository.UserRepository,
+	roleRepo repository.RoleRepository,
+	refreshTokenRepo repository.RefreshTokenRepository,
+	otpStore OTPStore,
+	otpSender OTPSender,
+	googleVerifier GoogleTokenVerifier,
+) *authService {
 	return &authService{
 		userRepo:         userRepo,
 		roleRepo:         roleRepo,
 		refreshTokenRepo: refreshTokenRepo,
 		otpStore:         otpStore,
 		otpSender:        otpSender,
+		googleVerifier:   googleVerifier,
 	}
 }
 

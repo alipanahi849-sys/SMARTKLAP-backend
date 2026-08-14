@@ -127,6 +127,15 @@ func NewInternal(message string, err error) *AppError {
 	}
 }
 
+func NewServiceUnavailable(message string, err error) *AppError {
+	return &AppError{
+		Code:       503,
+		Message:    message,
+		Err:        err,
+		StatusCode: http.StatusServiceUnavailable,
+	}
+}
+
 var (
 	ErrInvalidCredentials = NewUnauthorized("Invalid credentials", nil)
 	ErrInvalidToken       = NewUnauthorized("Invalid or expired token", nil)

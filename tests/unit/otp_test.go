@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	authrepo "clap/internal/modules/auth/repository"
 	"clap/internal/modules/auth/models"
+	authrepo "clap/internal/modules/auth/repository"
 	authsvc "clap/internal/modules/auth/service"
 	"clap/internal/shared/database"
 	sharederrors "clap/internal/shared/errors"
@@ -19,15 +19,17 @@ import (
 // ─── stubs ────────────────────────────────────────────────────────────────────
 
 type stubUserRepo struct {
-	mu      sync.Mutex
-	byEmail map[string]*models.User
-	byID    map[uuid.UUID]*models.User
+	mu       sync.Mutex
+	byEmail  map[string]*models.User
+	byID     map[uuid.UUID]*models.User
+	byGoogle map[string]*models.User
 }
 
 func newStubUserRepo() *stubUserRepo {
 	return &stubUserRepo{
-		byEmail: map[string]*models.User{},
-		byID:    map[uuid.UUID]*models.User{},
+		byEmail:  map[string]*models.User{},
+		byID:     map[uuid.UUID]*models.User{},
+		byGoogle: map[string]*models.User{},
 	}
 }
 
@@ -39,6 +41,9 @@ func (r *stubUserRepo) Create(_ context.Context, user *models.User) error {
 	}
 	r.byEmail[user.Email] = user
 	r.byID[user.ID] = user
+	if user.GoogleID != nil && *user.GoogleID != "" {
+		r.byGoogle[*user.GoogleID] = user
+	}
 	return nil
 }
 
@@ -60,6 +65,15 @@ func (r *stubUserRepo) FindByEmail(_ context.Context, email string) (*models.Use
 	return nil, sharederrors.ErrUserNotFound
 }
 
+func (r *stubUserRepo) FindByGoogleID(_ context.Context, googleID string) (*models.User, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if u, ok := r.byGoogle[googleID]; ok {
+		return u, nil
+	}
+	return nil, sharederrors.ErrUserNotFound
+}
+
 func (r *stubUserRepo) Update(_ context.Context, user *models.User) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -70,8 +84,16 @@ func (r *stubUserRepo) Update(_ context.Context, user *models.User) error {
 			delete(r.byEmail, email)
 		}
 	}
+	for gid, u := range r.byGoogle {
+		if u.ID == user.ID {
+			delete(r.byGoogle, gid)
+		}
+	}
 	r.byEmail[user.Email] = user
 	r.byID[user.ID] = user
+	if user.GoogleID != nil && *user.GoogleID != "" {
+		r.byGoogle[*user.GoogleID] = user
+	}
 	return nil
 }
 

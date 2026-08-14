@@ -21,6 +21,13 @@ type Config struct {
 	SMTP        SMTP      `mapstructure:"smtp"`
 	Stripe      Stripe    `mapstructure:"stripe"`
 	Firebase    Firebase  `mapstructure:"firebase"`
+	Google      Google    `mapstructure:"google"`
+}
+
+// Google holds OAuth client IDs allowed as the `aud` claim on Sign-In ID tokens.
+// Include the Web client ID (required by the mobile SDK) plus iOS/Android IDs.
+type Google struct {
+	ClientIDs []string `mapstructure:"client_ids"`
 }
 
 // Firebase holds Admin SDK credentials for FCM push delivery.
@@ -288,6 +295,9 @@ func LoadFromEnv() error {
 				getEnv("FIREBASE_CREDENTIALS_FILE", ""),
 				getEnv("GOOGLE_APPLICATION_CREDENTIALS", ""),
 			),
+		},
+		Google: Google{
+			ClientIDs: splitAndTrim(getEnv("GOOGLE_CLIENT_IDS", "")),
 		},
 	}
 

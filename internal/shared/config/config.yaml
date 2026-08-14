@@ -69,3 +69,6 @@ smtp:
 firebase:
   credentials_json: ""
   credentials_file: ""
+
+google:
+  client_ids: []
