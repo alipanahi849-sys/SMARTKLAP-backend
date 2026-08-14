@@ -19,7 +19,7 @@ type Match struct {
 	AwayClubID         uuid.UUID           `gorm:"type:uuid;not null" json:"away_club_id"`
 	Provider           string              `gorm:"type:varchar(50)" json:"provider"`
 	ProviderMatchID    string              `gorm:"type:varchar(100)" json:"provider_match_id"`
-	MatchDateTime      time.Time           `gorm:"type:timestamp;not null" json:"match_datetime"`
+	MatchDateTime      time.Time           `gorm:"column:match_datetime;type:timestamp;not null" json:"match_datetime"`
 	StadiumName        string              `gorm:"type:varchar(255)" json:"stadium_name"`
 	CompetitionLogoURL string              `gorm:"type:varchar(500)" json:"competition_logo_url"`
 	Status             string              `gorm:"type:varchar(20);not null;default:'scheduled'" json:"status"`
