@@ -93,7 +93,7 @@ func toDetail(item *models.News) *dto.NewsDetailResponse {
 		ID:          item.ID,
 		ClubID:      item.ClubID,
 		Title:       item.Title,
-		BodyHTML:    item.Body,
+		BodyHTML:    item.BodyHTML,
 		ImageURL:    item.ImageURL,
 		PublishedAt: item.PublishedAt.UTC().Format(time.RFC3339),
 		IsActive:    item.IsActive,

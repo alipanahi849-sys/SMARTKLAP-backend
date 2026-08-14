@@ -11,7 +11,7 @@ type News struct {
 	ID          uuid.UUID      `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	ClubID      *uuid.UUID     `gorm:"type:uuid" json:"club_id,omitempty"`
 	Title       string         `gorm:"type:varchar(500);not null" json:"title"`
-	Body        string         `gorm:"type:text" json:"body"`
+	BodyHTML    string         `gorm:"column:body_html;type:text" json:"body_html"`
 	ImageURL    string         `gorm:"type:varchar(500)" json:"image_url"`
 	PublishedAt time.Time      `gorm:"type:timestamp;not null" json:"published_at"`
 	IsActive    bool           `gorm:"not null;default:true" json:"is_active"`
