@@ -40,6 +40,7 @@ import (
 	"clap/internal/modules/match"
 	matchsvc "clap/internal/modules/match/service"
 	"clap/internal/modules/media"
+	"clap/internal/modules/news"
 	"clap/internal/modules/notification"
 	notifrepo "clap/internal/modules/notification/repository"
 	notifsvc "clap/internal/modules/notification/service"
@@ -367,6 +368,7 @@ func setupRouter(deps routerDeps) *gin.Engine {
 		songlyric.RegisterRoutes(v1)
 		media.RegisterRoutes(v1)
 		match.RegisterRoutes(v1, deps.matchSyncer)
+		news.RegisterRoutes(v1)
 		// Phase 4.3: Mobile API Contract modules
 		chant.RegisterRoutes(v1)
 		video.RegisterRoutes(v1)
