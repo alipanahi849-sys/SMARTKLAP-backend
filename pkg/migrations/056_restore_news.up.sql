@@ -17,7 +17,6 @@ CREATE TABLE IF NOT EXISTS news (
 );
 
 ALTER TABLE news ADD COLUMN IF NOT EXISTS body_html TEXT NOT NULL DEFAULT '';
-ALTER TABLE news ADD COLUMN IF NOT EXISTS body TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_news_published_at ON news (published_at DESC);
 CREATE INDEX IF NOT EXISTS idx_news_deleted_at   ON news (deleted_at);
