@@ -22,6 +22,7 @@ type MatchRepository interface {
 	FindLive(ctx context.Context) ([]models.Match, error)
 	FindByProviderMatchID(ctx context.Context, provider, providerMatchID string) (*models.Match, error)
 	FindCurrentForClub(ctx context.Context, clubID uuid.UUID) (*models.Match, error)
+	ListForClub(ctx context.Context, clubID uuid.UUID, limit int) ([]models.Match, error)
 	FindLiveByClub(ctx context.Context, clubID uuid.UUID) ([]models.Match, error)
 	Update(ctx context.Context, match *models.Match) error
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -229,6 +230,32 @@ func (r *matchRepository) FindCurrentForClub(ctx context.Context, clubID uuid.UU
 		return nil, sharederrors.NewInternal("Failed to find current match", err)
 	}
 	return &match, nil
+}
+
+func (r *matchRepository) ListForClub(ctx context.Context, clubID uuid.UUID, limit int) ([]models.Match, error) {
+	if limit <= 0 {
+		limit = 8
+	}
+	var matches []models.Match
+	err := r.db.WithContext(ctx).
+		Preload("League").Preload("Season").Preload("HomeClub").Preload("AwayClub").
+		Where("(home_club_id = ? OR away_club_id = ?) AND status <> ?", clubID, clubID, "cancelled").
+		Order(`
+			CASE
+				WHEN status IN ('live', 'halftime') THEN 0
+				WHEN status = 'scheduled' AND match_datetime >= NOW() THEN 1
+				WHEN status = 'finished' THEN 2
+				ELSE 3
+			END,
+			CASE WHEN status = 'scheduled' THEN match_datetime END ASC,
+			match_datetime DESC
+		`).
+		Limit(limit).
+		Find(&matches).Error
+	if err != nil {
+		return nil, sharederrors.NewInternal("Failed to list club matches", err)
+	}
+	return matches, nil
 }
 
 func (r *matchRepository) FindLiveByClub(ctx context.Context, clubID uuid.UUID) ([]models.Match, error) {

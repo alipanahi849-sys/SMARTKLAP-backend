@@ -13,6 +13,7 @@ import (
 
 type MatchHandler interface {
 	GetCurrent(c *gin.Context)
+	List(c *gin.Context)
 	GetByID(c *gin.Context)
 	GetPlayer(c *gin.Context)
 	SearchTeams(c *gin.Context)
@@ -45,6 +46,27 @@ func (h *matchHandler) GetCurrent(c *gin.Context) {
 		return
 	}
 	response.Success(c, dto.CurrentMatchEnvelope{Match: result})
+}
+
+// List godoc
+//
+//	@Summary		Featured-club match list
+//	@Tags			matches
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Router			/api/v1/matches [get]
+func (h *matchHandler) List(c *gin.Context) {
+	result, err := h.svc.List(c.Request.Context())
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	if result == nil {
+		result = []dto.CurrentMatchResponse{}
+	}
+	response.Success(c, dto.MatchListEnvelope{Items: result})
 }
 
 // GetByID godoc

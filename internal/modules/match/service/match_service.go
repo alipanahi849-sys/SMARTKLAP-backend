@@ -24,6 +24,7 @@ import (
 
 type MatchService interface {
 	GetCurrent(ctx context.Context) (*dto.CurrentMatchResponse, error)
+	List(ctx context.Context) ([]dto.CurrentMatchResponse, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*dto.MatchDetailResponse, error)
 	GetPlayer(ctx context.Context, id uuid.UUID) (*dto.PlayerDetailResponse, error)
 	SearchProviderTeams(ctx context.Context, query string) ([]dto.ProviderTeam, error)
@@ -79,6 +80,29 @@ func (s *matchService) GetCurrent(ctx context.Context) (*dto.CurrentMatchRespons
 		return nil, nil
 	}
 	return mapCurrentMatch(match), nil
+}
+
+func (s *matchService) List(ctx context.Context) ([]dto.CurrentMatchResponse, error) {
+	club, err := s.featuredClub(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if club == nil {
+		return []dto.CurrentMatchResponse{}, nil
+	}
+
+	matches, err := s.matches.ListForClub(ctx, club.ID, 8)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]dto.CurrentMatchResponse, 0, len(matches))
+	for i := range matches {
+		mapped := mapCurrentMatch(&matches[i])
+		if mapped != nil {
+			out = append(out, *mapped)
+		}
+	}
+	return out, nil
 }
 
 func (s *matchService) GetByID(ctx context.Context, id uuid.UUID) (*dto.MatchDetailResponse, error) {
@@ -230,14 +254,19 @@ func (s *matchService) featuredClub(ctx context.Context) (*clubmodels.Club, erro
 }
 
 func mapCurrentMatch(match *models.Match) *dto.CurrentMatchResponse {
+	logo := match.CompetitionLogoURL
+	if logo == "" {
+		logo = match.League.LogoURL
+	}
 	return &dto.CurrentMatchResponse{
-		ID:        match.ID,
-		Status:    match.Status,
-		Minute:    match.CurrentMinute,
-		Stadium:   match.StadiumName,
-		KickoffAt: match.MatchDateTime.UTC().Format(time.RFC3339),
-		HomeTeam:  teamSummary(match.HomeClub, match.HomeScore),
-		AwayTeam:  teamSummary(match.AwayClub, match.AwayScore),
+		ID:                 match.ID,
+		Status:             match.Status,
+		Minute:             match.CurrentMinute,
+		Stadium:            match.StadiumName,
+		KickoffAt:          match.MatchDateTime.UTC().Format(time.RFC3339),
+		CompetitionLogoURL: logo,
+		HomeTeam:           teamSummary(match.HomeClub, match.HomeScore),
+		AwayTeam:           teamSummary(match.AwayClub, match.AwayScore),
 	}
 }
 

@@ -65,6 +65,7 @@ func RegisterRoutes(r *gin.RouterGroup, syncer *service.SyncService) {
 	matches := r.Group("/matches")
 	matches.Use(middleware.Auth())
 	{
+		matches.GET("", h.List)
 		matches.GET("/current", h.GetCurrent)
 		matches.GET("/:match_id", h.GetByID)
 	}

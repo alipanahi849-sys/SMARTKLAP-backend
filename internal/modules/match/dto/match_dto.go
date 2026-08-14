@@ -13,13 +13,18 @@ type CurrentMatchEnvelope struct {
 }
 
 type CurrentMatchResponse struct {
-	ID        uuid.UUID   `json:"id"`
-	Status    string      `json:"status"`
-	Minute    string      `json:"minute"`
-	Stadium   string      `json:"stadium"`
-	KickoffAt string      `json:"kickoff_at"`
-	HomeTeam  TeamSummary `json:"home_team"`
-	AwayTeam  TeamSummary `json:"away_team"`
+	ID                 uuid.UUID   `json:"id"`
+	Status             string      `json:"status"`
+	Minute             string      `json:"minute"`
+	Stadium            string      `json:"stadium"`
+	KickoffAt          string      `json:"kickoff_at"`
+	CompetitionLogoURL string      `json:"competition_logo_url,omitempty"`
+	HomeTeam           TeamSummary `json:"home_team"`
+	AwayTeam           TeamSummary `json:"away_team"`
+}
+
+type MatchListEnvelope struct {
+	Items []CurrentMatchResponse `json:"items"`
 }
 
 type StatItem struct {
