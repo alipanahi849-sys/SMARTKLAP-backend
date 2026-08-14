@@ -18,6 +18,7 @@ type ClubRepository interface {
 	FindByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]models.Club, error)
 	FindAll(ctx context.Context, page, pageSize int, filters map[string]string, sortBy, sortOrder string) ([]models.Club, int64, error)
 	Search(ctx context.Context, query string, page, pageSize int) ([]models.Club, int64, error)
+	FindByProviderTeamID(ctx context.Context, provider, providerTeamID string) (*models.Club, error)
 	Update(ctx context.Context, club *models.Club) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
@@ -109,6 +110,17 @@ func (r *clubRepository) FindAll(ctx context.Context, page, pageSize int, filter
 	}
 
 	return clubs, total, nil
+}
+
+func (r *clubRepository) FindByProviderTeamID(ctx context.Context, provider, providerTeamID string) (*models.Club, error) {
+	var club models.Club
+	if err := r.db.WithContext(ctx).Where("provider = ? AND provider_team_id = ?", provider, providerTeamID).First(&club).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, sharederrors.NewInternal("Failed to find club by provider ID", err)
+	}
+	return &club, nil
 }
 
 func (r *clubRepository) Search(ctx context.Context, query string, page, pageSize int) ([]models.Club, int64, error) {

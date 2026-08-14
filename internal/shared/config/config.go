@@ -22,6 +22,18 @@ type Config struct {
 	Stripe      Stripe    `mapstructure:"stripe"`
 	Firebase    Firebase  `mapstructure:"firebase"`
 	Google      Google    `mapstructure:"google"`
+	Football    Football  `mapstructure:"football"`
+}
+
+// Football holds API-Football (api-sports.io) credentials used to sync live
+// scores, statistics, timeline events, and squads for the featured club.
+type Football struct {
+	APIKey  string `mapstructure:"api_key"`
+	BaseURL string `mapstructure:"base_url"`
+}
+
+func (f Football) Enabled() bool {
+	return strings.TrimSpace(f.APIKey) != ""
 }
 
 // Google holds OAuth client IDs allowed as the `aud` claim on Sign-In ID tokens.
@@ -298,6 +310,10 @@ func LoadFromEnv() error {
 		},
 		Google: Google{
 			ClientIDs: splitAndTrim(getEnv("GOOGLE_CLIENT_IDS", "")),
+		},
+		Football: Football{
+			APIKey:  getEnv("FOOTBALL_API_KEY", ""),
+			BaseURL: getEnv("FOOTBALL_API_BASE_URL", "https://v3.football.api-sports.io"),
 		},
 	}
 

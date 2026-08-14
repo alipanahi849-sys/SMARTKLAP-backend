@@ -20,6 +20,9 @@ type MatchRepository interface {
 	FindByClub(ctx context.Context, clubID uuid.UUID, page, pageSize int) ([]models.Match, int64, error)
 	FindUpcoming(ctx context.Context, page, pageSize int) ([]models.Match, int64, error)
 	FindLive(ctx context.Context) ([]models.Match, error)
+	FindByProviderMatchID(ctx context.Context, provider, providerMatchID string) (*models.Match, error)
+	FindCurrentForClub(ctx context.Context, clubID uuid.UUID) (*models.Match, error)
+	FindLiveByClub(ctx context.Context, clubID uuid.UUID) ([]models.Match, error)
 	Update(ctx context.Context, match *models.Match) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
@@ -186,6 +189,57 @@ func (r *matchRepository) FindLive(ctx context.Context) ([]models.Match, error) 
 		return nil, sharederrors.NewInternal("Failed to find live matches", err)
 	}
 
+	return matches, nil
+}
+
+func (r *matchRepository) FindByProviderMatchID(ctx context.Context, provider, providerMatchID string) (*models.Match, error) {
+	var match models.Match
+	if err := r.db.WithContext(ctx).
+		Preload("League").Preload("Season").Preload("HomeClub").Preload("AwayClub").
+		Where("provider = ? AND provider_match_id = ?", provider, providerMatchID).
+		First(&match).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, sharederrors.NewInternal("Failed to find match by provider ID", err)
+	}
+	return &match, nil
+}
+
+func (r *matchRepository) FindCurrentForClub(ctx context.Context, clubID uuid.UUID) (*models.Match, error) {
+	var match models.Match
+	err := r.db.WithContext(ctx).
+		Preload("League").Preload("Season").Preload("HomeClub").Preload("AwayClub").
+		Where("home_club_id = ? OR away_club_id = ?", clubID, clubID).
+		Order(`
+			CASE
+				WHEN status IN ('live', 'halftime') THEN 0
+				WHEN status = 'scheduled' AND match_datetime >= NOW() THEN 1
+				WHEN status = 'finished' THEN 2
+				ELSE 3
+			END,
+			CASE WHEN status = 'scheduled' THEN match_datetime END ASC,
+			match_datetime DESC
+		`).
+		First(&match).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, sharederrors.NewInternal("Failed to find current match", err)
+	}
+	return &match, nil
+}
+
+func (r *matchRepository) FindLiveByClub(ctx context.Context, clubID uuid.UUID) ([]models.Match, error) {
+	var matches []models.Match
+	if err := r.db.WithContext(ctx).
+		Preload("League").Preload("Season").Preload("HomeClub").Preload("AwayClub").
+		Where("(home_club_id = ? OR away_club_id = ?) AND status IN ('live', 'halftime')", clubID, clubID).
+		Order("match_datetime ASC").
+		Find(&matches).Error; err != nil {
+		return nil, sharederrors.NewInternal("Failed to find live matches", err)
+	}
 	return matches, nil
 }
 

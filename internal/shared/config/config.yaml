@@ -72,3 +72,7 @@ firebase:
 
 google:
   client_ids: []
+
+football:
+  api_key: ""
+  base_url: "https://v3.football.api-sports.io"

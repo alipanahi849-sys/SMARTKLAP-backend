@@ -83,6 +83,34 @@ func (r *stubMatchRepo) FindLive(context.Context) ([]matchmodels.Match, error) {
 	return result, nil
 }
 
+func (r *stubMatchRepo) FindByProviderMatchID(_ context.Context, _, id string) (*matchmodels.Match, error) {
+	for _, m := range r.matches {
+		if m.ProviderMatchID == id {
+			return m, nil
+		}
+	}
+	return nil, nil
+}
+
+func (r *stubMatchRepo) FindCurrentForClub(_ context.Context, clubID uuid.UUID) (*matchmodels.Match, error) {
+	for _, m := range r.matches {
+		if m.HomeClubID == clubID || m.AwayClubID == clubID {
+			return m, nil
+		}
+	}
+	return nil, nil
+}
+
+func (r *stubMatchRepo) FindLiveByClub(_ context.Context, clubID uuid.UUID) ([]matchmodels.Match, error) {
+	var result []matchmodels.Match
+	for _, m := range r.matches {
+		if (m.HomeClubID == clubID || m.AwayClubID == clubID) && (m.Status == "live" || m.Status == "halftime") {
+			result = append(result, *m)
+		}
+	}
+	return result, nil
+}
+
 func (r *stubMatchRepo) Update(_ context.Context, m *matchmodels.Match) error {
 	r.matches[m.ID] = m
 	return nil

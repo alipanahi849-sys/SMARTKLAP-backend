@@ -16,6 +16,7 @@ type SeasonRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*models.Season, error)
 	FindAll(ctx context.Context, page, pageSize int, filters map[string]string, sortBy, sortOrder string) ([]models.Season, int64, error)
 	FindByLeagueID(ctx context.Context, leagueID uuid.UUID, page, pageSize int) ([]models.Season, int64, error)
+	FindByLeagueAndProviderSeason(ctx context.Context, leagueID uuid.UUID, providerSeasonID string) (*models.Season, error)
 	Update(ctx context.Context, season *models.Season) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
@@ -113,6 +114,17 @@ func (r *seasonRepository) FindByLeagueID(ctx context.Context, leagueID uuid.UUI
 	}
 
 	return seasons, total, nil
+}
+
+func (r *seasonRepository) FindByLeagueAndProviderSeason(ctx context.Context, leagueID uuid.UUID, providerSeasonID string) (*models.Season, error) {
+	var season models.Season
+	if err := r.db.WithContext(ctx).Where("league_id = ? AND provider_season_id = ?", leagueID, providerSeasonID).First(&season).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, sharederrors.NewInternal("Failed to find season by provider ID", err)
+	}
+	return &season, nil
 }
 
 func (r *seasonRepository) Update(ctx context.Context, season *models.Season) error {

@@ -119,6 +119,8 @@ services:
       FIREBASE_CREDENTIALS_FILE: ${FIREBASE_CREDENTIALS_FILE:-}
       GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-}
       GOOGLE_CLIENT_IDS: ${GOOGLE_CLIENT_IDS:-}
+      FOOTBALL_API_KEY: ${FOOTBALL_API_KEY:-}
+      FOOTBALL_API_BASE_URL: ${FOOTBALL_API_BASE_URL:-https://v3.football.api-sports.io}
     volumes:
       - uploads_data:/data/uploads
     depends_on:

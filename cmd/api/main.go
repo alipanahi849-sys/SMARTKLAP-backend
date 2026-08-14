@@ -37,6 +37,8 @@ import (
 	schedulerrepo "clap/internal/modules/eventscheduler/repository"
 	schedulersvc "clap/internal/modules/eventscheduler/service"
 	lyricssvc "clap/internal/modules/lyricssync/service"
+	"clap/internal/modules/match"
+	matchsvc "clap/internal/modules/match/service"
 	"clap/internal/modules/media"
 	"clap/internal/modules/notification"
 	notifrepo "clap/internal/modules/notification/repository"
@@ -163,6 +165,9 @@ func run() error {
 	)
 	go chantNotifier.Run(appCtx)
 
+	matchSyncer := match.NewSyncService()
+	go matchSyncer.Run(appCtx)
+
 	// Periodic watchdog: reclaim stale processing events and rehydrate (CR-2).
 	go schedRecovery.RunWatchdog(appCtx, time.Duration(rtCfg.WatchdogIntervalMinutes)*time.Minute)
 
@@ -198,6 +203,7 @@ func run() error {
 		retentionSvc:       retentionSvc,
 		heartbeatSvc:       heartbeatSvc,
 		songEventScheduler: songEventScheduler,
+		matchSyncer:        matchSyncer,
 	})
 
 	server := &http.Server{
@@ -302,6 +308,7 @@ type routerDeps struct {
 	retentionSvc       realtimesvc.DataRetentionService
 	heartbeatSvc       realtimesvc.HeartbeatCleanupService
 	songEventScheduler playbacksvc.SongEventScheduler
+	matchSyncer        *matchsvc.SyncService
 }
 
 func setupRouter(deps routerDeps) *gin.Engine {
@@ -359,6 +366,7 @@ func setupRouter(deps routerDeps) *gin.Engine {
 		song.RegisterRoutes(v1)
 		songlyric.RegisterRoutes(v1)
 		media.RegisterRoutes(v1)
+		match.RegisterRoutes(v1, deps.matchSyncer)
 		// Phase 4.3: Mobile API Contract modules
 		chant.RegisterRoutes(v1)
 		video.RegisterRoutes(v1)

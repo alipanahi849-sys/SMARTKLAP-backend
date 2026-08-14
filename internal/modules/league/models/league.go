@@ -13,6 +13,7 @@ type League struct {
 	Country          string         `gorm:"type:varchar(100)" json:"country"`
 	Provider         string         `gorm:"type:varchar(50)" json:"provider"`
 	ProviderLeagueID string         `gorm:"type:varchar(100)" json:"provider_league_id"`
+	LogoURL          string         `gorm:"type:varchar(500)" json:"logo_url"`
 	IsActive         bool           `gorm:"default:true" json:"is_active"`
 	CreatedAt        time.Time      `json:"created_at"`
 	UpdatedAt        time.Time      `json:"updated_at"`
