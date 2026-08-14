@@ -14,6 +14,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	h := handler.NewNotificationHandler(
 		service.NewNotificationService(
 			repository.NewPushDeviceRepository(database.GetDB()),
+			nil,
 		),
 	)
 

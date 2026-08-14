@@ -5,6 +5,7 @@
 *.so
 *.dylib
 main
+/api
 
 # Test binary
 *.test
@@ -32,6 +33,10 @@ Thumbs.db
 # Environment
 .env
 .env.local
+
+# Firebase Admin SDK service account
+*firebase-adminsdk*.json
+firebase-credentials.json
 
 # Logs
 *.log

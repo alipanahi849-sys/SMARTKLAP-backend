@@ -15,6 +15,8 @@ import (
 type PushDeviceRepository interface {
 	Upsert(ctx context.Context, device *models.PushDevice) (*models.PushDevice, error)
 	DeleteByUserAndToken(ctx context.Context, userID uuid.UUID, token string) error
+	ListTokens(ctx context.Context) ([]string, error)
+	DeleteByTokens(ctx context.Context, tokens []string) error
 }
 
 type pushDeviceRepository struct {
@@ -64,6 +66,30 @@ func (r *pushDeviceRepository) DeleteByUserAndToken(ctx context.Context, userID 
 		Delete(&models.PushDevice{}).Error
 	if err != nil {
 		return errors.NewInternal("Failed to delete push device", err)
+	}
+	return nil
+}
+
+func (r *pushDeviceRepository) ListTokens(ctx context.Context) ([]string, error) {
+	var tokens []string
+	err := r.db.WithContext(ctx).
+		Model(&models.PushDevice{}).
+		Pluck("fcm_token", &tokens).Error
+	if err != nil {
+		return nil, errors.NewInternal("Failed to list push devices", err)
+	}
+	return tokens, nil
+}
+
+func (r *pushDeviceRepository) DeleteByTokens(ctx context.Context, tokens []string) error {
+	if len(tokens) == 0 {
+		return nil
+	}
+	err := r.db.WithContext(ctx).
+		Where("fcm_token IN ?", tokens).
+		Delete(&models.PushDevice{}).Error
+	if err != nil {
+		return errors.NewInternal("Failed to delete stale push devices", err)
 	}
 	return nil
 }

@@ -20,6 +20,19 @@ type Config struct {
 	Realtime    Realtime  `mapstructure:"realtime"`
 	SMTP        SMTP      `mapstructure:"smtp"`
 	Stripe      Stripe    `mapstructure:"stripe"`
+	Firebase    Firebase  `mapstructure:"firebase"`
+}
+
+// Firebase holds Admin SDK credentials for FCM push delivery.
+// Either CredentialsJSON or CredentialsFile is enough; when both are empty
+// push sending is skipped (device token registration still works).
+type Firebase struct {
+	CredentialsJSON string `mapstructure:"credentials_json"`
+	CredentialsFile string `mapstructure:"credentials_file"`
+}
+
+func (f Firebase) Enabled() bool {
+	return strings.TrimSpace(f.CredentialsJSON) != "" || strings.TrimSpace(f.CredentialsFile) != ""
 }
 
 // Stripe holds card payment credentials (Stripe).
@@ -269,6 +282,13 @@ func LoadFromEnv() error {
 			PublishableKey: getEnv("STRIPE_PUBLISHABLE_KEY", ""),
 			AppURLScheme:   getEnv("STRIPE_APP_URL_SCHEME", "smartklap"),
 		},
+		Firebase: Firebase{
+			CredentialsJSON: getEnv("FIREBASE_CREDENTIALS_JSON", ""),
+			CredentialsFile: firstNonEmpty(
+				getEnv("FIREBASE_CREDENTIALS_FILE", ""),
+				getEnv("GOOGLE_APPLICATION_CREDENTIALS", ""),
+			),
+		},
 	}
 
 	applyRealtimeDefaults(AppConfig)
@@ -377,6 +397,15 @@ func validateConfig(cfg *Config) error {
 	}
 
 	return nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func getEnv(key, defaultValue string) string {

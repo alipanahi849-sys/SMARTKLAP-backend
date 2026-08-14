@@ -3,11 +3,13 @@ package service
 import (
 	"context"
 	"strings"
+	"time"
 
 	"clap/internal/modules/notification/dto"
 	"clap/internal/modules/notification/models"
 	"clap/internal/modules/notification/repository"
 	"clap/internal/shared/errors"
+	"clap/internal/shared/logger"
 
 	"github.com/google/uuid"
 )
@@ -20,14 +22,16 @@ const (
 type NotificationService interface {
 	RegisterDevice(ctx context.Context, userID uuid.UUID, req *dto.RegisterDeviceRequest) (*dto.DeviceResponse, error)
 	UnregisterDevice(ctx context.Context, userID uuid.UUID, req *dto.UnregisterDeviceRequest) error
+	NotifyChantCountdown(ctx context.Context, chantID, matchID, title string, startsAt time.Time, leadTime time.Duration) error
 }
 
 type notificationService struct {
 	devices repository.PushDeviceRepository
+	sender  MulticastSender
 }
 
-func NewNotificationService(devices repository.PushDeviceRepository) NotificationService {
-	return &notificationService{devices: devices}
+func NewNotificationService(devices repository.PushDeviceRepository, sender MulticastSender) NotificationService {
+	return &notificationService{devices: devices, sender: sender}
 }
 
 func (s *notificationService) RegisterDevice(ctx context.Context, userID uuid.UUID, req *dto.RegisterDeviceRequest) (*dto.DeviceResponse, error) {
@@ -63,6 +67,60 @@ func (s *notificationService) UnregisterDevice(ctx context.Context, userID uuid.
 		return err
 	}
 	return s.devices.DeleteByUserAndToken(ctx, userID, token)
+}
+
+func (s *notificationService) NotifyChantCountdown(
+	ctx context.Context,
+	chantID, matchID, title string,
+	startsAt time.Time,
+	leadTime time.Duration,
+) error {
+	if s.sender == nil {
+		return nil
+	}
+
+	tokens, err := s.devices.ListTokens(ctx)
+	if err != nil {
+		return err
+	}
+	if len(tokens) == 0 {
+		logger.Info().
+			Str("chant_id", chantID).
+			Msg("push: no registered devices for chant countdown")
+		return nil
+	}
+
+	minutes := countdownMinutes(startsAt, leadTime)
+	notifTitle, body := chantCountdownCopy(title, minutes)
+	unregistered, sendErr := s.sender.Send(ctx, tokens, PushMessage{
+		Title: notifTitle,
+		Body:  body,
+		Data: map[string]string{
+			"type":      chantCountdownType,
+			"path":      chantCountdownPath,
+			"chant_id":  chantID,
+			"match_id":  matchID,
+			"title":     title,
+			"starts_at": startsAt.UTC().Format(time.RFC3339),
+		},
+	})
+	if len(unregistered) > 0 {
+		if delErr := s.devices.DeleteByTokens(ctx, unregistered); delErr != nil {
+			logger.Warn().Err(delErr).Int("count", len(unregistered)).Msg("push: failed to drop stale FCM tokens")
+		} else {
+			logger.Info().Int("count", len(unregistered)).Msg("push: dropped stale FCM tokens")
+		}
+	}
+	if sendErr != nil {
+		return sendErr
+	}
+
+	logger.Info().
+		Str("chant_id", chantID).
+		Int("devices", len(tokens)-len(unregistered)).
+		Int("minutes", minutes).
+		Msg("push: chant countdown notification sent")
+	return nil
 }
 
 func normalizeFCMToken(raw string) (string, error) {

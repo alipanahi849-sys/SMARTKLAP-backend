@@ -65,3 +65,7 @@ smtp:
   from: "noreply@clap.local"
   from_name: "Clap"
   use_tls: false
+
+firebase:
+  credentials_json: ""
+  credentials_file: ""

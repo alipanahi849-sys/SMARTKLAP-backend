@@ -39,6 +39,8 @@ import (
 	lyricssvc "clap/internal/modules/lyricssync/service"
 	"clap/internal/modules/media"
 	"clap/internal/modules/notification"
+	notifrepo "clap/internal/modules/notification/repository"
+	notifsvc "clap/internal/modules/notification/service"
 	"clap/internal/modules/order"
 	"clap/internal/modules/playback"
 	playbackrepo "clap/internal/modules/playback/repository"
@@ -135,14 +137,28 @@ func run() error {
 		eventSchedulerSvc,
 	)
 
+	pushDevices := notifrepo.NewPushDeviceRepository(db)
+	fcmSender, fcmErr := notifsvc.NewFirebaseSender(appCtx, config.AppConfig.Firebase)
+	if fcmErr != nil {
+		logger.Warn().Err(fcmErr).Msg("Firebase push sender unavailable; chant countdown pushes disabled")
+		fcmSender = nil
+	} else if fcmSender == nil {
+		logger.Info().Msg("Firebase credentials not configured; chant countdown pushes disabled")
+	} else {
+		logger.Info().Msg("Firebase push sender ready")
+	}
+	pushSvc := notifsvc.NewNotificationService(pushDevices, fcmSender)
+
 	// Notify connected users ~2 minutes before an active chant starts and
-	// auto-schedule chant.started + lyric sync events.
+	// auto-schedule chant.started + lyric sync events. Also send one FCM
+	// push so backgrounded devices see the song name and 2-minute warning.
 	chantNotifier := realtimesvc.NewChantUpcomingNotifier(
 		chantrepo.NewChantRepository(db),
 		chant.NewService(),
 		chantEventScheduler,
 		cm,
 		wsGateway,
+		pushSvc,
 		0, 0,
 	)
 	go chantNotifier.Run(appCtx)
