@@ -32,8 +32,8 @@ type CalculateOrderResponse struct {
 	DeliveryMethod   string `json:"delivery_method"`
 	PaymentMethod    string `json:"payment_method"`
 	Subtotal         string `json:"subtotal"`
-	Shipping         string `json:"shipping,omitempty"`
 	Total            string `json:"total"`
+	DeliverySavings  string `json:"delivery_savings,omitempty"`
 	PaymentAmount    string `json:"payment_amount"`
 	PointsRequired   int    `json:"points_required"`
 	UserPoints       int    `json:"user_points"`

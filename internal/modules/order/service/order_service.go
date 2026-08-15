@@ -11,7 +11,6 @@ import (
 	"clap/internal/modules/order/models"
 	orderrepo "clap/internal/modules/order/repository"
 	shopdto "clap/internal/modules/shop/dto"
-	shopmodels "clap/internal/modules/shop/models"
 	shoprepo "clap/internal/modules/shop/repository"
 	"clap/internal/shared/errors"
 	"clap/internal/shared/logger"
@@ -80,10 +79,8 @@ func NewOrderService(
 
 type orderTotals struct {
 	SubtotalCents  int64
-	ShippingCents  int64
 	TotalCents     int64
 	SubtotalPoints int
-	ShippingPoints int
 	TotalPoints    int
 }
 
@@ -190,13 +187,11 @@ func (s *orderService) CalculateOrder(ctx context.Context, userID uuid.UUID, req
 		PaymentMethod:    paymentMethod,
 		Subtotal:         formatOrderAmount(totals.SubtotalCents, totals.SubtotalPoints, displayCurrency),
 		Total:            formatOrderAmount(totals.TotalCents, totals.TotalPoints, displayCurrency),
+		DeliverySavings:  formatOrderAmount(models.PickupDiscountCents, models.PickupDiscountPoints, displayCurrency),
 		PaymentAmount:    formatOrderAmount(totals.TotalCents, totals.TotalPoints, displayCurrency),
 		PointsRequired:   totals.TotalPoints,
 		UserPoints:       user.Points,
 		SufficientPoints: user.Points >= totals.TotalPoints,
-	}
-	if totals.ShippingCents > 0 || totals.ShippingPoints > 0 {
-		resp.Shipping = formatOrderAmount(totals.ShippingCents, totals.ShippingPoints, displayCurrency)
 	}
 	return resp, nil
 }
@@ -246,14 +241,13 @@ func (s *orderService) UpdateOrder(ctx context.Context, userID, orderID uuid.UUI
 		} else {
 			updates["seat_number"] = seatNumber
 		}
-		if deliveryMethod != order.DeliveryMethod {
-			shippingCents, shippingPoints := shippingForOrderItems(deliveryMethod, order.Items)
-			updates["shipping_cents"] = shippingCents
-			updates["shipping_points"] = shippingPoints
-			updates["total_cents"] = order.SubtotalCents + shippingCents
-			updates["total_points"] = order.SubtotalPoints + shippingPoints
-		}
 	}
+
+	totalCents, totalPoints := applyPickupDiscount(order.SubtotalCents, order.SubtotalPoints, deliveryMethod)
+	updates["shipping_cents"] = int64(0)
+	updates["shipping_points"] = 0
+	updates["total_cents"] = totalCents
+	updates["total_points"] = totalPoints
 
 	if req.PaymentMethod != nil {
 		method := strings.ToLower(strings.TrimSpace(*req.PaymentMethod))
@@ -318,10 +312,8 @@ func (s *orderService) CreateOrder(ctx context.Context, userID uuid.UUID, req *d
 		Status:         models.OrderStatusPendingPayment,
 		DeliveryMethod: deliveryMethod,
 		SubtotalCents:  totals.SubtotalCents,
-		ShippingCents:  totals.ShippingCents,
 		TotalCents:     totals.TotalCents,
 		SubtotalPoints: totals.SubtotalPoints,
-		ShippingPoints: totals.ShippingPoints,
 		TotalPoints:    totals.TotalPoints,
 	}
 	if seatNumber != "" {
@@ -366,14 +358,12 @@ func (s *orderService) loadCartTotals(ctx context.Context, userID uuid.UUID, del
 		return orderTotals{}, nil, err
 	}
 
-	shippingCents, shippingPoints := shippingForDelivery(deliveryMethod, lines)
+	totalCents, totalPoints := applyPickupDiscount(subtotalCents, subtotalPoints, deliveryMethod)
 	return orderTotals{
 		SubtotalCents:  subtotalCents,
-		ShippingCents:  shippingCents,
-		TotalCents:     subtotalCents + shippingCents,
+		TotalCents:     totalCents,
 		SubtotalPoints: subtotalPoints,
-		ShippingPoints: shippingPoints,
-		TotalPoints:    subtotalPoints + shippingPoints,
+		TotalPoints:    totalPoints,
 	}, lines, nil
 }
 
@@ -737,38 +727,19 @@ func (s *orderService) decrementStock(ctx context.Context, item models.OrderItem
 	return s.productRepo.DecrementStockForOrder(ctx, item.ProductID, item.Quantity)
 }
 
-func shippingForDelivery(method string, lines []shoprepo.UserCartLine) (cents int64, points int) {
-	return shippingForHasMerch(method, hasMerch(lines))
-}
-
-func shippingForOrderItems(method string, items []models.OrderItem) (cents int64, points int) {
-	hasMerchItem := false
-	for _, item := range items {
-		if item.ProductType == shopmodels.ProductTypeMerch {
-			hasMerchItem = true
-			break
-		}
+func applyPickupDiscount(subtotalCents int64, subtotalPoints int, method string) (totalCents int64, totalPoints int) {
+	if method != models.DeliveryMethodPickup {
+		return subtotalCents, subtotalPoints
 	}
-	return shippingForHasMerch(method, hasMerchItem)
-}
-
-func shippingForHasMerch(method string, hasMerchItem bool) (cents int64, points int) {
-	if method == models.DeliveryMethodPickup {
-		return models.PickupShippingCents, models.PickupShippingPoints
+	totalCents = subtotalCents - models.PickupDiscountCents
+	if totalCents < 0 {
+		totalCents = 0
 	}
-	if hasMerchItem {
-		return models.SeatDeliveryShippingCents, models.SeatDeliveryShippingPoints
+	totalPoints = subtotalPoints - models.PickupDiscountPoints
+	if totalPoints < 0 {
+		totalPoints = 0
 	}
-	return 0, 0
-}
-
-func hasMerch(lines []shoprepo.UserCartLine) bool {
-	for _, line := range lines {
-		if line.ProductType == shopmodels.ProductTypeMerch {
-			return true
-		}
-	}
-	return false
+	return totalCents, totalPoints
 }
 
 func parseOrderCurrency(raw string) (string, error) {

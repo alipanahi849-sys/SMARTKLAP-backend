@@ -417,10 +417,10 @@ func TestOrderService_CalculateOrderWithPoints(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "3250 P", resp.Subtotal)
-	assert.Equal(t, "350 P", resp.Shipping)
-	assert.Equal(t, "3600 P", resp.Total)
-	assert.Equal(t, "3600 P", resp.PaymentAmount)
-	assert.Equal(t, 3600, resp.PointsRequired)
+	assert.Equal(t, "3200 P", resp.Total)
+	assert.Equal(t, "50 P", resp.DeliverySavings)
+	assert.Equal(t, "3200 P", resp.PaymentAmount)
+	assert.Equal(t, 3200, resp.PointsRequired)
 	assert.Equal(t, 5000, resp.UserPoints)
 	assert.True(t, resp.SufficientPoints)
 }
@@ -746,7 +746,7 @@ func TestOrderService_PayOrderWithCardNotConfigured(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestOrderService_UpdatePendingDeliveryRecalculatesShipping(t *testing.T) {
+func TestOrderService_UpdatePendingDeliveryAppliesPickupDiscount(t *testing.T) {
 	userID := uuid.New()
 	orderRepo := newStubOrderRepo()
 	orderID := uuid.New()
@@ -759,11 +759,9 @@ func TestOrderService_UpdatePendingDeliveryRecalculatesShipping(t *testing.T) {
 		SeatNumber:     &seat,
 		PaymentMethod:  &card,
 		SubtotalCents:  3250,
-		ShippingCents:  400,
-		TotalCents:     3650,
+		TotalCents:     3250,
 		SubtotalPoints: 3250,
-		ShippingPoints: 400,
-		TotalPoints:    3650,
+		TotalPoints:    3250,
 		CreatedAt:      time.Now().UTC(),
 		Items: []ordermodels.OrderItem{
 			{ProductID: uuid.New(), ProductType: shopmodels.ProductTypeMerch, Name: "Shirt", Quantity: 1, PriceCents: 3250, PricePoints: 3250},
@@ -778,8 +776,9 @@ func TestOrderService_UpdatePendingDeliveryRecalculatesShipping(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Equal(t, ordermodels.DeliveryMethodPickup, resp.DeliveryMethod)
-	assert.Equal(t, "3,50 €", resp.Shipping)
-	assert.Equal(t, "36,00 €", resp.Total)
+	assert.Empty(t, resp.Shipping)
+	assert.Equal(t, "32,50 €", resp.Subtotal)
+	assert.Equal(t, "32,00 €", resp.Total)
 	assert.Equal(t, ordermodels.OrderStatusPendingPayment, resp.Status)
 	assert.NotEmpty(t, resp.ExpiresAt)
 }

@@ -18,10 +18,8 @@ const (
 	PaymentMethodPoints = "points"
 	PaymentMethodCard   = "card"
 
-	SeatDeliveryShippingCents  int64 = 400
-	PickupShippingCents        int64 = 350
-	SeatDeliveryShippingPoints int   = 400
-	PickupShippingPoints       int   = 350
+	PickupDiscountCents  int64 = 50
+	PickupDiscountPoints int   = 50
 
 	// PendingPaymentTTL is how long an unpaid order stays payable.
 	PendingPaymentTTL = 10 * time.Minute

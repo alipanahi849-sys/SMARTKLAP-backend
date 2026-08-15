@@ -112,7 +112,7 @@ func (h *orderHandler) GetByID(c *gin.Context) {
 // Calculate order godoc
 //
 //	@Summary		Calculate checkout totals
-//	@Description	Preview subtotal, shipping, total, and points required for the current cart
+//	@Description	Preview subtotal, total, pickup savings, and points required for the current cart
 //	@Tags			orders
 //	@Accept			json
 //	@Produce		json
@@ -222,7 +222,7 @@ func (h *orderHandler) Pay(c *gin.Context) {
 // Update unpaid order godoc
 //
 //	@Summary		Update unpaid order
-//	@Description	Changes delivery or payment method on a pending_payment order and recalculates shipping
+//	@Description	Changes delivery or payment method on a pending_payment order and recalculates totals
 //	@Tags			orders
 //	@Accept			json
 //	@Produce		json
