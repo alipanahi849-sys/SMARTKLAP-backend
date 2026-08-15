@@ -1,6 +1,8 @@
 package order
 
 import (
+	"context"
+
 	authrepo "clap/internal/modules/auth/repository"
 	"clap/internal/modules/order/handler"
 	orderrepo "clap/internal/modules/order/repository"
@@ -41,6 +43,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 		appURLScheme,
 	)
 	h := handler.NewOrderHandler(svc)
+	go svc.RunPendingPaymentSweeper(context.Background())
 
 	r.POST("/webhooks/stripe", h.StripeWebhook)
 
@@ -51,6 +54,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 		orders.POST("/calculate", h.Calculate)
 		orders.POST("", h.Create)
 		orders.GET("/:order_id", h.GetByID)
+		orders.PATCH("/:order_id", h.Update)
 		orders.POST("/:order_id/pay", h.Pay)
 		orders.POST("/:order_id/confirm-payment", h.Confirm)
 	}

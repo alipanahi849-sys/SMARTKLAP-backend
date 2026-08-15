@@ -127,6 +127,31 @@ func (p *stripeProvider) GetCheckoutSession(ctx context.Context, sessionID strin
 	}, nil
 }
 
+func (p *stripeProvider) ExpireCheckoutSession(ctx context.Context, sessionID string) error {
+	if !p.Enabled() {
+		return nil
+	}
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" || !strings.HasPrefix(sessionID, "cs_") {
+		return nil
+	}
+
+	params := &stripe.CheckoutSessionExpireParams{}
+	params.Context = ctx
+	_, err := session.Expire(sessionID, params)
+	if err == nil {
+		return nil
+	}
+
+	lower := strings.ToLower(err.Error())
+	if strings.Contains(lower, "expired") ||
+		strings.Contains(lower, "complete") ||
+		strings.Contains(lower, "already") {
+		return nil
+	}
+	return fmt.Errorf("expire checkout session: %w", err)
+}
+
 func (p *stripeProvider) EmailCheckoutInvoice(ctx context.Context, sessionID string) error {
 	if !p.Enabled() {
 		return nil

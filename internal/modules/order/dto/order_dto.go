@@ -14,6 +14,13 @@ type PayOrderRequest struct {
 	PaymentMethod string `json:"payment_method" binding:"required,oneof=points card"`
 }
 
+// UpdateOrderRequest is PATCH /api/v1/orders/{order_id} for unpaid orders.
+type UpdateOrderRequest struct {
+	DeliveryMethod *string `json:"delivery_method"`
+	SeatNumber     *string `json:"seat_number"`
+	PaymentMethod  *string `json:"payment_method"`
+}
+
 // CalculateOrderRequest is POST /api/v1/orders/calculate.
 type CalculateOrderRequest struct {
 	DeliveryMethod string `json:"delivery_method" binding:"required,oneof=seat pickup"`
@@ -67,6 +74,7 @@ type OrderListItem struct {
 	ItemCount      int                    `json:"item_count"`
 	Items          []OrderListPreviewItem `json:"items,omitempty"`
 	CreatedAt      string                 `json:"created_at"`
+	ExpiresAt      string                 `json:"expires_at,omitempty"`
 }
 
 // OrderListResponse is GET /api/v1/orders.
@@ -101,6 +109,7 @@ type OrderDetailResponse struct {
 	ItemCount      int               `json:"item_count"`
 	Items          []OrderDetailItem `json:"items"`
 	CreatedAt      string            `json:"created_at"`
+	ExpiresAt      string            `json:"expires_at,omitempty"`
 	PaidAt         string            `json:"paid_at,omitempty"`
 }
 

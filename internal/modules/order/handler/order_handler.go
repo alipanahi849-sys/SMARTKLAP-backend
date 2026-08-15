@@ -21,6 +21,7 @@ type OrderHandler interface {
 	Create(c *gin.Context)
 	Confirm(c *gin.Context)
 	Pay(c *gin.Context)
+	Update(c *gin.Context)
 	StripeWebhook(c *gin.Context)
 }
 
@@ -211,6 +212,47 @@ func (h *orderHandler) Pay(c *gin.Context) {
 	}
 
 	result, err := h.svc.PayOrder(c.Request.Context(), userID, orderID, &req)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+// Update unpaid order godoc
+//
+//	@Summary		Update unpaid order
+//	@Description	Changes delivery or payment method on a pending_payment order and recalculates shipping
+//	@Tags			orders
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			order_id	path	string	true	"Order ID"
+//	@Param			body		body	dto.UpdateOrderRequest	true	"Request body"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		422	{object}	response.Response
+//	@Router			/api/v1/orders/{order_id} [patch]
+func (h *orderHandler) Update(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == uuid.Nil {
+		response.Unauthorized(c, "Invalid user")
+		return
+	}
+
+	orderID, err := uuid.Parse(c.Param("order_id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid order_id")
+		return
+	}
+
+	var req dto.UpdateOrderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	result, err := h.svc.UpdateOrder(c.Request.Context(), userID, orderID, &req)
 	if err != nil {
 		response.Error(c, err)
 		return

@@ -25,6 +25,9 @@ type OrderRepository interface {
 	FindByID(ctx context.Context, orderID uuid.UUID) (*models.Order, error)
 	FindByStripePaymentIntentID(ctx context.Context, intentID string) (*models.Order, error)
 	MarkPaid(ctx context.Context, orderID uuid.UUID, paidAt time.Time, paymentMethod string) error
+	MarkCancelled(ctx context.Context, orderID uuid.UUID) error
+	UpdatePendingCheckout(ctx context.Context, orderID uuid.UUID, updates map[string]interface{}) error
+	ListExpiredPending(ctx context.Context, cutoff time.Time) ([]models.Order, error)
 	UpdateStripePaymentIntentID(ctx context.Context, orderID uuid.UUID, intentID string) error
 	RecordStripeEvent(ctx context.Context, eventID, eventType string, orderID *uuid.UUID) (bool, error)
 }
@@ -165,7 +168,10 @@ func (r *orderRepository) MarkPaid(ctx context.Context, orderID uuid.UUID, paidA
 	}
 
 	res := r.db.WithContext(ctx).Model(&models.Order{}).
-		Where("id = ? AND status = ?", orderID, models.OrderStatusPendingPayment).
+		Where("id = ? AND status IN ?", orderID, []string{
+			models.OrderStatusPendingPayment,
+			models.OrderStatusCancelled,
+		}).
 		Updates(updates)
 	if res.Error != nil {
 		return errors.NewInternal("Failed to mark order paid", res.Error)
@@ -174,4 +180,43 @@ func (r *orderRepository) MarkPaid(ctx context.Context, orderID uuid.UUID, paidA
 		return errors.NewUnprocessable("Order is not pending payment", nil)
 	}
 	return nil
+}
+
+func (r *orderRepository) MarkCancelled(ctx context.Context, orderID uuid.UUID) error {
+	res := r.db.WithContext(ctx).Model(&models.Order{}).
+		Where("id = ? AND status = ?", orderID, models.OrderStatusPendingPayment).
+		Updates(map[string]interface{}{
+			"status":                   models.OrderStatusCancelled,
+			"stripe_payment_intent_id": nil,
+		})
+	if res.Error != nil {
+		return errors.NewInternal("Failed to cancel order", res.Error)
+	}
+	return nil
+}
+
+func (r *orderRepository) UpdatePendingCheckout(ctx context.Context, orderID uuid.UUID, updates map[string]interface{}) error {
+	if len(updates) == 0 {
+		return nil
+	}
+	res := r.db.WithContext(ctx).Model(&models.Order{}).
+		Where("id = ? AND status = ?", orderID, models.OrderStatusPendingPayment).
+		Updates(updates)
+	if res.Error != nil {
+		return errors.NewInternal("Failed to update order", res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return errors.NewUnprocessable("Order is not pending payment", nil)
+	}
+	return nil
+}
+
+func (r *orderRepository) ListExpiredPending(ctx context.Context, cutoff time.Time) ([]models.Order, error) {
+	var orders []models.Order
+	if err := r.db.WithContext(ctx).
+		Where("status = ? AND created_at <= ?", models.OrderStatusPendingPayment, cutoff).
+		Find(&orders).Error; err != nil {
+		return nil, errors.NewInternal("Failed to load expired orders", err)
+	}
+	return orders, nil
 }

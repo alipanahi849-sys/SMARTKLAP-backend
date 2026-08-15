@@ -34,6 +34,9 @@ func (r *stubOrderRepo) CreateWithItems(_ context.Context, order *ordermodels.Or
 	if order.ID == uuid.Nil {
 		order.ID = uuid.New()
 	}
+	if order.CreatedAt.IsZero() {
+		order.CreatedAt = time.Now().UTC()
+	}
 	cp := *order
 	cp.Items = append([]ordermodels.OrderItem(nil), items...)
 	for i := range cp.Items {
@@ -103,7 +106,7 @@ func (r *stubOrderRepo) MarkPaid(_ context.Context, orderID uuid.UUID, _ time.Ti
 	if !ok {
 		return sharederrors.NewNotFound("Order not found", nil)
 	}
-	if o.Status != ordermodels.OrderStatusPendingPayment {
+	if o.Status != ordermodels.OrderStatusPendingPayment && o.Status != ordermodels.OrderStatusCancelled {
 		return sharederrors.NewUnprocessable("Order is not pending payment", nil)
 	}
 	o.Status = ordermodels.OrderStatusPaid
@@ -111,6 +114,74 @@ func (r *stubOrderRepo) MarkPaid(_ context.Context, orderID uuid.UUID, _ time.Ti
 		o.PaymentMethod = &paymentMethod
 	}
 	return nil
+}
+
+func (r *stubOrderRepo) MarkCancelled(_ context.Context, orderID uuid.UUID) error {
+	o, ok := r.orders[orderID]
+	if !ok {
+		return sharederrors.NewNotFound("Order not found", nil)
+	}
+	if o.Status != ordermodels.OrderStatusPendingPayment {
+		return nil
+	}
+	o.Status = ordermodels.OrderStatusCancelled
+	o.StripePaymentIntentID = nil
+	return nil
+}
+
+func (r *stubOrderRepo) UpdatePendingCheckout(_ context.Context, orderID uuid.UUID, updates map[string]interface{}) error {
+	o, ok := r.orders[orderID]
+	if !ok {
+		return sharederrors.NewNotFound("Order not found", nil)
+	}
+	if o.Status != ordermodels.OrderStatusPendingPayment {
+		return sharederrors.NewUnprocessable("Order is not pending payment", nil)
+	}
+	if v, ok := updates["delivery_method"].(string); ok {
+		o.DeliveryMethod = v
+	}
+	if v, ok := updates["seat_number"].(string); ok {
+		if v == "" {
+			o.SeatNumber = nil
+		} else {
+			o.SeatNumber = &v
+		}
+	}
+	if v, ok := updates["payment_method"].(string); ok {
+		o.PaymentMethod = &v
+	}
+	if v, ok := updates["shipping_cents"].(int64); ok {
+		o.ShippingCents = v
+	}
+	if v, ok := updates["shipping_points"].(int); ok {
+		o.ShippingPoints = v
+	}
+	if v, ok := updates["total_cents"].(int64); ok {
+		o.TotalCents = v
+	}
+	if v, ok := updates["total_points"].(int); ok {
+		o.TotalPoints = v
+	}
+	if _, ok := updates["stripe_payment_intent_id"]; ok {
+		o.StripePaymentIntentID = nil
+	}
+	return nil
+}
+
+func (r *stubOrderRepo) ListExpiredPending(_ context.Context, cutoff time.Time) ([]ordermodels.Order, error) {
+	var expired []ordermodels.Order
+	for _, o := range r.orders {
+		if o.Status != ordermodels.OrderStatusPendingPayment {
+			continue
+		}
+		if o.CreatedAt.IsZero() || o.CreatedAt.After(cutoff) {
+			continue
+		}
+		cp := *o
+		cp.Items = append([]ordermodels.OrderItem(nil), o.Items...)
+		expired = append(expired, cp)
+	}
+	return expired, nil
 }
 
 func (r *stubOrderRepo) FindByStripePaymentIntentID(_ context.Context, intentID string) (*ordermodels.Order, error) {
@@ -160,6 +231,10 @@ func (s stubPaymentProvider) GetCheckoutSession(_ context.Context, sessionID str
 }
 
 func (s stubPaymentProvider) EmailCheckoutInvoice(context.Context, string) error {
+	return nil
+}
+
+func (s stubPaymentProvider) ExpireCheckoutSession(context.Context, string) error {
 	return nil
 }
 
@@ -662,12 +737,146 @@ func TestOrderService_PayOrderWithCardNotConfigured(t *testing.T) {
 		UserID:     userID,
 		Status:     ordermodels.OrderStatusPendingPayment,
 		TotalCents: 1640,
+		CreatedAt:  time.Now().UTC(),
 	}
 	orderRepo.orders[orderID].ID = orderID
 
 	svc := newOrderService(orderRepo, &stubCartRepo{}, stubProductRepo{}, stubSizeStockRepo{}, newStubUserRepo(), nil)
 	_, err := svc.PayOrder(context.Background(), userID, orderID, &orderdto.PayOrderRequest{PaymentMethod: "card"})
 	require.Error(t, err)
+}
+
+func TestOrderService_UpdatePendingDeliveryRecalculatesShipping(t *testing.T) {
+	userID := uuid.New()
+	orderRepo := newStubOrderRepo()
+	orderID := uuid.New()
+	seat := "101"
+	card := ordermodels.PaymentMethodCard
+	orderRepo.orders[orderID] = &ordermodels.Order{
+		UserID:         userID,
+		Status:         ordermodels.OrderStatusPendingPayment,
+		DeliveryMethod: ordermodels.DeliveryMethodSeat,
+		SeatNumber:     &seat,
+		PaymentMethod:  &card,
+		SubtotalCents:  3250,
+		ShippingCents:  400,
+		TotalCents:     3650,
+		SubtotalPoints: 3250,
+		ShippingPoints: 400,
+		TotalPoints:    3650,
+		CreatedAt:      time.Now().UTC(),
+		Items: []ordermodels.OrderItem{
+			{ProductID: uuid.New(), ProductType: shopmodels.ProductTypeMerch, Name: "Shirt", Quantity: 1, PriceCents: 3250, PricePoints: 3250},
+		},
+	}
+	orderRepo.orders[orderID].ID = orderID
+
+	svc := newOrderService(orderRepo, &stubCartRepo{}, stubProductRepo{}, stubSizeStockRepo{}, newStubUserRepo(), nil)
+	pickup := ordermodels.DeliveryMethodPickup
+	resp, err := svc.UpdateOrder(context.Background(), userID, orderID, &orderdto.UpdateOrderRequest{
+		DeliveryMethod: &pickup,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, ordermodels.DeliveryMethodPickup, resp.DeliveryMethod)
+	assert.Equal(t, "3,50 €", resp.Shipping)
+	assert.Equal(t, "36,00 €", resp.Total)
+	assert.Equal(t, ordermodels.OrderStatusPendingPayment, resp.Status)
+	assert.NotEmpty(t, resp.ExpiresAt)
+}
+
+func TestOrderService_UpdatePaymentMethodThenPay(t *testing.T) {
+	userID := uuid.New()
+	orderRepo := newStubOrderRepo()
+	orderID := uuid.New()
+	card := ordermodels.PaymentMethodCard
+	orderRepo.orders[orderID] = &ordermodels.Order{
+		UserID:         userID,
+		Status:         ordermodels.OrderStatusPendingPayment,
+		DeliveryMethod: ordermodels.DeliveryMethodSeat,
+		PaymentMethod:  &card,
+		SubtotalPoints: 1640,
+		TotalPoints:    1640,
+		CreatedAt:      time.Now().UTC(),
+		Items: []ordermodels.OrderItem{
+			{ProductID: uuid.New(), ProductType: shopmodels.ProductTypeFood, Name: "Burger", Quantity: 2, PricePoints: 820},
+		},
+	}
+	orderRepo.orders[orderID].ID = orderID
+
+	svc := newOrderService(orderRepo, &stubCartRepo{}, stubProductRepo{}, stubSizeStockRepo{}, seedOrderUserRepo(userID, 5000), nil)
+	points := ordermodels.PaymentMethodPoints
+	updated, err := svc.UpdateOrder(context.Background(), userID, orderID, &orderdto.UpdateOrderRequest{
+		PaymentMethod: &points,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, ordermodels.PaymentMethodPoints, updated.PaymentMethod)
+
+	resp, err := svc.PayOrder(context.Background(), userID, orderID, &orderdto.PayOrderRequest{PaymentMethod: "points"})
+	require.NoError(t, err)
+	assert.Equal(t, ordermodels.OrderStatusPaid, resp.Status)
+}
+
+func TestOrderService_PayExpiredOrderCancels(t *testing.T) {
+	userID := uuid.New()
+	orderRepo := newStubOrderRepo()
+	orderID := uuid.New()
+	orderRepo.orders[orderID] = &ordermodels.Order{
+		UserID:      userID,
+		Status:      ordermodels.OrderStatusPendingPayment,
+		TotalPoints: 1640,
+		CreatedAt:   time.Now().UTC().Add(-11 * time.Minute),
+	}
+	orderRepo.orders[orderID].ID = orderID
+
+	svc := newOrderService(orderRepo, &stubCartRepo{}, stubProductRepo{}, stubSizeStockRepo{}, seedOrderUserRepo(userID, 5000), nil)
+	_, err := svc.PayOrder(context.Background(), userID, orderID, &orderdto.PayOrderRequest{PaymentMethod: "points"})
+	require.Error(t, err)
+	assert.Equal(t, ordermodels.OrderStatusCancelled, orderRepo.orders[orderID].Status)
+}
+
+func TestOrderService_GetExpiredOrderMarksCancelled(t *testing.T) {
+	userID := uuid.New()
+	orderRepo := newStubOrderRepo()
+	orderID := uuid.New()
+	orderRepo.orders[orderID] = &ordermodels.Order{
+		UserID:    userID,
+		Status:    ordermodels.OrderStatusPendingPayment,
+		CreatedAt: time.Now().UTC().Add(-11 * time.Minute),
+		Items:     []ordermodels.OrderItem{{ProductID: uuid.New(), Name: "Burger", Quantity: 1}},
+	}
+	orderRepo.orders[orderID].ID = orderID
+
+	svc := newOrderService(orderRepo, &stubCartRepo{}, stubProductRepo{}, stubSizeStockRepo{}, newStubUserRepo(), nil)
+	resp, err := svc.GetOrder(context.Background(), userID, orderID)
+	require.NoError(t, err)
+	assert.Equal(t, ordermodels.OrderStatusCancelled, resp.Status)
+	assert.Empty(t, resp.ExpiresAt)
+}
+
+func TestOrderService_ExpirePendingOrders(t *testing.T) {
+	userID := uuid.New()
+	orderRepo := newStubOrderRepo()
+	expiredID := uuid.New()
+	freshID := uuid.New()
+	orderRepo.orders[expiredID] = &ordermodels.Order{
+		UserID:    userID,
+		Status:    ordermodels.OrderStatusPendingPayment,
+		CreatedAt: time.Now().UTC().Add(-11 * time.Minute),
+	}
+	orderRepo.orders[expiredID].ID = expiredID
+	orderRepo.orders[freshID] = &ordermodels.Order{
+		UserID:    userID,
+		Status:    ordermodels.OrderStatusPendingPayment,
+		CreatedAt: time.Now().UTC(),
+	}
+	orderRepo.orders[freshID].ID = freshID
+
+	svc := newOrderService(orderRepo, &stubCartRepo{}, stubProductRepo{}, stubSizeStockRepo{}, newStubUserRepo(), nil)
+	n, err := svc.ExpirePendingOrders(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, 1, n)
+	assert.Equal(t, ordermodels.OrderStatusCancelled, orderRepo.orders[expiredID].Status)
+	assert.Equal(t, ordermodels.OrderStatusPendingPayment, orderRepo.orders[freshID].Status)
 }
 
 var (

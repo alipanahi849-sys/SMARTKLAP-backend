@@ -14,6 +14,7 @@ import (
 	shopmodels "clap/internal/modules/shop/models"
 	shoprepo "clap/internal/modules/shop/repository"
 	"clap/internal/shared/errors"
+	"clap/internal/shared/logger"
 	"clap/internal/shared/utils"
 	"clap/pkg/payment"
 	"clap/pkg/storage"
@@ -34,7 +35,10 @@ type OrderService interface {
 	CreateOrder(ctx context.Context, userID uuid.UUID, req *dto.CreateOrderRequest) (*dto.OrderResponse, error)
 	PayOrder(ctx context.Context, userID, orderID uuid.UUID, req *dto.PayOrderRequest) (*dto.PayOrderResponse, error)
 	ConfirmCardPayment(ctx context.Context, userID, orderID uuid.UUID) (*dto.PayOrderResponse, error)
+	UpdateOrder(ctx context.Context, userID, orderID uuid.UUID, req *dto.UpdateOrderRequest) (*dto.OrderDetailResponse, error)
 	HandleStripeWebhook(ctx context.Context, payload []byte, signature string) error
+	ExpirePendingOrders(ctx context.Context) (int, error)
+	RunPendingPaymentSweeper(ctx context.Context)
 }
 
 type orderService struct {
@@ -116,8 +120,12 @@ func (s *orderService) ListOrders(ctx context.Context, userID uuid.UUID, filters
 		return nil, err
 	}
 
+	now := time.Now().UTC()
 	items := make([]dto.OrderListItem, len(orders))
 	for i := range orders {
+		if orders[i].IsPendingExpired(now) {
+			s.cancelExpiredOrder(ctx, &orders[i])
+		}
 		items[i] = toOrderListItem(ctx, &orders[i], imageKeys, s.resolveURL)
 	}
 
@@ -141,6 +149,7 @@ func (s *orderService) GetOrder(ctx context.Context, userID, orderID uuid.UUID) 
 	if err != nil {
 		return nil, err
 	}
+	s.cancelExpiredOrder(ctx, order)
 
 	imageKeys, err := s.loadOrderItemImageKeys(ctx, []models.Order{*order})
 	if err != nil {
@@ -190,6 +199,76 @@ func (s *orderService) CalculateOrder(ctx context.Context, userID uuid.UUID, req
 		resp.Shipping = formatOrderAmount(totals.ShippingCents, totals.ShippingPoints, displayCurrency)
 	}
 	return resp, nil
+}
+
+func (s *orderService) UpdateOrder(ctx context.Context, userID, orderID uuid.UUID, req *dto.UpdateOrderRequest) (*dto.OrderDetailResponse, error) {
+	if req == nil || (req.DeliveryMethod == nil && req.SeatNumber == nil && req.PaymentMethod == nil) {
+		return nil, errors.NewBadRequest("No order fields to update", nil)
+	}
+
+	order, err := s.orderRepo.FindByIDForUser(ctx, userID, orderID)
+	if err != nil {
+		return nil, err
+	}
+	s.cancelExpiredOrder(ctx, order)
+	if order.Status != models.OrderStatusPendingPayment {
+		return nil, errors.NewUnprocessable("Order is not payable", nil)
+	}
+
+	deliveryMethod := order.DeliveryMethod
+	if req.DeliveryMethod != nil {
+		deliveryMethod = strings.ToLower(strings.TrimSpace(*req.DeliveryMethod))
+		if deliveryMethod != models.DeliveryMethodSeat && deliveryMethod != models.DeliveryMethodPickup {
+			return nil, errors.NewBadRequest("delivery_method must be seat or pickup", nil)
+		}
+	}
+
+	seatNumber := ""
+	if order.SeatNumber != nil {
+		seatNumber = strings.TrimSpace(*order.SeatNumber)
+	}
+	if req.SeatNumber != nil {
+		seatNumber = strings.TrimSpace(*req.SeatNumber)
+	}
+
+	changingDelivery := req.DeliveryMethod != nil || req.SeatNumber != nil
+	if changingDelivery && deliveryMethod == models.DeliveryMethodSeat && seatNumber == "" {
+		return nil, errors.NewBadRequest("seat_number is required for seat delivery", nil)
+	}
+
+	updates := map[string]interface{}{
+		"stripe_payment_intent_id": nil,
+	}
+	if changingDelivery {
+		updates["delivery_method"] = deliveryMethod
+		if deliveryMethod == models.DeliveryMethodPickup {
+			updates["seat_number"] = ""
+		} else {
+			updates["seat_number"] = seatNumber
+		}
+		if deliveryMethod != order.DeliveryMethod {
+			shippingCents, shippingPoints := shippingForOrderItems(deliveryMethod, order.Items)
+			updates["shipping_cents"] = shippingCents
+			updates["shipping_points"] = shippingPoints
+			updates["total_cents"] = order.SubtotalCents + shippingCents
+			updates["total_points"] = order.SubtotalPoints + shippingPoints
+		}
+	}
+
+	if req.PaymentMethod != nil {
+		method := strings.ToLower(strings.TrimSpace(*req.PaymentMethod))
+		if method != models.PaymentMethodPoints && method != models.PaymentMethodCard {
+			return nil, errors.NewBadRequest("payment_method must be points or card", nil)
+		}
+		updates["payment_method"] = method
+	}
+
+	s.expireStripeSession(ctx, order)
+	if err := s.orderRepo.UpdatePendingCheckout(ctx, order.ID, updates); err != nil {
+		return nil, err
+	}
+
+	return s.GetOrder(ctx, userID, orderID)
 }
 
 func (s *orderService) CreateOrder(ctx context.Context, userID uuid.UUID, req *dto.CreateOrderRequest) (*dto.OrderResponse, error) {
@@ -249,11 +328,14 @@ func (s *orderService) CreateOrder(ctx context.Context, userID uuid.UUID, req *d
 		order.SeatNumber = &seatNumber
 	}
 
+	paymentMethod := models.PaymentMethodCard
 	if currency == shopdto.CurrencyPoint {
+		paymentMethod = models.PaymentMethodPoints
 		if err := s.ensureSufficientPoints(ctx, userID, order.TotalPoints); err != nil {
 			return nil, err
 		}
 	}
+	order.PaymentMethod = &paymentMethod
 
 	if err := s.orderRepo.CreateWithItems(ctx, order, orderItems); err != nil {
 		return nil, err
@@ -331,6 +413,7 @@ func (s *orderService) payWithPoints(ctx context.Context, userID, orderID uuid.U
 	if order.Status == models.OrderStatusPaid {
 		return &dto.PayOrderResponse{Status: models.OrderStatusPaid}, nil
 	}
+	s.cancelExpiredOrder(ctx, order)
 	if order.Status != models.OrderStatusPendingPayment {
 		return nil, errors.NewUnprocessable("Order is not payable", nil)
 	}
@@ -377,6 +460,7 @@ func (s *orderService) payWithCard(ctx context.Context, userID, orderID uuid.UUI
 	if order.Status == models.OrderStatusPaid {
 		return &dto.PayOrderResponse{Status: models.OrderStatusPaid}, nil
 	}
+	s.cancelExpiredOrder(ctx, order)
 	if order.Status != models.OrderStatusPendingPayment {
 		return nil, errors.NewUnprocessable("Order is not payable", nil)
 	}
@@ -405,6 +489,7 @@ func (s *orderService) payWithCard(ctx context.Context, userID, orderID uuid.UUI
 		return nil, errors.NewInternal("Failed to create checkout session", err)
 	}
 
+	s.expireStripeSession(ctx, order)
 	if err := s.orderRepo.UpdateStripePaymentIntentID(ctx, order.ID, checkoutSession.SessionID); err != nil {
 		return nil, err
 	}
@@ -428,10 +513,11 @@ func (s *orderService) ConfirmCardPayment(ctx context.Context, userID, orderID u
 	if order.Status == models.OrderStatusPaid {
 		return &dto.PayOrderResponse{Status: models.OrderStatusPaid}, nil
 	}
-	if order.Status != models.OrderStatusPendingPayment {
+	if order.Status != models.OrderStatusPendingPayment && order.Status != models.OrderStatusCancelled {
 		return nil, errors.NewUnprocessable("Order is not pending payment", nil)
 	}
 	if order.StripePaymentIntentID == nil || strings.TrimSpace(*order.StripePaymentIntentID) == "" {
+		s.cancelExpiredOrder(ctx, order)
 		return nil, errors.NewUnprocessable("No checkout session for order", nil)
 	}
 
@@ -449,6 +535,10 @@ func (s *orderService) ConfirmCardPayment(ctx context.Context, userID, orderID u
 	}
 
 	if sessionStatus.PaymentStatus != "paid" {
+		s.cancelExpiredOrder(ctx, order)
+		if order.Status != models.OrderStatusPendingPayment {
+			return nil, errors.NewUnprocessable("Order payment window expired", nil)
+		}
 		return &dto.PayOrderResponse{Status: models.OrderStatusPendingPayment}, nil
 	}
 
@@ -520,6 +610,89 @@ func sessionIDFromOrder(order *models.Order) string {
 	return strings.TrimSpace(*order.StripePaymentIntentID)
 }
 
+func pendingExpiresAt(order *models.Order) string {
+	if order == nil || order.Status != models.OrderStatusPendingPayment {
+		return ""
+	}
+	expires := order.PendingExpiresAt()
+	if expires.IsZero() {
+		return ""
+	}
+	return expires.Format(time.RFC3339)
+}
+
+func (s *orderService) cancelExpiredOrder(ctx context.Context, order *models.Order) {
+	if order == nil || !order.IsPendingExpired(time.Now().UTC()) {
+		return
+	}
+	s.expireStripeSession(ctx, order)
+	if err := s.orderRepo.MarkCancelled(ctx, order.ID); err != nil {
+		logger.Warn().Err(err).Str("order_id", order.ID.String()).Msg("failed to cancel expired order")
+		return
+	}
+	order.Status = models.OrderStatusCancelled
+	order.StripePaymentIntentID = nil
+}
+
+func (s *orderService) expireStripeSession(ctx context.Context, order *models.Order) {
+	if s.paymentProvider == nil || order == nil {
+		return
+	}
+	sessionID := sessionIDFromOrder(order)
+	if sessionID == "" {
+		return
+	}
+	if err := s.paymentProvider.ExpireCheckoutSession(ctx, sessionID); err != nil {
+		logger.Warn().Err(err).Str("order_id", order.ID.String()).Msg("failed to expire checkout session")
+	}
+}
+
+func (s *orderService) ExpirePendingOrders(ctx context.Context) (int, error) {
+	cutoff := time.Now().UTC().Add(-models.PendingPaymentTTL)
+	orders, err := s.orderRepo.ListExpiredPending(ctx, cutoff)
+	if err != nil {
+		return 0, err
+	}
+
+	cancelled := 0
+	for i := range orders {
+		order := &orders[i]
+		s.expireStripeSession(ctx, order)
+		if err := s.orderRepo.MarkCancelled(ctx, order.ID); err != nil {
+			logger.Warn().Err(err).Str("order_id", order.ID.String()).Msg("failed to cancel expired order")
+			continue
+		}
+		cancelled++
+	}
+	return cancelled, nil
+}
+
+func (s *orderService) RunPendingPaymentSweeper(ctx context.Context) {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+
+	s.sweepExpiredPending(ctx)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			s.sweepExpiredPending(ctx)
+		}
+	}
+}
+
+func (s *orderService) sweepExpiredPending(ctx context.Context) {
+	n, err := s.ExpirePendingOrders(ctx)
+	if err != nil {
+		logger.Warn().Err(err).Msg("failed to expire unpaid orders")
+		return
+	}
+	if n > 0 {
+		logger.Info().Int("cancelled_orders", n).Msg("expired unpaid orders")
+	}
+}
+
 func (s *orderService) fulfillPaidOrder(ctx context.Context, orderID uuid.UUID, paymentMethod string) error {
 	order, err := s.orderRepo.FindByID(ctx, orderID)
 	if err != nil {
@@ -528,7 +701,7 @@ func (s *orderService) fulfillPaidOrder(ctx context.Context, orderID uuid.UUID, 
 	if order.Status == models.OrderStatusPaid {
 		return nil
 	}
-	if order.Status != models.OrderStatusPendingPayment {
+	if order.Status != models.OrderStatusPendingPayment && order.Status != models.OrderStatusCancelled {
 		return errors.NewUnprocessable("Order is not pending payment", nil)
 	}
 
@@ -562,10 +735,25 @@ func (s *orderService) decrementStock(ctx context.Context, item models.OrderItem
 }
 
 func shippingForDelivery(method string, lines []shoprepo.UserCartLine) (cents int64, points int) {
+	return shippingForHasMerch(method, hasMerch(lines))
+}
+
+func shippingForOrderItems(method string, items []models.OrderItem) (cents int64, points int) {
+	hasMerchItem := false
+	for _, item := range items {
+		if item.ProductType == shopmodels.ProductTypeMerch {
+			hasMerchItem = true
+			break
+		}
+	}
+	return shippingForHasMerch(method, hasMerchItem)
+}
+
+func shippingForHasMerch(method string, hasMerchItem bool) (cents int64, points int) {
 	if method == models.DeliveryMethodPickup {
 		return models.PickupShippingCents, models.PickupShippingPoints
 	}
-	if hasMerch(lines) {
+	if hasMerchItem {
 		return models.SeatDeliveryShippingCents, models.SeatDeliveryShippingPoints
 	}
 	return 0, 0
@@ -637,6 +825,9 @@ func toOrderListItem(ctx context.Context, order *models.Order, imageKeys map[uui
 	if order.ShippingCents > 0 || order.ShippingPoints > 0 {
 		item.Shipping = formatOrderAmount(order.ShippingCents, order.ShippingPoints, currency)
 	}
+	if expiresAt := pendingExpiresAt(order); expiresAt != "" {
+		item.ExpiresAt = expiresAt
+	}
 	return item
 }
 
@@ -663,6 +854,9 @@ func toOrderDetailResponse(ctx context.Context, order *models.Order, imageKeys m
 	}
 	if order.PaidAt != nil {
 		resp.PaidAt = order.PaidAt.UTC().Format(time.RFC3339)
+	}
+	if expiresAt := pendingExpiresAt(order); expiresAt != "" {
+		resp.ExpiresAt = expiresAt
 	}
 	return resp
 }

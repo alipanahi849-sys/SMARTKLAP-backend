@@ -45,6 +45,7 @@ type Provider interface {
 	Enabled() bool
 	CreateCheckoutSession(ctx context.Context, params CreateCheckoutParams) (*CheckoutSessionResult, error)
 	GetCheckoutSession(ctx context.Context, sessionID string) (*CheckoutSessionStatus, error)
+	ExpireCheckoutSession(ctx context.Context, sessionID string) error
 	EmailCheckoutInvoice(ctx context.Context, sessionID string) error
 	ParseWebhookEvent(payload []byte, signature string) (*WebhookEvent, error)
 }

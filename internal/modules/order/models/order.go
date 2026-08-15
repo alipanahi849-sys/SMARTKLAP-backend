@@ -22,29 +22,48 @@ const (
 	PickupShippingCents        int64 = 350
 	SeatDeliveryShippingPoints int   = 400
 	PickupShippingPoints       int   = 350
+
+	// PendingPaymentTTL is how long an unpaid order stays payable.
+	PendingPaymentTTL = 10 * time.Minute
 )
 
 type Order struct {
-	ID             uuid.UUID  `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	UserID         uuid.UUID  `gorm:"type:uuid;not null;index" json:"user_id"`
-	Status         string     `gorm:"type:varchar(30);not null;default:'pending_payment'" json:"status"`
-	DeliveryMethod string     `gorm:"type:varchar(20);not null" json:"delivery_method"`
-	SeatNumber     *string    `gorm:"type:varchar(50)" json:"seat_number,omitempty"`
-	SubtotalCents  int64      `gorm:"not null" json:"subtotal_cents"`
-	ShippingCents  int64      `gorm:"not null;default:0" json:"shipping_cents"`
-	TotalCents     int64      `gorm:"not null" json:"total_cents"`
-	SubtotalPoints int        `gorm:"not null;default:0" json:"subtotal_points"`
-	ShippingPoints int        `gorm:"not null;default:0" json:"shipping_points"`
-	TotalPoints    int        `gorm:"not null;default:0" json:"total_points"`
-	PaymentMethod           *string    `gorm:"type:varchar(20)" json:"payment_method,omitempty"`
-	StripePaymentIntentID   *string    `gorm:"type:varchar(255)" json:"stripe_payment_intent_id,omitempty"`
-	PaidAt                  *time.Time `json:"paid_at,omitempty"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
-	Items          []OrderItem `gorm:"foreignKey:OrderID" json:"items,omitempty"`
+	ID                    uuid.UUID   `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	UserID                uuid.UUID   `gorm:"type:uuid;not null;index" json:"user_id"`
+	Status                string      `gorm:"type:varchar(30);not null;default:'pending_payment'" json:"status"`
+	DeliveryMethod        string      `gorm:"type:varchar(20);not null" json:"delivery_method"`
+	SeatNumber            *string     `gorm:"type:varchar(50)" json:"seat_number,omitempty"`
+	SubtotalCents         int64       `gorm:"not null" json:"subtotal_cents"`
+	ShippingCents         int64       `gorm:"not null;default:0" json:"shipping_cents"`
+	TotalCents            int64       `gorm:"not null" json:"total_cents"`
+	SubtotalPoints        int         `gorm:"not null;default:0" json:"subtotal_points"`
+	ShippingPoints        int         `gorm:"not null;default:0" json:"shipping_points"`
+	TotalPoints           int         `gorm:"not null;default:0" json:"total_points"`
+	PaymentMethod         *string     `gorm:"type:varchar(20)" json:"payment_method,omitempty"`
+	StripePaymentIntentID *string     `gorm:"type:varchar(255)" json:"stripe_payment_intent_id,omitempty"`
+	PaidAt                *time.Time  `json:"paid_at,omitempty"`
+	CreatedAt             time.Time   `json:"created_at"`
+	UpdatedAt             time.Time   `json:"updated_at"`
+	Items                 []OrderItem `gorm:"foreignKey:OrderID" json:"items,omitempty"`
 }
 
 func (Order) TableName() string { return "orders" }
+
+// PendingExpiresAt is when a pending_payment order becomes cancelled.
+func (o *Order) PendingExpiresAt() time.Time {
+	if o == nil || o.CreatedAt.IsZero() {
+		return time.Time{}
+	}
+	return o.CreatedAt.UTC().Add(PendingPaymentTTL)
+}
+
+// IsPendingExpired reports whether an unpaid order has passed its payment window.
+func (o *Order) IsPendingExpired(now time.Time) bool {
+	if o == nil || o.Status != OrderStatusPendingPayment || o.CreatedAt.IsZero() {
+		return false
+	}
+	return !now.UTC().Before(o.PendingExpiresAt())
+}
 
 func (o *Order) BeforeCreate(_ *gorm.DB) error {
 	if o.ID == uuid.Nil {
