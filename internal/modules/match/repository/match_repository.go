@@ -232,30 +232,39 @@ func (r *matchRepository) FindCurrentForClub(ctx context.Context, clubID uuid.UU
 	return &match, nil
 }
 
-func (r *matchRepository) ListForClub(ctx context.Context, clubID uuid.UUID, limit int) ([]models.Match, error) {
-	if limit <= 0 {
-		limit = 8
+func (r *matchRepository) ListForClub(ctx context.Context, clubID uuid.UUID, lastCount int) ([]models.Match, error) {
+	if lastCount <= 0 {
+		lastCount = 2
 	}
-	var matches []models.Match
-	err := r.db.WithContext(ctx).
-		Preload("League").Preload("Season").Preload("HomeClub").Preload("AwayClub").
-		Where("(home_club_id = ? OR away_club_id = ?) AND status <> ?", clubID, clubID, "cancelled").
-		Order(`
-			CASE
-				WHEN status IN ('live', 'halftime') THEN 0
-				WHEN status = 'scheduled' AND match_datetime >= NOW() THEN 1
-				WHEN status = 'finished' THEN 2
-				ELSE 3
-			END,
-			CASE WHEN status = 'scheduled' THEN match_datetime END ASC,
-			match_datetime DESC
-		`).
-		Limit(limit).
-		Find(&matches).Error
-	if err != nil {
+
+	clubMatches := func() *gorm.DB {
+		return r.db.WithContext(ctx).
+			Preload("League").Preload("Season").Preload("HomeClub").Preload("AwayClub").
+			Where("(home_club_id = ? OR away_club_id = ?) AND status <> ?", clubID, clubID, "cancelled")
+	}
+
+	var upcoming []models.Match
+	if err := clubMatches().
+		Where("status = ? AND match_datetime >= NOW()", "scheduled").
+		Order("match_datetime ASC").
+		Limit(1).
+		Find(&upcoming).Error; err != nil {
 		return nil, sharederrors.NewInternal("Failed to list club matches", err)
 	}
-	return matches, nil
+
+	var finished []models.Match
+	if err := clubMatches().
+		Where("status = ?", "finished").
+		Order("match_datetime DESC").
+		Limit(lastCount).
+		Find(&finished).Error; err != nil {
+		return nil, sharederrors.NewInternal("Failed to list club matches", err)
+	}
+
+	out := make([]models.Match, 0, len(upcoming)+len(finished))
+	out = append(out, upcoming...)
+	out = append(out, finished...)
+	return out, nil
 }
 
 func (r *matchRepository) FindLiveByClub(ctx context.Context, clubID uuid.UUID) ([]models.Match, error) {
