@@ -159,6 +159,10 @@ func (s stubPaymentProvider) GetCheckoutSession(_ context.Context, sessionID str
 	}, nil
 }
 
+func (s stubPaymentProvider) EmailCheckoutInvoice(context.Context, string) error {
+	return nil
+}
+
 func (s stubPaymentProvider) ParseWebhookEvent(_ []byte, _ string) (*payment.WebhookEvent, error) {
 	return nil, nil
 }

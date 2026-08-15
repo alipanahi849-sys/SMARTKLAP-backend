@@ -455,11 +455,13 @@ func (s *orderService) ConfirmCardPayment(ctx context.Context, userID, orderID u
 	if err := s.fulfillPaidOrder(ctx, order.ID, models.PaymentMethodCard); err != nil {
 		updated, reloadErr := s.orderRepo.FindByID(ctx, order.ID)
 		if reloadErr == nil && updated.Status == models.OrderStatusPaid {
+			s.emailOrderInvoice(ctx, sessionID)
 			return &dto.PayOrderResponse{Status: models.OrderStatusPaid}, nil
 		}
 		return nil, err
 	}
 
+	s.emailOrderInvoice(ctx, sessionID)
 	return &dto.PayOrderResponse{Status: models.OrderStatusPaid}, nil
 }
 
@@ -490,13 +492,32 @@ func (s *orderService) HandleStripeWebhook(ctx context.Context, payload []byte, 
 		return err
 	}
 	if order.Status == models.OrderStatusPaid {
+		s.emailOrderInvoice(ctx, sessionIDFromOrder(order))
 		return nil
 	}
 	if !event.Succeeded {
 		return nil
 	}
 
-	return s.fulfillPaidOrder(ctx, order.ID, models.PaymentMethodCard)
+	if err := s.fulfillPaidOrder(ctx, order.ID, models.PaymentMethodCard); err != nil {
+		return err
+	}
+	s.emailOrderInvoice(ctx, sessionIDFromOrder(order))
+	return nil
+}
+
+func (s *orderService) emailOrderInvoice(ctx context.Context, sessionID string) {
+	if s.paymentProvider == nil || strings.TrimSpace(sessionID) == "" {
+		return
+	}
+	_ = s.paymentProvider.EmailCheckoutInvoice(ctx, sessionID)
+}
+
+func sessionIDFromOrder(order *models.Order) string {
+	if order == nil || order.StripePaymentIntentID == nil {
+		return ""
+	}
+	return strings.TrimSpace(*order.StripePaymentIntentID)
 }
 
 func (s *orderService) fulfillPaidOrder(ctx context.Context, orderID uuid.UUID, paymentMethod string) error {

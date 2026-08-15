@@ -102,6 +102,7 @@ func (p *stripeProvider) GetCheckoutSession(ctx context.Context, sessionID strin
 	params := &stripe.CheckoutSessionParams{}
 	params.Context = ctx
 	params.AddExpand("payment_intent")
+	params.AddExpand("invoice")
 
 	checkoutSession, err := session.Get(sessionID, params)
 	if err != nil {
@@ -124,6 +125,26 @@ func (p *stripeProvider) GetCheckoutSession(ctx context.Context, sessionID strin
 		OrderID:         orderID,
 		PaymentIntentID: intentID,
 	}, nil
+}
+
+func (p *stripeProvider) EmailCheckoutInvoice(ctx context.Context, sessionID string) error {
+	if !p.Enabled() {
+		return nil
+	}
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" || !strings.HasPrefix(sessionID, "cs_") {
+		return nil
+	}
+
+	params := &stripe.CheckoutSessionParams{}
+	params.Context = ctx
+	params.AddExpand("invoice")
+
+	checkoutSession, err := session.Get(sessionID, params)
+	if err != nil {
+		return fmt.Errorf("get checkout session invoice: %w", err)
+	}
+	return emailInvoiceFromSession(checkoutSession)
 }
 
 func orderIDFromCheckoutSession(checkoutSession *stripe.CheckoutSession) (uuid.UUID, error) {
@@ -176,6 +197,9 @@ func (p *stripeProvider) ParseWebhookEvent(payload []byte, signature string) (*W
 		intentID = checkoutSession.ID
 		succeeded = checkoutSession.PaymentStatus == stripe.CheckoutSessionPaymentStatusPaid ||
 			checkoutSession.Status == stripe.CheckoutSessionStatusComplete
+		if err := emailInvoiceFromSession(&checkoutSession); err != nil {
+			return nil, err
+		}
 
 	case stripe.EventTypePaymentIntentSucceeded, stripe.EventTypePaymentIntentPaymentFailed:
 		var intent stripe.PaymentIntent
@@ -222,13 +246,23 @@ func sendFinalizedInvoice(raw json.RawMessage) error {
 	if err := json.Unmarshal(raw, &inv); err != nil {
 		return fmt.Errorf("parse invoice: %w", err)
 	}
-	if strings.TrimSpace(inv.ID) == "" {
+	return sendInvoiceID(inv.ID)
+}
+
+func emailInvoiceFromSession(checkoutSession *stripe.CheckoutSession) error {
+	if checkoutSession == nil || checkoutSession.Invoice == nil {
 		return nil
 	}
+	return sendInvoiceID(checkoutSession.Invoice.ID)
+}
 
-	params := &stripe.InvoiceSendInvoiceParams{}
-	if _, err := invoice.SendInvoice(inv.ID, params); err != nil && !alreadySentInvoice(err) {
-		return fmt.Errorf("email invoice %s: %w", inv.ID, err)
+func sendInvoiceID(id string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil
+	}
+	if _, err := invoice.SendInvoice(id, &stripe.InvoiceSendInvoiceParams{}); err != nil && !alreadySentInvoice(err) {
+		return fmt.Errorf("email invoice %s: %w", id, err)
 	}
 	return nil
 }
