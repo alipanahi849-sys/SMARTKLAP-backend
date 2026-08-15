@@ -8,12 +8,13 @@ import (
 
 // CreateCheckoutParams is input for creating a Stripe Checkout Session.
 type CreateCheckoutParams struct {
-	OrderID     uuid.UUID
-	UserID      uuid.UUID
-	AmountCents int64
-	Currency    string
-	SuccessURL  string
-	CancelURL   string
+	OrderID       uuid.UUID
+	UserID        uuid.UUID
+	AmountCents   int64
+	Currency      string
+	SuccessURL    string
+	CancelURL     string
+	CustomerEmail string
 }
 
 // CheckoutSessionResult is returned after creating a browser checkout session.

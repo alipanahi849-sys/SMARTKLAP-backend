@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/checkout/session"
+	"github.com/stripe/stripe-go/v82/invoice"
 	"github.com/stripe/stripe-go/v82/webhook"
 )
 
@@ -42,15 +43,28 @@ func (p *stripeProvider) CreateCheckoutSession(ctx context.Context, params Creat
 		currency = "eur"
 	}
 
+	orderMeta := map[string]string{
+		"order_id": params.OrderID.String(),
+		"user_id":  params.UserID.String(),
+	}
+
 	sessionParams := &stripe.CheckoutSessionParams{
-		Mode:       stripe.String(string(stripe.CheckoutSessionModePayment)),
-		SuccessURL: stripe.String(params.SuccessURL),
-		CancelURL:  stripe.String(params.CancelURL),
+		Mode:             stripe.String(string(stripe.CheckoutSessionModePayment)),
+		SuccessURL:       stripe.String(params.SuccessURL),
+		CancelURL:        stripe.String(params.CancelURL),
+		CustomerCreation: stripe.String(string(stripe.CheckoutSessionCustomerCreationAlways)),
+		InvoiceCreation: &stripe.CheckoutSessionInvoiceCreationParams{
+			Enabled: stripe.Bool(true),
+			InvoiceData: &stripe.CheckoutSessionInvoiceCreationInvoiceDataParams{
+				Description: stripe.String(fmt.Sprintf("SMARTKLAP order %s", params.OrderID)),
+				Metadata:    orderMeta,
+			},
+		},
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
 				Quantity: stripe.Int64(1),
 				PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
-					Currency: stripe.String(currency),
+					Currency:   stripe.String(currency),
 					UnitAmount: stripe.Int64(params.AmountCents),
 					ProductData: &stripe.CheckoutSessionLineItemPriceDataProductDataParams{
 						Name: stripe.String("SMARTKLAP Order"),
@@ -58,17 +72,14 @@ func (p *stripeProvider) CreateCheckoutSession(ctx context.Context, params Creat
 				},
 			},
 		},
-		Metadata: map[string]string{
-			"order_id": params.OrderID.String(),
-			"user_id":  params.UserID.String(),
-		},
+		Metadata: orderMeta,
 		PaymentIntentData: &stripe.CheckoutSessionPaymentIntentDataParams{
-			Metadata: map[string]string{
-				"order_id": params.OrderID.String(),
-				"user_id":  params.UserID.String(),
-			},
+			Metadata: orderMeta,
 		},
 		ClientReferenceID: stripe.String(params.OrderID.String()),
+	}
+	if email := strings.TrimSpace(params.CustomerEmail); email != "" {
+		sessionParams.CustomerEmail = stripe.String(email)
 	}
 	sessionParams.Context = ctx
 
@@ -142,7 +153,8 @@ func (p *stripeProvider) ParseWebhookEvent(payload []byte, signature string) (*W
 	switch event.Type {
 	case stripe.EventTypeCheckoutSessionCompleted,
 		stripe.EventTypePaymentIntentSucceeded,
-		stripe.EventTypePaymentIntentPaymentFailed:
+		stripe.EventTypePaymentIntentPaymentFailed,
+		stripe.EventTypeInvoiceFinalized:
 	default:
 		return nil, nil
 	}
@@ -176,6 +188,12 @@ func (p *stripeProvider) ParseWebhookEvent(payload []byte, signature string) (*W
 		}
 		intentID = intent.ID
 		succeeded = event.Type == stripe.EventTypePaymentIntentSucceeded
+
+	case stripe.EventTypeInvoiceFinalized:
+		if err := sendFinalizedInvoice(event.Data.Raw); err != nil {
+			return nil, err
+		}
+		return nil, nil
 	}
 
 	return &WebhookEvent{
@@ -197,4 +215,25 @@ func orderIDFromMetadata(metadata map[string]string) (uuid.UUID, error) {
 		return uuid.Nil, fmt.Errorf("invalid order_id metadata: %w", err)
 	}
 	return orderID, nil
+}
+
+func sendFinalizedInvoice(raw json.RawMessage) error {
+	var inv stripe.Invoice
+	if err := json.Unmarshal(raw, &inv); err != nil {
+		return fmt.Errorf("parse invoice: %w", err)
+	}
+	if strings.TrimSpace(inv.ID) == "" {
+		return nil
+	}
+
+	params := &stripe.InvoiceSendInvoiceParams{}
+	if _, err := invoice.SendInvoice(inv.ID, params); err != nil && !alreadySentInvoice(err) {
+		return fmt.Errorf("email invoice %s: %w", inv.ID, err)
+	}
+	return nil
+}
+
+func alreadySentInvoice(err error) bool {
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "already") && strings.Contains(msg, "sent")
 }

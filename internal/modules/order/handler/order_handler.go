@@ -254,7 +254,7 @@ func (h *orderHandler) Confirm(c *gin.Context) {
 // StripeWebhook godoc
 //
 //	@Summary		Stripe webhook
-//	@Description	Receives Stripe payment events and fulfills paid card orders
+//	@Description	Receives Stripe payment events, emails finalized invoices, and fulfills paid card orders
 //	@Tags			orders
 //	@Accept			json
 //	@Produce		json
