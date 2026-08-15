@@ -36,6 +36,7 @@ import (
 	chantrepo "clap/internal/modules/chant/repository"
 	schedulerrepo "clap/internal/modules/eventscheduler/repository"
 	schedulersvc "clap/internal/modules/eventscheduler/service"
+	"clap/internal/modules/guess"
 	lyricssvc "clap/internal/modules/lyricssync/service"
 	"clap/internal/modules/match"
 	matchsvc "clap/internal/modules/match/service"
@@ -371,6 +372,7 @@ func setupRouter(deps routerDeps) *gin.Engine {
 		news.RegisterRoutes(v1)
 		// Phase 4.3: Mobile API Contract modules
 		chant.RegisterRoutes(v1)
+		guess.RegisterRoutes(v1)
 		video.RegisterRoutes(v1)
 		shop.RegisterRoutes(v1)
 		order.RegisterRoutes(v1)
