@@ -472,8 +472,10 @@ func (s *orderService) payWithCard(ctx context.Context, userID, orderID uuid.UUI
 	cancelURL := fmt.Sprintf("%s://checkout/cancel?order_id=%s", s.appURLScheme, order.ID)
 
 	customerEmail := ""
+	customerName := ""
 	if user, userErr := s.userRepo.FindByID(ctx, userID); userErr == nil && user != nil {
 		customerEmail = strings.TrimSpace(user.Email)
+		customerName = strings.TrimSpace(user.DisplayName())
 	}
 
 	checkoutSession, err := s.paymentProvider.CreateCheckoutSession(ctx, payment.CreateCheckoutParams{
@@ -484,6 +486,7 @@ func (s *orderService) payWithCard(ctx context.Context, userID, orderID uuid.UUI
 		SuccessURL:    successURL,
 		CancelURL:     cancelURL,
 		CustomerEmail: customerEmail,
+		CustomerName:  customerName,
 	})
 	if err != nil {
 		return nil, errors.NewInternal("Failed to create checkout session", err)

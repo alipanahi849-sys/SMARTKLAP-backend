@@ -15,6 +15,7 @@ type CreateCheckoutParams struct {
 	SuccessURL    string
 	CancelURL     string
 	CustomerEmail string
+	CustomerName  string
 }
 
 // CheckoutSessionResult is returned after creating a browser checkout session.

@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/checkout/session"
+	"github.com/stripe/stripe-go/v82/customer"
 	"github.com/stripe/stripe-go/v82/invoice"
 	"github.com/stripe/stripe-go/v82/webhook"
 )
@@ -49,10 +50,9 @@ func (p *stripeProvider) CreateCheckoutSession(ctx context.Context, params Creat
 	}
 
 	sessionParams := &stripe.CheckoutSessionParams{
-		Mode:             stripe.String(string(stripe.CheckoutSessionModePayment)),
-		SuccessURL:       stripe.String(params.SuccessURL),
-		CancelURL:        stripe.String(params.CancelURL),
-		CustomerCreation: stripe.String(string(stripe.CheckoutSessionCustomerCreationAlways)),
+		Mode:       stripe.String(string(stripe.CheckoutSessionModePayment)),
+		SuccessURL: stripe.String(params.SuccessURL),
+		CancelURL:  stripe.String(params.CancelURL),
 		InvoiceCreation: &stripe.CheckoutSessionInvoiceCreationParams{
 			Enabled: stripe.Bool(true),
 			InvoiceData: &stripe.CheckoutSessionInvoiceCreationInvoiceDataParams{
@@ -78,8 +78,21 @@ func (p *stripeProvider) CreateCheckoutSession(ctx context.Context, params Creat
 		},
 		ClientReferenceID: stripe.String(params.OrderID.String()),
 	}
-	if email := strings.TrimSpace(params.CustomerEmail); email != "" {
-		sessionParams.CustomerEmail = stripe.String(email)
+
+	stripeCustomerID, err := p.ensureCustomer(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	if stripeCustomerID != "" {
+		sessionParams.Customer = stripe.String(stripeCustomerID)
+		sessionParams.CustomerUpdate = &stripe.CheckoutSessionCustomerUpdateParams{
+			Name: stripe.String("never"),
+		}
+	} else {
+		sessionParams.CustomerCreation = stripe.String(string(stripe.CheckoutSessionCustomerCreationAlways))
+		if email := strings.TrimSpace(params.CustomerEmail); email != "" {
+			sessionParams.CustomerEmail = stripe.String(email)
+		}
 	}
 	sessionParams.Context = ctx
 
@@ -92,6 +105,93 @@ func (p *stripeProvider) CreateCheckoutSession(ctx context.Context, params Creat
 		SessionID:   checkoutSession.ID,
 		CheckoutURL: checkoutSession.URL,
 	}, nil
+}
+
+func (p *stripeProvider) ensureCustomer(ctx context.Context, params CreateCheckoutParams) (string, error) {
+	email := strings.TrimSpace(params.CustomerEmail)
+	name := strings.TrimSpace(params.CustomerName)
+	if email == "" && name == "" {
+		return "", nil
+	}
+
+	userID := params.UserID.String()
+	existing, err := findCustomerByEmail(ctx, email, userID)
+	if err != nil {
+		return "", err
+	}
+	if existing != nil {
+		if err := syncCustomerName(ctx, existing, name, userID); err != nil {
+			return "", err
+		}
+		return existing.ID, nil
+	}
+
+	createParams := &stripe.CustomerParams{
+		Metadata: map[string]string{"user_id": userID},
+	}
+	if email != "" {
+		createParams.Email = stripe.String(email)
+	}
+	if name != "" {
+		createParams.Name = stripe.String(name)
+	}
+	createParams.Context = ctx
+
+	created, err := customer.New(createParams)
+	if err != nil {
+		return "", fmt.Errorf("create stripe customer: %w", err)
+	}
+	return created.ID, nil
+}
+
+func findCustomerByEmail(ctx context.Context, email, userID string) (*stripe.Customer, error) {
+	if email == "" {
+		return nil, nil
+	}
+
+	listParams := &stripe.CustomerListParams{Email: stripe.String(email)}
+	listParams.Limit = stripe.Int64(10)
+	listParams.Context = ctx
+
+	var fallback *stripe.Customer
+	iter := customer.List(listParams)
+	for iter.Next() {
+		item := iter.Customer()
+		if item == nil {
+			continue
+		}
+		if item.Metadata["user_id"] == userID {
+			return item, nil
+		}
+		if fallback == nil {
+			fallback = item
+		}
+	}
+	if err := iter.Err(); err != nil {
+		return nil, fmt.Errorf("list stripe customers: %w", err)
+	}
+	return fallback, nil
+}
+
+func syncCustomerName(ctx context.Context, existing *stripe.Customer, name, userID string) error {
+	updates := &stripe.CustomerParams{}
+	needsUpdate := false
+	if name != "" && strings.TrimSpace(existing.Name) != name {
+		updates.Name = stripe.String(name)
+		needsUpdate = true
+	}
+	if existing.Metadata["user_id"] != userID {
+		updates.Metadata = map[string]string{"user_id": userID}
+		needsUpdate = true
+	}
+	if !needsUpdate {
+		return nil
+	}
+	updates.Context = ctx
+	if _, err := customer.Update(existing.ID, updates); err != nil {
+		return fmt.Errorf("update stripe customer: %w", err)
+	}
+	return nil
 }
 
 func (p *stripeProvider) GetCheckoutSession(ctx context.Context, sessionID string) (*CheckoutSessionStatus, error) {
