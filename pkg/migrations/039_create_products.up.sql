@@ -71,7 +71,7 @@ FROM (
             't-shirts',
             3250::bigint,
             3250,
-            'https://loremflickr.com/400/400/shirt,jersey,sport/all',
+            'https://images.unsplash.com/photo-1576566588028-4147f3842f27?auto=format&fit=crop&w=800&h=800&q=80',
             'Sport Mall 2',
             '["M","L","XL","XXL"]'::jsonb
         ),
@@ -82,7 +82,7 @@ FROM (
             'balls',
             4500::bigint,
             4500,
-            'https://loremflickr.com/400/400/soccer,ball/all',
+            'https://images.unsplash.com/photo-1614632537190-23e4b2e69c88?auto=format&fit=crop&w=800&h=800&q=80',
             'Sport Mall 2',
             '[]'::jsonb
         ),
@@ -93,7 +93,7 @@ FROM (
             'stickers',
             500::bigint,
             500,
-            'https://loremflickr.com/400/400/sticker,sheet/all',
+            'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?auto=format&fit=crop&w=800&h=800&q=80',
             'Fan Shop',
             '[]'::jsonb
         ),
@@ -104,7 +104,7 @@ FROM (
             'sport-suits',
             8900::bigint,
             8900,
-            'https://loremflickr.com/400/400/tracksuit,sport/all',
+            'https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=800&h=800&q=80',
             'Sport Mall 2',
             '["M","L","XL"]'::jsonb
         )
