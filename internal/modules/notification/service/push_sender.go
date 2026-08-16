@@ -137,6 +137,7 @@ func (s *fcmSender) Send(ctx context.Context, tokens []string, msg PushMessage) 
 	var mu sync.Mutex
 	var unregistered []string
 	var firstErr error
+	succeeded := 0
 
 	for _, token := range tokens {
 		token := token
@@ -148,6 +149,9 @@ func (s *fcmSender) Send(ctx context.Context, tokens []string, msg PushMessage) 
 
 			err := s.sendOne(ctx, token, msg)
 			if err == nil {
+				mu.Lock()
+				succeeded++
+				mu.Unlock()
 				return
 			}
 			if errors.Is(err, errUnregistered) {
@@ -165,6 +169,11 @@ func (s *fcmSender) Send(ctx context.Context, tokens []string, msg PushMessage) 
 		}()
 	}
 	wg.Wait()
+	// One delivered device must not retry the whole fan-out: a single iOS
+	// token error was re-notifying every Android device every 5 seconds.
+	if succeeded > 0 {
+		return unregistered, nil
+	}
 	return unregistered, firstErr
 }
 
@@ -174,34 +183,7 @@ func (s *fcmSender) sendOne(ctx context.Context, token string, msg PushMessage) 
 		return err
 	}
 
-	payload := map[string]any{
-		"message": map[string]any{
-			"token": token,
-			"notification": map[string]string{
-				"title": msg.Title,
-				"body":  msg.Body,
-			},
-			"data": msg.Data,
-			"android": map[string]any{
-				"priority": "HIGH",
-				"notification": map[string]string{
-					"channel_id": androidChannelID,
-					"sound":      "default",
-				},
-			},
-			"apns": map[string]any{
-				"headers": map[string]string{
-					"apns-priority": "10",
-				},
-				"payload": map[string]any{
-					"aps": map[string]string{
-						"sound": "default",
-					},
-				},
-			},
-		},
-	}
-	body, err := json.Marshal(payload)
+	body, err := json.Marshal(buildFCMMessage(token, msg))
 	if err != nil {
 		return err
 	}
@@ -288,6 +270,68 @@ func (s *fcmSender) bearerToken(ctx context.Context) (string, error) {
 	s.accessToken = token.AccessToken
 	s.tokenExpiry = time.Now().Add(expiry)
 	return s.accessToken, nil
+}
+
+func buildFCMMessage(token string, msg PushMessage) map[string]any {
+	collapseKey := pushCollapseKey(msg)
+
+	androidNotification := map[string]any{
+		"channel_id": androidChannelID,
+		"sound":      "default",
+	}
+	android := map[string]any{
+		"priority":     "HIGH",
+		"notification": androidNotification,
+	}
+
+	apnsHeaders := map[string]string{
+		"apns-priority":  "10",
+		"apns-push-type": "alert",
+	}
+	if collapseKey != "" {
+		android["collapse_key"] = collapseKey
+		androidNotification["tag"] = collapseKey
+		apnsHeaders["apns-collapse-id"] = collapseKey
+	}
+
+	message := map[string]any{
+		"token": token,
+		"notification": map[string]string{
+			"title": msg.Title,
+			"body":  msg.Body,
+		},
+		"android": android,
+		"apns": map[string]any{
+			"headers": apnsHeaders,
+			"payload": map[string]any{
+				// A custom aps payload overrides FCM's title/body. Without
+				// alert, iOS delivers a sound-only push and shows nothing.
+				"aps": map[string]any{
+					"alert": map[string]string{
+						"title": msg.Title,
+						"body":  msg.Body,
+					},
+					"sound": "default",
+				},
+			},
+		},
+	}
+	if len(msg.Data) > 0 {
+		message["data"] = msg.Data
+	}
+	return map[string]any{"message": message}
+}
+
+func pushCollapseKey(msg PushMessage) string {
+	chantID := strings.TrimSpace(msg.Data["chant_id"])
+	if chantID == "" {
+		return ""
+	}
+	key := "chant-" + chantID
+	if len(key) > 64 {
+		return key[:64]
+	}
+	return key
 }
 
 func isUnregisteredResponse(status int, body []byte) bool {

@@ -143,6 +143,51 @@ func TestParseServiceAccountRejectsInvalidJSON(t *testing.T) {
 	}
 }
 
+func TestBuildFCMMessageIncludesIOSAlert(t *testing.T) {
+	t.Parallel()
+
+	payload := buildFCMMessage("device-token", PushMessage{
+		Title: "Chelsea Anthem",
+		Body:  "Chant countdown has started. It begins in 2 minutes.",
+		Data: map[string]string{
+			"type":     chantCountdownType,
+			"chant_id": "chant-1",
+		},
+	})
+
+	message, _ := payload["message"].(map[string]any)
+	if message == nil {
+		t.Fatal("missing message")
+	}
+
+	apns, _ := message["apns"].(map[string]any)
+	headers, _ := apns["headers"].(map[string]string)
+	if headers["apns-push-type"] != "alert" {
+		t.Fatalf("apns-push-type = %q", headers["apns-push-type"])
+	}
+	if headers["apns-collapse-id"] != "chant-chant-1" {
+		t.Fatalf("apns-collapse-id = %q", headers["apns-collapse-id"])
+	}
+
+	aps, _ := apns["payload"].(map[string]any)["aps"].(map[string]any)
+	alert, _ := aps["alert"].(map[string]string)
+	if alert["title"] != "Chelsea Anthem" {
+		t.Fatalf("aps.alert.title = %q", alert["title"])
+	}
+	if alert["body"] == "" {
+		t.Fatal("aps.alert.body is empty")
+	}
+
+	android, _ := message["android"].(map[string]any)
+	if android["collapse_key"] != "chant-chant-1" {
+		t.Fatalf("collapse_key = %v", android["collapse_key"])
+	}
+	notification, _ := android["notification"].(map[string]any)
+	if notification["tag"] != "chant-chant-1" {
+		t.Fatalf("android tag = %v", notification["tag"])
+	}
+}
+
 func TestNotifyChantCountdownNoopWithoutSender(t *testing.T) {
 	t.Parallel()
 
