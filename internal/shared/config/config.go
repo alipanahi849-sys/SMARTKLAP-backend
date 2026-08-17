@@ -22,6 +22,7 @@ type Config struct {
 	Stripe      Stripe    `mapstructure:"stripe"`
 	Firebase    Firebase  `mapstructure:"firebase"`
 	Google      Google    `mapstructure:"google"`
+	Apple       Apple     `mapstructure:"apple"`
 	Football    Football  `mapstructure:"football"`
 }
 
@@ -39,6 +40,12 @@ func (f Football) Enabled() bool {
 // Google holds OAuth client IDs allowed as the `aud` claim on Sign-In ID tokens.
 // Include the Web client ID (required by the mobile SDK) plus iOS/Android IDs.
 type Google struct {
+	ClientIDs []string `mapstructure:"client_ids"`
+}
+
+// Apple holds Sign in with Apple client IDs allowed as the `aud` claim on
+// identity tokens. For native iOS this is the app bundle identifier.
+type Apple struct {
 	ClientIDs []string `mapstructure:"client_ids"`
 }
 
@@ -310,6 +317,9 @@ func LoadFromEnv() error {
 		},
 		Google: Google{
 			ClientIDs: splitAndTrim(getEnv("GOOGLE_CLIENT_IDS", "")),
+		},
+		Apple: Apple{
+			ClientIDs: splitAndTrim(getEnv("APPLE_CLIENT_IDS", "com.say1035.SMARTKLAP")),
 		},
 		Football: Football{
 			APIKey:  getEnv("FOOTBALL_API_KEY", ""),

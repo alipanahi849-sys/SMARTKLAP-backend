@@ -13,6 +13,7 @@ type AuthHandler interface {
 	Register(c *gin.Context)
 	Login(c *gin.Context)
 	LoginWithGoogle(c *gin.Context)
+	LoginWithApple(c *gin.Context)
 	VerifyOTP(c *gin.Context)
 	RequestChangeEmail(c *gin.Context)
 	VerifyChangeEmail(c *gin.Context)
@@ -43,6 +44,14 @@ type LoginRequest struct {
 // GoogleLoginRequest is the native Google Sign-In payload: { "id_token" }.
 type GoogleLoginRequest struct {
 	IDToken string `json:"id_token" binding:"required"`
+}
+
+// AppleLoginRequest is the native Sign in with Apple payload.
+// given_name / family_name are only provided by Apple on the first authorization.
+type AppleLoginRequest struct {
+	IDToken    string `json:"id_token" binding:"required"`
+	GivenName  string `json:"given_name"`
+	FamilyName string `json:"family_name"`
 }
 
 type VerifyOTPRequest struct {
@@ -153,6 +162,41 @@ func (h *authHandler) LoginWithGoogle(c *gin.Context) {
 		"refresh_token": tokenPair.RefreshToken,
 		"expires_in":    tokenPair.ExpiresIn,
 	}, "Logged in with Google")
+}
+
+// LoginWithApple godoc
+//
+//	@Summary		Login with Apple
+//	@Description	Verify a Sign in with Apple identity token and issue access/refresh tokens. Creates the user if the email is new; links an existing OTP/Google account. Name is only sent by Apple on the first authorization.
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		AppleLoginRequest	true	"Apple identity token"
+//	@Success		200		{object}	response.Response
+//	@Failure		400		{object}	response.Response
+//	@Failure		401		{object}	response.Response
+//	@Failure		503		{object}	response.Response
+//	@Router			/api/v1/auth/apple [post]
+func (h *authHandler) LoginWithApple(c *gin.Context) {
+	var req AppleLoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, middleware.ValidationMessage(err))
+		return
+	}
+
+	_, tokenPair, err := h.authService.LoginWithApple(
+		c.Request.Context(), req.IDToken, req.GivenName, req.FamilyName, c.ClientIP(), c.Request.UserAgent(),
+	)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.SuccessWithMessage(c, gin.H{
+		"access_token":  tokenPair.AccessToken,
+		"refresh_token": tokenPair.RefreshToken,
+		"expires_in":    tokenPair.ExpiresIn,
+	}, "Logged in with Apple")
 }
 
 // VerifyOTP godoc

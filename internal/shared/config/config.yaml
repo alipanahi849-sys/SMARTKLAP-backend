@@ -73,6 +73,10 @@ firebase:
 google:
   client_ids: []
 
+apple:
+  client_ids:
+    - "com.say1035.SMARTKLAP"
+
 football:
   api_key: ""
   base_url: "https://v3.football.api-sports.io"

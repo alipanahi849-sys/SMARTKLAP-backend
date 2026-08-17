@@ -19,6 +19,10 @@ type AuthService interface {
 	// Google Sign-In: verify a Google ID token and issue the same JWT pair as OTP.
 	LoginWithGoogle(ctx context.Context, idToken, ipAddress, userAgent string) (*models.User, *utils.TokenPair, error)
 
+	// Apple Sign-In: verify an Apple identity token and issue the same JWT pair as OTP.
+	// givenName/familyName are only sent by Apple on the first authorization.
+	LoginWithApple(ctx context.Context, idToken, givenName, familyName, ipAddress, userAgent string) (*models.User, *utils.TokenPair, error)
+
 	// Change email: OTP is sent to the new address; verify applies the update.
 	RequestChangeEmail(ctx context.Context, userID uuid.UUID, newEmail string) (*OTPResult, error)
 	VerifyChangeEmail(ctx context.Context, userID uuid.UUID, newEmail, code, ipAddress, userAgent string) (*models.User, *utils.TokenPair, error)
@@ -33,6 +37,7 @@ type authService struct {
 	otpStore         OTPStore
 	otpSender        OTPSender
 	googleVerifier   GoogleTokenVerifier
+	appleVerifier    AppleTokenVerifier
 }
 
 func NewAuthService(
@@ -52,7 +57,7 @@ func NewAuthServiceWithOTP(
 	otpStore OTPStore,
 	otpSender OTPSender,
 ) AuthService {
-	return newAuthService(userRepo, roleRepo, refreshTokenRepo, otpStore, otpSender, googleVerifierFromConfig())
+	return newAuthService(userRepo, roleRepo, refreshTokenRepo, otpStore, otpSender, googleVerifierFromConfig(), appleVerifierFromConfig())
 }
 
 // NewAuthServiceWithGoogle is NewAuthServiceWithOTP with an explicit Google
@@ -65,7 +70,20 @@ func NewAuthServiceWithGoogle(
 	otpSender OTPSender,
 	googleVerifier GoogleTokenVerifier,
 ) AuthService {
-	return newAuthService(userRepo, roleRepo, refreshTokenRepo, otpStore, otpSender, googleVerifier)
+	return newAuthService(userRepo, roleRepo, refreshTokenRepo, otpStore, otpSender, googleVerifier, appleVerifierFromConfig())
+}
+
+// NewAuthServiceWithApple is NewAuthServiceWithOTP with an explicit Apple
+// identity-token verifier. Pass nil to disable Apple login.
+func NewAuthServiceWithApple(
+	userRepo repository.UserRepository,
+	roleRepo repository.RoleRepository,
+	refreshTokenRepo repository.RefreshTokenRepository,
+	otpStore OTPStore,
+	otpSender OTPSender,
+	appleVerifier AppleTokenVerifier,
+) AuthService {
+	return newAuthService(userRepo, roleRepo, refreshTokenRepo, otpStore, otpSender, googleVerifierFromConfig(), appleVerifier)
 }
 
 func newAuthService(
@@ -75,6 +93,7 @@ func newAuthService(
 	otpStore OTPStore,
 	otpSender OTPSender,
 	googleVerifier GoogleTokenVerifier,
+	appleVerifier AppleTokenVerifier,
 ) *authService {
 	return &authService{
 		userRepo:         userRepo,
@@ -83,6 +102,7 @@ func newAuthService(
 		otpStore:         otpStore,
 		otpSender:        otpSender,
 		googleVerifier:   googleVerifier,
+		appleVerifier:    appleVerifier,
 	}
 }
 

@@ -12,6 +12,7 @@ type User struct {
 	Email        string         `gorm:"type:varchar(255);uniqueIndex;not null" json:"email"`
 	PasswordHash string         `gorm:"type:varchar(255);not null" json:"-"`
 	GoogleID     *string        `gorm:"type:varchar(255);uniqueIndex" json:"-"`
+	AppleID      *string        `gorm:"type:varchar(255);uniqueIndex" json:"-"`
 	FirstName    string         `gorm:"type:varchar(100)" json:"first_name"`
 	LastName     string         `gorm:"type:varchar(100)" json:"last_name"`
 	Phone        string         `gorm:"type:varchar(20)" json:"phone"`

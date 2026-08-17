@@ -34,6 +34,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 		authGroup.POST("/register", middleware.AuthRateLimit(), authHandler.Register)
 		authGroup.POST("/login", middleware.AuthRateLimit(), authHandler.Login)
 		authGroup.POST("/google", middleware.AuthRateLimit(), authHandler.LoginWithGoogle)
+		authGroup.POST("/apple", middleware.AuthRateLimit(), authHandler.LoginWithApple)
 		authGroup.POST("/verify-otp", middleware.AuthRateLimit(), authHandler.VerifyOTP)
 		authGroup.POST("/refresh", middleware.AuthRateLimit(), authHandler.RefreshToken)
 

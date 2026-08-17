@@ -24,6 +24,7 @@ type UserRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*models.User, error)
 	FindByEmail(ctx context.Context, email string) (*models.User, error)
 	FindByGoogleID(ctx context.Context, googleID string) (*models.User, error)
+	FindByAppleID(ctx context.Context, appleID string) (*models.User, error)
 	Update(ctx context.Context, user *models.User) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, offset, limit int) ([]models.User, int64, error)
@@ -91,6 +92,18 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*models
 func (r *userRepository) FindByGoogleID(ctx context.Context, googleID string) (*models.User, error) {
 	var user models.User
 	err := r.db.WithContext(ctx).Preload("Roles").First(&user, "google_id = ?", googleID).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, errors.ErrUserNotFound
+		}
+		return nil, errors.NewInternal("Failed to find user", err)
+	}
+	return &user, nil
+}
+
+func (r *userRepository) FindByAppleID(ctx context.Context, appleID string) (*models.User, error) {
+	var user models.User
+	err := r.db.WithContext(ctx).Preload("Roles").First(&user, "apple_id = ?", appleID).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, errors.ErrUserNotFound

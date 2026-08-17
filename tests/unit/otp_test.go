@@ -23,6 +23,7 @@ type stubUserRepo struct {
 	byEmail  map[string]*models.User
 	byID     map[uuid.UUID]*models.User
 	byGoogle map[string]*models.User
+	byApple  map[string]*models.User
 }
 
 func newStubUserRepo() *stubUserRepo {
@@ -30,6 +31,7 @@ func newStubUserRepo() *stubUserRepo {
 		byEmail:  map[string]*models.User{},
 		byID:     map[uuid.UUID]*models.User{},
 		byGoogle: map[string]*models.User{},
+		byApple:  map[string]*models.User{},
 	}
 }
 
@@ -43,6 +45,9 @@ func (r *stubUserRepo) Create(_ context.Context, user *models.User) error {
 	r.byID[user.ID] = user
 	if user.GoogleID != nil && *user.GoogleID != "" {
 		r.byGoogle[*user.GoogleID] = user
+	}
+	if user.AppleID != nil && *user.AppleID != "" {
+		r.byApple[*user.AppleID] = user
 	}
 	return nil
 }
@@ -74,6 +79,15 @@ func (r *stubUserRepo) FindByGoogleID(_ context.Context, googleID string) (*mode
 	return nil, sharederrors.ErrUserNotFound
 }
 
+func (r *stubUserRepo) FindByAppleID(_ context.Context, appleID string) (*models.User, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if u, ok := r.byApple[appleID]; ok {
+		return u, nil
+	}
+	return nil, sharederrors.ErrUserNotFound
+}
+
 func (r *stubUserRepo) Update(_ context.Context, user *models.User) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -89,10 +103,18 @@ func (r *stubUserRepo) Update(_ context.Context, user *models.User) error {
 			delete(r.byGoogle, gid)
 		}
 	}
+	for aid, u := range r.byApple {
+		if u.ID == user.ID {
+			delete(r.byApple, aid)
+		}
+	}
 	r.byEmail[user.Email] = user
 	r.byID[user.ID] = user
 	if user.GoogleID != nil && *user.GoogleID != "" {
 		r.byGoogle[*user.GoogleID] = user
+	}
+	if user.AppleID != nil && *user.AppleID != "" {
+		r.byApple[*user.AppleID] = user
 	}
 	return nil
 }
