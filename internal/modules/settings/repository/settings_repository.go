@@ -24,7 +24,7 @@ func NewSettingsRepository(db *gorm.DB) SettingsRepository {
 
 func (r *settingsRepository) Get(ctx context.Context) (*models.AppSettings, error) {
 	var settings models.AppSettings
-	if err := r.db.WithContext(ctx).Preload("FeaturedClub").First(&settings, 1).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("FeaturedClub").Preload("NewsClub").First(&settings, 1).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			settings = models.AppSettings{ID: 1}
 			if createErr := r.db.WithContext(ctx).Create(&settings).Error; createErr != nil {

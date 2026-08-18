@@ -369,7 +369,7 @@ func setupRouter(deps routerDeps) *gin.Engine {
 		songlyric.RegisterRoutes(v1)
 		media.RegisterRoutes(v1)
 		match.RegisterRoutes(v1, deps.matchSyncer)
-		news.RegisterRoutes(v1)
+		news.RegisterRoutes(v1, deps.matchSyncer)
 		// Phase 4.3: Mobile API Contract modules
 		chant.RegisterRoutes(v1)
 		guess.RegisterRoutes(v1)

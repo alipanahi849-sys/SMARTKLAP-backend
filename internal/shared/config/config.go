@@ -24,6 +24,7 @@ type Config struct {
 	Google      Google    `mapstructure:"google"`
 	Apple       Apple     `mapstructure:"apple"`
 	Football    Football  `mapstructure:"football"`
+	News        News      `mapstructure:"news"`
 }
 
 // Football holds API-Football (api-sports.io) credentials used to sync live
@@ -35,6 +36,17 @@ type Football struct {
 
 func (f Football) Enabled() bool {
 	return strings.TrimSpace(f.APIKey) != ""
+}
+
+// News holds The Guardian Open Platform credentials used for club news.
+// API-Football does not provide articles; this is a separate publisher API.
+type News struct {
+	APIKey  string `mapstructure:"api_key"`
+	BaseURL string `mapstructure:"base_url"`
+}
+
+func (n News) Enabled() bool {
+	return strings.TrimSpace(n.APIKey) != ""
 }
 
 // Google holds OAuth client IDs allowed as the `aud` claim on Sign-In ID tokens.
@@ -324,6 +336,10 @@ func LoadFromEnv() error {
 		Football: Football{
 			APIKey:  getEnv("FOOTBALL_API_KEY", ""),
 			BaseURL: getEnv("FOOTBALL_API_BASE_URL", "https://v3.football.api-sports.io"),
+		},
+		News: News{
+			APIKey:  getEnv("NEWS_API_KEY", "test"),
+			BaseURL: getEnv("NEWS_API_BASE_URL", "https://content.guardianapis.com"),
 		},
 	}
 

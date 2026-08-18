@@ -3,22 +3,22 @@ package dto
 import "github.com/google/uuid"
 
 type NewsItem struct {
-	ID        uuid.UUID `json:"id"`
-	Title     string    `json:"title"`
-	CreatedAt string    `json:"created_at"`
-	UpdatedAt string    `json:"updated_at"`
-	ImageURL  string    `json:"image_url"`
+	ID        string `json:"id"`
+	Title     string `json:"title"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+	ImageURL  string `json:"image_url"`
 }
 
 type NewsListFilters struct {
-	Cursor *uuid.UUID
+	Cursor string
 	Limit  int
 }
 
 type NewsListMeta struct {
-	Limit      int        `json:"limit"`
-	HasMore    bool       `json:"has_more"`
-	NextCursor *uuid.UUID `json:"next_cursor,omitempty"`
+	Limit      int     `json:"limit"`
+	HasMore    bool    `json:"has_more"`
+	NextCursor *string `json:"next_cursor,omitempty"`
 }
 
 type NewsListResponse struct {
@@ -27,7 +27,7 @@ type NewsListResponse struct {
 }
 
 type NewsDetailResponse struct {
-	ID          uuid.UUID  `json:"id"`
+	ID          string     `json:"id"`
 	ClubID      *uuid.UUID `json:"club_id,omitempty"`
 	Title       string     `json:"title"`
 	BodyHTML    string     `json:"body_html"`
@@ -36,4 +36,17 @@ type NewsDetailResponse struct {
 	IsActive    bool       `json:"is_active"`
 	CreatedAt   string     `json:"created_at"`
 	UpdatedAt   string     `json:"updated_at"`
+}
+
+type NewsClubResponse struct {
+	ClubID         *uuid.UUID `json:"club_id"`
+	Name           string     `json:"name,omitempty"`
+	LogoURL        string     `json:"logo_url,omitempty"`
+	ProviderTeamID string     `json:"provider_team_id,omitempty"`
+	Provider       string     `json:"provider,omitempty"`
+}
+
+type SetNewsClubRequest struct {
+	ClubID         *uuid.UUID `json:"club_id"`
+	ProviderTeamID string     `json:"provider_team_id"`
 }

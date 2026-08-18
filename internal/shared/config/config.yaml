@@ -80,3 +80,7 @@ apple:
 football:
   api_key: ""
   base_url: "https://v3.football.api-sports.io"
+
+news:
+  api_key: "test"
+  base_url: "https://content.guardianapis.com"
