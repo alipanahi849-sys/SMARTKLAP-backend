@@ -71,11 +71,11 @@ func (r *stubGuessRepo) CreateWithOptions(_ context.Context, quiz *guessmodels.Q
 	return nil
 }
 
-func (r *stubGuessRepo) AnsweredQuizIDs(_ context.Context, userID uuid.UUID, quizIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
-	out := map[uuid.UUID]bool{}
+func (r *stubGuessRepo) FindAnswers(_ context.Context, userID uuid.UUID, quizIDs []uuid.UUID) (map[uuid.UUID]guessmodels.QuizAnswer, error) {
+	out := map[uuid.UUID]guessmodels.QuizAnswer{}
 	for _, quizID := range quizIDs {
-		if _, ok := r.answers[answerKey(quizID, userID)]; ok {
-			out[quizID] = true
+		if answer, ok := r.answers[answerKey(quizID, userID)]; ok {
+			out[quizID] = answer
 		}
 	}
 	return out, nil
@@ -92,7 +92,9 @@ func (r *stubGuessRepo) FindAnswer(_ context.Context, quizID, userID uuid.UUID) 
 
 func (r *stubGuessRepo) SubmitAnswer(_ context.Context, answer *guessmodels.QuizAnswer) (bool, error) {
 	key := answerKey(answer.QuizID, answer.UserID)
-	if _, ok := r.answers[key]; ok {
+	if existing, ok := r.answers[key]; ok {
+		existing.Choice = answer.Choice
+		r.answers[key] = existing
 		return false, nil
 	}
 	if answer.ID == uuid.Nil {
@@ -204,11 +206,17 @@ func TestGuessService_AnswerAwardsParticipationPoints(t *testing.T) {
 	assert.Equal(t, "submitted", resp.Status)
 	assert.Equal(t, 100, resp.PointsEarned)
 
-	_, err = svc.Answer(context.Background(), userID, overview.Quizzes[0].ID, &guessdto.AnswerQuizRequest{Choice: "away"})
-	require.Error(t, err)
-	var appErr *sharederrors.AppError
-	require.ErrorAs(t, err, &appErr)
-	assert.Equal(t, 409, appErr.StatusCode)
+	updated, err := svc.Answer(context.Background(), userID, overview.Quizzes[0].ID, &guessdto.AnswerQuizRequest{Choice: "away"})
+	require.NoError(t, err)
+	assert.Equal(t, "updated", updated.Status)
+	assert.Equal(t, 0, updated.PointsEarned)
+
+	detail, err := svc.QuizDetail(context.Background(), userID, overview.Quizzes[0].ID)
+	require.NoError(t, err)
+	assert.True(t, detail.IsDone)
+	assert.True(t, detail.IsOpen)
+	assert.Equal(t, "away", detail.SelectedChoice)
+	assert.Equal(t, "SP Burgos wins", detail.SelectedLabel)
 }
 
 func TestGuessService_AnswerRejectedAfterKickoff(t *testing.T) {
@@ -236,6 +244,52 @@ func TestGuessService_AnswerRejectedAfterKickoff(t *testing.T) {
 	assert.Equal(t, 422, appErr.StatusCode)
 }
 
+func TestGuessService_AnswerUpdateRejectedAfterKickoff(t *testing.T) {
+	userID := uuid.New()
+	clubID := uuid.New()
+	match := sampleGuessMatch(clubID, "scheduled", time.Now().UTC().Add(2*time.Hour))
+	repo := newStubGuessRepo()
+	svc := guesssvc.NewGuessService(repo, stubMatchFinder{match: match}, stubLineupLister{}, stubSettingsGetter{clubID: &clubID})
+
+	overview, err := svc.MatchOverview(context.Background(), userID, match.ID.String())
+	require.NoError(t, err)
+	require.Len(t, overview.Quizzes, 1)
+
+	_, err = svc.Answer(context.Background(), userID, overview.Quizzes[0].ID, &guessdto.AnswerQuizRequest{Choice: "home"})
+	require.NoError(t, err)
+
+	match.Status = "live"
+	match.MatchDateTime = time.Now().UTC().Add(-10 * time.Minute)
+
+	_, err = svc.Answer(context.Background(), userID, overview.Quizzes[0].ID, &guessdto.AnswerQuizRequest{Choice: "away"})
+	require.Error(t, err)
+	var appErr *sharederrors.AppError
+	require.ErrorAs(t, err, &appErr)
+	assert.Equal(t, 422, appErr.StatusCode)
+}
+
+func TestGuessService_MatchOverviewIncludesSelectedLabel(t *testing.T) {
+	userID := uuid.New()
+	clubID := uuid.New()
+	match := sampleGuessMatch(clubID, "scheduled", time.Now().UTC().Add(2*time.Hour))
+	repo := newStubGuessRepo()
+	svc := guesssvc.NewGuessService(repo, stubMatchFinder{match: match}, stubLineupLister{}, stubSettingsGetter{clubID: &clubID})
+
+	overview, err := svc.MatchOverview(context.Background(), userID, match.ID.String())
+	require.NoError(t, err)
+	require.Len(t, overview.Quizzes, 1)
+
+	_, err = svc.Answer(context.Background(), userID, overview.Quizzes[0].ID, &guessdto.AnswerQuizRequest{Choice: "home"})
+	require.NoError(t, err)
+
+	overview, err = svc.MatchOverview(context.Background(), userID, match.ID.String())
+	require.NoError(t, err)
+	require.Len(t, overview.Quizzes, 1)
+	assert.True(t, overview.Quizzes[0].IsDone)
+	assert.Equal(t, "home", overview.Quizzes[0].SelectedChoice)
+	assert.Equal(t, "FC Barcelona wins", overview.Quizzes[0].SelectedLabel)
+}
+
 func TestGuessService_QuizDetailIncludesOptions(t *testing.T) {
 	userID := uuid.New()
 	clubID := uuid.New()
@@ -254,4 +308,5 @@ func TestGuessService_QuizDetailIncludesOptions(t *testing.T) {
 	assert.Equal(t, "away", detail.Options[1].Value)
 	assert.Equal(t, "draw", detail.Options[2].Value)
 	assert.False(t, detail.IsDone)
+	assert.True(t, detail.IsOpen)
 }

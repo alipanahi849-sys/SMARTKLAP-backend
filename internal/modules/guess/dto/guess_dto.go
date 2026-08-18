@@ -18,10 +18,12 @@ type GuessMatchInfo struct {
 }
 
 type GuessQuizSummary struct {
-	ID     uuid.UUID `json:"id"`
-	Title  string    `json:"title"`
-	Points int       `json:"points"`
-	IsDone bool      `json:"is_done"`
+	ID             uuid.UUID `json:"id"`
+	Title          string    `json:"title"`
+	Points         int       `json:"points"`
+	IsDone         bool      `json:"is_done"`
+	SelectedChoice string    `json:"selected_choice,omitempty"`
+	SelectedLabel  string    `json:"selected_label,omitempty"`
 }
 
 type MatchOverviewResponse struct {
@@ -45,7 +47,9 @@ type QuizDetailResponse struct {
 	QuizType       string            `json:"quiz_type"`
 	Points         int               `json:"points"`
 	IsDone         bool              `json:"is_done"`
+	IsOpen         bool              `json:"is_open"`
 	SelectedChoice string            `json:"selected_choice,omitempty"`
+	SelectedLabel  string            `json:"selected_label,omitempty"`
 	Options        []GuessQuizOption `json:"options"`
 }
 

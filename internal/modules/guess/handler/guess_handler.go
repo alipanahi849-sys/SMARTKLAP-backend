@@ -92,7 +92,6 @@ func (h *guessHandler) QuizDetail(c *gin.Context) {
 //	@Param			body	body	dto.AnswerQuizRequest	true	"Request body"
 //	@Success		200	{object}	response.Response
 //	@Failure		401	{object}	response.Response
-//	@Failure		409	{object}	response.Response
 //	@Failure		422	{object}	response.Response
 //	@Router			/api/v1/guess/quizzes/{quiz_id}/answer [post]
 func (h *guessHandler) Answer(c *gin.Context) {

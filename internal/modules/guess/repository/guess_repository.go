@@ -9,14 +9,13 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type GuessRepository interface {
 	ListByMatchID(ctx context.Context, matchID uuid.UUID) ([]models.Quiz, error)
 	FindByID(ctx context.Context, quizID uuid.UUID) (*models.Quiz, error)
 	CreateWithOptions(ctx context.Context, quiz *models.Quiz, options []models.QuizOption) error
-	AnsweredQuizIDs(ctx context.Context, userID uuid.UUID, quizIDs []uuid.UUID) (map[uuid.UUID]bool, error)
+	FindAnswers(ctx context.Context, userID uuid.UUID, quizIDs []uuid.UUID) (map[uuid.UUID]models.QuizAnswer, error)
 	FindAnswer(ctx context.Context, quizID, userID uuid.UUID) (*models.QuizAnswer, error)
 	SubmitAnswer(ctx context.Context, answer *models.QuizAnswer) (created bool, err error)
 }
@@ -80,20 +79,19 @@ func (r *guessRepository) CreateWithOptions(ctx context.Context, quiz *models.Qu
 	})
 }
 
-func (r *guessRepository) AnsweredQuizIDs(ctx context.Context, userID uuid.UUID, quizIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
-	out := make(map[uuid.UUID]bool, len(quizIDs))
+func (r *guessRepository) FindAnswers(ctx context.Context, userID uuid.UUID, quizIDs []uuid.UUID) (map[uuid.UUID]models.QuizAnswer, error) {
+	out := make(map[uuid.UUID]models.QuizAnswer, len(quizIDs))
 	if len(quizIDs) == 0 {
 		return out, nil
 	}
 	var answers []models.QuizAnswer
 	if err := r.db.WithContext(ctx).
-		Select("quiz_id").
 		Where("user_id = ? AND quiz_id IN ?", userID, quizIDs).
 		Find(&answers).Error; err != nil {
 		return nil, errors.NewInternal("Failed to load quiz answers", err)
 	}
 	for _, answer := range answers {
-		out[answer.QuizID] = true
+		out[answer.QuizID] = answer
 	}
 	return out, nil
 }
@@ -115,24 +113,32 @@ func (r *guessRepository) FindAnswer(ctx context.Context, quizID, userID uuid.UU
 func (r *guessRepository) SubmitAnswer(ctx context.Context, answer *models.QuizAnswer) (bool, error) {
 	created := false
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		res := tx.Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "quiz_id"}, {Name: "user_id"}},
-			DoNothing: true,
-		}).Create(answer)
-		if res.Error != nil {
-			return errors.NewInternal("Failed to submit quiz answer", res.Error)
-		}
-		if res.RowsAffected == 0 {
+		var existing models.QuizAnswer
+		findErr := tx.Where("quiz_id = ? AND user_id = ?", answer.QuizID, answer.UserID).First(&existing).Error
+		if findErr != nil {
+			if findErr != gorm.ErrRecordNotFound {
+				return errors.NewInternal("Failed to load quiz answer", findErr)
+			}
+			if err := tx.Create(answer).Error; err != nil {
+				return errors.NewInternal("Failed to submit quiz answer", err)
+			}
+			created = true
+			if answer.PointsEarned == 0 {
+				return nil
+			}
+			if err := tx.Model(&authmodels.User{}).
+				Where("id = ?", answer.UserID).
+				UpdateColumn("points", gorm.Expr("points + ?", answer.PointsEarned)).Error; err != nil {
+				return errors.NewInternal("Failed to award participation points", err)
+			}
 			return nil
 		}
-		created = true
-		if answer.PointsEarned == 0 {
+
+		if existing.Choice == answer.Choice {
 			return nil
 		}
-		if err := tx.Model(&authmodels.User{}).
-			Where("id = ?", answer.UserID).
-			UpdateColumn("points", gorm.Expr("points + ?", answer.PointsEarned)).Error; err != nil {
-			return errors.NewInternal("Failed to award participation points", err)
+		if err := tx.Model(&existing).Update("choice", answer.Choice).Error; err != nil {
+			return errors.NewInternal("Failed to update quiz answer", err)
 		}
 		return nil
 	})

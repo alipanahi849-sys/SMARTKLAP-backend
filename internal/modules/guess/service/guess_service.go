@@ -76,19 +76,24 @@ func (s *guessService) MatchOverview(ctx context.Context, userID uuid.UUID, matc
 	for _, quiz := range quizzes {
 		ids = append(ids, quiz.ID)
 	}
-	done, err := s.guess.AnsweredQuizIDs(ctx, userID, ids)
+	answers, err := s.guess.FindAnswers(ctx, userID, ids)
 	if err != nil {
 		return nil, err
 	}
 
 	summaries := make([]dto.GuessQuizSummary, 0, len(quizzes))
 	for _, quiz := range quizzes {
-		summaries = append(summaries, dto.GuessQuizSummary{
+		summary := dto.GuessQuizSummary{
 			ID:     quiz.ID,
 			Title:  quiz.Title,
 			Points: quiz.Points,
-			IsDone: done[quiz.ID],
-		})
+		}
+		if answer, ok := answers[quiz.ID]; ok {
+			summary.IsDone = true
+			summary.SelectedChoice = answer.Choice
+			summary.SelectedLabel = labelForChoice(quiz.Options, answer.Choice)
+		}
+		summaries = append(summaries, summary)
 	}
 
 	return &dto.MatchOverviewResponse{
@@ -101,6 +106,11 @@ func (s *guessService) MatchOverview(ctx context.Context, userID uuid.UUID, matc
 
 func (s *guessService) QuizDetail(ctx context.Context, userID, quizID uuid.UUID) (*dto.QuizDetailResponse, error) {
 	quiz, err := s.guess.FindByID(ctx, quizID)
+	if err != nil {
+		return nil, err
+	}
+
+	match, err := s.matches.FindByID(ctx, quiz.MatchID)
 	if err != nil {
 		return nil, err
 	}
@@ -127,10 +137,12 @@ func (s *guessService) QuizDetail(ctx context.Context, userID, quizID uuid.UUID)
 		QuizType: quiz.QuizType,
 		Points:   quiz.Points,
 		IsDone:   answer != nil,
+		IsOpen:   guessingOpen(match, s.now()),
 		Options:  options,
 	}
 	if answer != nil {
 		resp.SelectedChoice = answer.Choice
+		resp.SelectedLabel = labelForChoice(quiz.Options, answer.Choice)
 	}
 	return resp, nil
 }
@@ -170,7 +182,10 @@ func (s *guessService) Answer(ctx context.Context, userID, quizID uuid.UUID, req
 		return nil, err
 	}
 	if !created {
-		return nil, errors.NewConflict("Quiz already answered", nil)
+		return &dto.AnswerQuizResponse{
+			Status:       "updated",
+			PointsEarned: 0,
+		}, nil
 	}
 
 	return &dto.AnswerQuizResponse{
@@ -300,6 +315,15 @@ func playerOptions(lineup []matchmodels.MatchLineupPlayer) []models.QuizOption {
 		})
 	}
 	return options
+}
+
+func labelForChoice(options []models.QuizOption, choice string) string {
+	for _, option := range options {
+		if option.Value == choice || option.ID.String() == choice {
+			return option.Label
+		}
+	}
+	return choice
 }
 
 func resolveChoice(options []models.QuizOption, choice string) (string, bool) {
