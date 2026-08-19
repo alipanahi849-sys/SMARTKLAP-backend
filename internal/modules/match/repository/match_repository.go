@@ -22,7 +22,7 @@ type MatchRepository interface {
 	FindLive(ctx context.Context) ([]models.Match, error)
 	FindByProviderMatchID(ctx context.Context, provider, providerMatchID string) (*models.Match, error)
 	FindCurrentForClub(ctx context.Context, clubID uuid.UUID) (*models.Match, error)
-	ListForClub(ctx context.Context, clubID uuid.UUID, limit int) ([]models.Match, error)
+	ListForClub(ctx context.Context, clubID uuid.UUID, pastCount, futureCount int) ([]models.Match, error)
 	FindLiveByClub(ctx context.Context, clubID uuid.UUID) ([]models.Match, error)
 	Update(ctx context.Context, match *models.Match) error
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -232,9 +232,12 @@ func (r *matchRepository) FindCurrentForClub(ctx context.Context, clubID uuid.UU
 	return &match, nil
 }
 
-func (r *matchRepository) ListForClub(ctx context.Context, clubID uuid.UUID, lastCount int) ([]models.Match, error) {
-	if lastCount <= 0 {
-		lastCount = 2
+func (r *matchRepository) ListForClub(ctx context.Context, clubID uuid.UUID, pastCount, futureCount int) ([]models.Match, error) {
+	if pastCount <= 0 {
+		pastCount = 2
+	}
+	if futureCount <= 0 {
+		futureCount = 2
 	}
 
 	clubMatches := func() *gorm.DB {
@@ -243,28 +246,40 @@ func (r *matchRepository) ListForClub(ctx context.Context, clubID uuid.UUID, las
 			Where("(home_club_id = ? OR away_club_id = ?) AND status <> ?", clubID, clubID, "cancelled")
 	}
 
-	var upcoming []models.Match
-	if err := clubMatches().
-		Where("status = ? AND match_datetime >= NOW()", "scheduled").
-		Order("match_datetime ASC").
-		Limit(1).
-		Find(&upcoming).Error; err != nil {
-		return nil, sharederrors.NewInternal("Failed to list club matches", err)
-	}
-
 	var finished []models.Match
 	if err := clubMatches().
 		Where("status = ?", "finished").
 		Order("match_datetime DESC").
-		Limit(lastCount).
+		Limit(pastCount).
 		Find(&finished).Error; err != nil {
 		return nil, sharederrors.NewInternal("Failed to list club matches", err)
 	}
 
-	out := make([]models.Match, 0, len(upcoming)+len(finished))
-	out = append(out, upcoming...)
-	out = append(out, finished...)
-	return out, nil
+	var live []models.Match
+	if err := clubMatches().
+		Where("status IN ('live', 'halftime')").
+		Order("match_datetime ASC").
+		Limit(1).
+		Find(&live).Error; err != nil {
+		return nil, sharederrors.NewInternal("Failed to list club matches", err)
+	}
+
+	upcomingLimit := 1 + futureCount
+	if len(live) > 0 {
+		upcomingLimit = futureCount
+	}
+	var upcoming []models.Match
+	if upcomingLimit > 0 {
+		if err := clubMatches().
+			Where("status = ? AND match_datetime >= NOW()", "scheduled").
+			Order("match_datetime ASC").
+			Limit(upcomingLimit).
+			Find(&upcoming).Error; err != nil {
+			return nil, sharederrors.NewInternal("Failed to list club matches", err)
+		}
+	}
+
+	return assembleClubSlider(finished, live, upcoming, pastCount, futureCount), nil
 }
 
 func (r *matchRepository) FindLiveByClub(ctx context.Context, clubID uuid.UUID) ([]models.Match, error) {

@@ -50,7 +50,7 @@ func (h *matchHandler) GetCurrent(c *gin.Context) {
 
 // List godoc
 //
-//	@Summary		Featured-club match list
+//	@Summary		Featured-club match slider (2 past, 1 next, 2 future)
 //	@Tags			matches
 //	@Produce		json
 //	@Security		BearerAuth

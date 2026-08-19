@@ -101,13 +101,14 @@ func (r *stubMatchRepo) FindCurrentForClub(_ context.Context, clubID uuid.UUID) 
 	return nil, nil
 }
 
-func (r *stubMatchRepo) ListForClub(_ context.Context, clubID uuid.UUID, limit int) ([]matchmodels.Match, error) {
+func (r *stubMatchRepo) ListForClub(_ context.Context, clubID uuid.UUID, pastCount, futureCount int) ([]matchmodels.Match, error) {
 	var result []matchmodels.Match
 	for _, m := range r.matches {
 		if m.HomeClubID == clubID || m.AwayClubID == clubID {
 			result = append(result, *m)
 		}
 	}
+	limit := pastCount + futureCount + 1
 	if limit > 0 && len(result) > limit {
 		result = result[:limit]
 	}

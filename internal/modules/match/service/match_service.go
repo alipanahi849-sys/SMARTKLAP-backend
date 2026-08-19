@@ -91,7 +91,7 @@ func (s *matchService) List(ctx context.Context) ([]dto.CurrentMatchResponse, er
 		return []dto.CurrentMatchResponse{}, nil
 	}
 
-	matches, err := s.matches.ListForClub(ctx, club.ID, 2)
+	matches, err := s.matches.ListForClub(ctx, club.ID, 2, 2)
 	if err != nil {
 		return nil, err
 	}
