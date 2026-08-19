@@ -20,26 +20,36 @@ func (s *stubUpcomingChants) FindStartingBetween(context.Context, time.Time, tim
 	return s.chants, nil
 }
 
-func (s *stubUpcomingChants) TodayPoints(context.Context, uuid.UUID) (int, error) {
-	return 0, nil
+type stubLyricsProvider struct {
+	err error
 }
 
-type stubLyricsProvider struct{}
-
-func (stubLyricsProvider) Lyrics(context.Context, uuid.UUID, string) (*chantdto.ChantLyricsResponse, error) {
-	return &chantdto.ChantLyricsResponse{}, nil
+func (s stubLyricsProvider) Lyrics(context.Context, uuid.UUID, string) (*chantdto.ChantLyricsResponse, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return &chantdto.ChantLyricsResponse{Title: "lyrics"}, nil
 }
 
-type stubUsers struct{}
-
-func (stubUsers) ConnectedUserIDs(context.Context) ([]uuid.UUID, error) {
-	return nil, nil
+type recordingBroadcast struct {
+	calls int
+	last  *realtimedto.EventEnvelope
 }
 
-type stubPublisher struct{}
-
-func (stubPublisher) PublishToUser(context.Context, uuid.UUID, *realtimedto.EventEnvelope) error {
+func (r *recordingBroadcast) BroadcastEnvelope(_ context.Context, env *realtimedto.EventEnvelope) error {
+	r.calls++
+	r.last = env
 	return nil
+}
+
+type recordingWelcome struct {
+	calls int
+	last  []byte
+}
+
+func (w *recordingWelcome) SetWelcomeMessage(data []byte) {
+	w.calls++
+	w.last = data
 }
 
 type recordingPusher struct {
@@ -67,7 +77,7 @@ func TestChantUpcomingNotifierSendsPushOnce(t *testing.T) {
 		Points:      10,
 	}}}
 	pusher := &recordingPusher{}
-	n := NewChantUpcomingNotifier(repo, stubLyricsProvider{}, nil, stubUsers{}, stubPublisher{}, pusher, time.Second, 2*time.Minute)
+	n := NewChantUpcomingNotifier(repo, stubLyricsProvider{}, nil, &recordingBroadcast{}, &recordingWelcome{}, pusher, time.Second, 2*time.Minute)
 
 	now := time.Now().UTC()
 	n.tick(context.Background(), now)
@@ -95,7 +105,7 @@ func TestChantUpcomingNotifierRetriesPushOnFailure(t *testing.T) {
 		ScheduledAt: time.Now().UTC().Add(90 * time.Second),
 	}}}
 	pusher := &recordingPusher{err: context.DeadlineExceeded}
-	n := NewChantUpcomingNotifier(repo, stubLyricsProvider{}, nil, stubUsers{}, stubPublisher{}, pusher, time.Second, 2*time.Minute)
+	n := NewChantUpcomingNotifier(repo, stubLyricsProvider{}, nil, &recordingBroadcast{}, &recordingWelcome{}, pusher, time.Second, 2*time.Minute)
 
 	now := time.Now().UTC()
 	n.tick(context.Background(), now)
@@ -125,6 +135,67 @@ func TestChantUpcomingNotifierSkipsPushWhenDisabled(t *testing.T) {
 		Title:       "Let It Be",
 		ScheduledAt: time.Now().UTC().Add(90 * time.Second),
 	}}}
-	n := NewChantUpcomingNotifier(repo, stubLyricsProvider{}, nil, stubUsers{}, stubPublisher{}, nil, time.Second, 2*time.Minute)
+	n := NewChantUpcomingNotifier(repo, stubLyricsProvider{}, nil, &recordingBroadcast{}, nil, nil, time.Second, 2*time.Minute)
 	n.tick(context.Background(), time.Now().UTC())
+}
+
+func TestChantUpcomingNotifierBroadcastsOnce(t *testing.T) {
+	t.Parallel()
+
+	chantID := uuid.New()
+	matchID := uuid.New()
+	repo := &stubUpcomingChants{chants: []chantmodels.Chant{{
+		ID:          chantID,
+		MatchID:     matchID,
+		Title:       "Seven Nation Army",
+		ScheduledAt: time.Now().UTC().Add(90 * time.Second),
+		Points:      25,
+	}}}
+	pub := &recordingBroadcast{}
+	welcome := &recordingWelcome{}
+	n := NewChantUpcomingNotifier(repo, stubLyricsProvider{}, nil, pub, welcome, nil, time.Second, 2*time.Minute)
+
+	now := time.Now().UTC()
+	n.tick(context.Background(), now)
+	n.tick(context.Background(), now.Add(5*time.Second))
+	n.tick(context.Background(), now.Add(10*time.Second))
+
+	if pub.calls != 1 {
+		t.Fatalf("broadcast calls = %d, want 1", pub.calls)
+	}
+	if pub.last == nil || pub.last.Type != realtimedto.EventTypeChantUpcoming {
+		t.Fatalf("expected chant.upcoming envelope, got %#v", pub.last)
+	}
+	if len(welcome.last) == 0 {
+		t.Fatal("expected welcome snapshot after broadcast")
+	}
+	if !n.pending[chantID].broadcastSent {
+		t.Fatal("expected broadcastSent")
+	}
+}
+
+func TestChantUpcomingNotifierClearsWelcomeAfterWindow(t *testing.T) {
+	t.Parallel()
+
+	chantID := uuid.New()
+	repo := &stubUpcomingChants{chants: []chantmodels.Chant{{
+		ID:          chantID,
+		MatchID:     uuid.New(),
+		Title:       "Wonderwall",
+		ScheduledAt: time.Now().UTC().Add(30 * time.Second),
+	}}}
+	welcome := &recordingWelcome{}
+	n := NewChantUpcomingNotifier(repo, stubLyricsProvider{}, nil, &recordingBroadcast{}, welcome, nil, time.Second, 2*time.Minute)
+
+	now := time.Now().UTC()
+	n.tick(context.Background(), now)
+	if len(welcome.last) == 0 {
+		t.Fatal("expected welcome after broadcast")
+	}
+
+	repo.chants = nil
+	n.tick(context.Background(), now.Add(31*time.Second))
+	if len(welcome.last) != 0 {
+		t.Fatal("expected welcome cleared after chant left the window")
+	}
 }

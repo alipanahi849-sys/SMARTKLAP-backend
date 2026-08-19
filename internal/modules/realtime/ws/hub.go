@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -35,7 +36,7 @@ type disconnectMsg struct {
 	userID uuid.UUID
 }
 
-// usersQuery asks the Hub loop for a snapshot of distinct user IDs — either
+// usersQuery asks a shard loop for a snapshot of distinct user IDs — either
 // every connected user (all=true) or the subscribers of one channel.
 // reply MUST be buffered (cap >= 1) so the loop never blocks on a slow caller.
 type usersQuery struct {
@@ -47,32 +48,29 @@ type usersQuery struct {
 // ─── Hub ──────────────────────────────────────────────────────────────────────
 
 // Hub is the central message broker for WebSocket connections.
-// All state mutations happen exclusively inside the Run() goroutine to guarantee
-// thread-safety without holding locks while writing to client channels.
+// Connections are partitioned across independent shards so a broadcast does
+// not stall register/subscribe on a single goroutine.
 //
 // Lifecycle:
 //
 //	hub := NewHub(m)
 //	ctx, cancel := context.WithCancel(parent)
-//	go hub.Run(ctx)   // start the event loop
+//	go hub.Run(ctx)   // start the shard event loops
 //	...
-//	cancel()          // stops the loop and disconnects all clients
+//	cancel()          // stops the loops and disconnects all clients
 //	<-hub.Done()      // wait for clean shutdown
 type Hub struct {
-	// Channels are buffered to avoid blocking callers when the loop is busy.
-	register       chan *Client
-	unregister     chan *Client
-	subscribe      chan subscriptionMsg
-	publish        chan publishMsg
-	disconnectUser chan disconnectMsg
-	usersQueries   chan usersQuery
-	done           chan struct{} // closed when Run() exits
+	shards []*hubShard
+	done   chan struct{} // closed when Run() exits
 
 	metrics *metrics.Metrics
 	healthy atomic.Bool
+	welcome atomic.Value // []byte snapshot delivered to newly registered clients
 }
 
 const (
+	defaultShardCount = 32
+
 	hubRegisterBuf       = 32
 	hubUnregisterBuf     = 32
 	hubSubscribeBuf      = 256
@@ -86,79 +84,226 @@ const (
 	hubShutdownDrainTimeout = 5 * time.Second
 )
 
+type hubShard struct {
+	hub *Hub
+
+	register       chan *Client
+	unregister     chan *Client
+	subscribe      chan subscriptionMsg
+	publish        chan publishMsg
+	disconnectUser chan disconnectMsg
+	usersQueries   chan usersQuery
+}
+
 // NewHub constructs a Hub with the given metrics handle.
 func NewHub(m *metrics.Metrics) *Hub {
+	return newHub(m, defaultShardCount)
+}
+
+func newHub(m *metrics.Metrics, shardCount int) *Hub {
+	if shardCount < 1 {
+		shardCount = 1
+	}
 	h := &Hub{
-		register:       make(chan *Client, hubRegisterBuf),
-		unregister:     make(chan *Client, hubUnregisterBuf),
-		subscribe:      make(chan subscriptionMsg, hubSubscribeBuf),
-		publish:        make(chan publishMsg, hubPublishBuf),
-		disconnectUser: make(chan disconnectMsg, hubDisconnectUserBuf),
-		usersQueries:   make(chan usersQuery, hubUsersQueryBuf),
-		done:           make(chan struct{}),
-		metrics:        m,
+		shards:  make([]*hubShard, shardCount),
+		done:    make(chan struct{}),
+		metrics: m,
 	}
 	h.healthy.Store(true)
+	h.welcome.Store([]byte(nil))
+	for i := 0; i < shardCount; i++ {
+		h.shards[i] = &hubShard{
+			hub:            h,
+			register:       make(chan *Client, hubRegisterBuf),
+			unregister:     make(chan *Client, hubUnregisterBuf),
+			subscribe:      make(chan subscriptionMsg, hubSubscribeBuf),
+			publish:        make(chan publishMsg, hubPublishBuf),
+			disconnectUser: make(chan disconnectMsg, hubDisconnectUserBuf),
+			usersQueries:   make(chan usersQuery, hubUsersQueryBuf),
+		}
+	}
 	return h
+}
+
+func shardIndex(id uuid.UUID, n int) int {
+	var hash uint64
+	for i := 0; i < 8; i++ {
+		hash = hash*131 + uint64(id[i])
+	}
+	return int(hash % uint64(n))
+}
+
+func (h *Hub) shardFor(userID uuid.UUID) *hubShard {
+	return h.shards[shardIndex(userID, len(h.shards))]
 }
 
 // Done returns a channel that is closed when Run() has fully exited.
 // Callers use this during graceful shutdown to wait for the Hub to drain.
 func (h *Hub) Done() <-chan struct{} { return h.done }
 
-// Healthy reports whether the Hub event loop is operating normally.
-// It flips to false if a panic was recovered inside the loop.
+// Healthy reports whether every shard event loop is operating normally.
+// It flips to false if a panic was recovered inside any loop.
 func (h *Hub) Healthy() bool { return h.healthy.Load() }
 
-// Run is the single goroutine that owns all Hub state.
-// It exits cleanly when ctx is cancelled, closing every connected client.
-//
-// Every state mutation is wrapped in a panic-isolating helper so that a bug in
-// one operation can never terminate the event loop or corrupt the system for
-// other clients (CR-1).
+// SetWelcomeMessage stores a pre-serialised envelope delivered to every
+// newly registered connection (late joiners during a chant countdown).
+// Pass nil or an empty slice to clear.
+func (h *Hub) SetWelcomeMessage(data []byte) {
+	if len(data) == 0 {
+		h.welcome.Store([]byte(nil))
+		return
+	}
+	cp := make([]byte, len(data))
+	copy(cp, data)
+	h.welcome.Store(cp)
+}
+
+func (h *Hub) welcomeBytes() []byte {
+	v, _ := h.welcome.Load().([]byte)
+	return v
+}
+
+func (h *Hub) enqueueRegister(c *Client) {
+	h.shardFor(c.UserID).register <- c
+}
+
+func (h *Hub) enqueueUnregister(c *Client) {
+	select {
+	case h.shardFor(c.UserID).unregister <- c:
+	case <-h.done:
+	}
+}
+
+func (h *Hub) enqueueSubscribe(msg subscriptionMsg) {
+	select {
+	case h.shardFor(msg.client.UserID).subscribe <- msg:
+	case <-h.done:
+	}
+}
+
+func (h *Hub) enqueueDisconnectUser(ctx context.Context, userID uuid.UUID) error {
+	select {
+	case h.shardFor(userID).disconnectUser <- disconnectMsg{userID: userID}:
+		return nil
+	case <-h.done:
+		return ErrHubStopped
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (h *Hub) enqueuePublish(ctx context.Context, msg publishMsg) error {
+	if msg.userID != nil {
+		select {
+		case h.shardFor(*msg.userID).publish <- msg:
+			return nil
+		case <-h.done:
+			return ErrHubStopped
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	for _, shard := range h.shards {
+		select {
+		case shard.publish <- msg:
+		case <-h.done:
+			return ErrHubStopped
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return nil
+}
+
+func (h *Hub) queryUsers(ctx context.Context, q usersQuery) ([]uuid.UUID, error) {
+	replies := make([]chan []uuid.UUID, len(h.shards))
+	for i, shard := range h.shards {
+		replies[i] = make(chan []uuid.UUID, 1)
+		sq := usersQuery{channel: q.channel, all: q.all, reply: replies[i]}
+		select {
+		case shard.usersQueries <- sq:
+		case <-h.done:
+			return nil, ErrHubStopped
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+
+	seen := make(map[uuid.UUID]struct{})
+	ids := make([]uuid.UUID, 0)
+	for _, reply := range replies {
+		select {
+		case part := <-reply:
+			for _, id := range part {
+				if _, ok := seen[id]; ok {
+					continue
+				}
+				seen[id] = struct{}{}
+				ids = append(ids, id)
+			}
+		case <-h.done:
+			return nil, ErrHubStopped
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	return ids, nil
+}
+
+// Run starts every shard event loop. It exits when ctx is cancelled and all
+// shards have finished teardown.
 func (h *Hub) Run(ctx context.Context) {
 	defer close(h.done)
 
-	// Hub-owned state — never touched outside this goroutine.
+	var wg sync.WaitGroup
+	wg.Add(len(h.shards))
+	for _, shard := range h.shards {
+		go func(s *hubShard) {
+			defer wg.Done()
+			s.run(ctx)
+		}(shard)
+	}
+	wg.Wait()
+}
+
+func (s *hubShard) run(ctx context.Context) {
 	clients := make(map[*Client]bool)
-	channels := make(map[string]map[*Client]bool) // channel → client set
-	users := make(map[uuid.UUID]map[*Client]bool) // userID → client set
+	channels := make(map[string]map[*Client]bool)
+	users := make(map[uuid.UUID]map[*Client]bool)
 
 	for {
 		select {
 		case <-ctx.Done():
-			h.teardown(clients, channels, users)
+			s.teardown(clients, channels, users)
 			return
 
-		case c := <-h.register:
-			h.safe("register", func() { h.doRegister(c, clients, users) })
+		case c := <-s.register:
+			s.safe("register", func() { s.doRegister(c, clients, users) })
 
-		case c := <-h.unregister:
-			h.safe("unregister", func() { h.doUnregister(c, clients, channels, users) })
+		case c := <-s.unregister:
+			s.safe("unregister", func() { s.doUnregister(c, clients, channels, users) })
 
-		case s := <-h.subscribe:
-			h.safe("subscribe", func() { h.doSubscribe(s, channels) })
+		case sub := <-s.subscribe:
+			s.safe("subscribe", func() { s.doSubscribe(sub, channels) })
 
-		case d := <-h.disconnectUser:
-			h.safe("disconnect_user", func() { h.doDisconnectUser(d, clients, channels, users) })
+		case d := <-s.disconnectUser:
+			s.safe("disconnect_user", func() { s.doDisconnectUser(d, clients, channels, users) })
 
-		case q := <-h.usersQueries:
-			h.safe("users_query", func() { h.doUsersQuery(q, channels, users) })
+		case q := <-s.usersQueries:
+			s.safe("users_query", func() { s.doUsersQuery(q, channels, users) })
 
-		case msg := <-h.publish:
-			h.safe("publish", func() { h.dispatch(msg, clients, channels, users) })
+		case msg := <-s.publish:
+			s.safe("publish", func() { s.dispatch(msg, clients, channels, users) })
 		}
 	}
 }
 
-// safe runs a Hub state mutation with panic isolation.  A recovered panic is
-// logged with a full stack trace and recorded in metrics; the loop continues
-// serving all other clients (CR-1 / F-007).
-func (h *Hub) safe(op string, fn func()) {
+func (s *hubShard) safe(op string, fn func()) {
 	defer func() {
 		if r := recover(); r != nil {
-			h.metrics.HubPanics.Add(1)
-			h.healthy.Store(false)
+			s.hub.metrics.HubPanics.Add(1)
+			s.hub.healthy.Store(false)
 			logger.Error().
 				Str("hub_op", op).
 				Interface("panic", r).
@@ -169,21 +314,23 @@ func (h *Hub) safe(op string, fn func()) {
 	fn()
 }
 
-// ─── State mutations (run only inside Run goroutine) ──────────────────────────
-
-func (h *Hub) doRegister(c *Client, clients map[*Client]bool, users map[uuid.UUID]map[*Client]bool) {
+func (s *hubShard) doRegister(c *Client, clients map[*Client]bool, users map[uuid.UUID]map[*Client]bool) {
 	clients[c] = true
 	if users[c.UserID] == nil {
 		users[c.UserID] = make(map[*Client]bool)
 	}
 	users[c.UserID][c] = true
-	h.metrics.ActiveConnections.Add(1)
+	s.hub.metrics.ActiveConnections.Add(1)
 	logger.Info().
 		Str("user_id", c.UserID.String()).
 		Msg("connection_opened")
+
+	if data := s.hub.welcomeBytes(); len(data) > 0 {
+		s.sendToClient(c, data)
+	}
 }
 
-func (h *Hub) doUnregister(
+func (s *hubShard) doUnregister(
 	c *Client,
 	clients map[*Client]bool,
 	channels map[string]map[*Client]bool,
@@ -193,20 +340,18 @@ func (h *Hub) doUnregister(
 		return
 	}
 	delete(clients, c)
-	h.closeClient(c)
+	s.closeClient(c)
 
-	// Remove from all channel subscriptions.
 	for ch, members := range channels {
 		if members[c] {
 			delete(members, c)
-			h.metrics.ActiveSubscriptions.Add(-1)
+			s.hub.metrics.ActiveSubscriptions.Add(-1)
 			if len(members) == 0 {
 				delete(channels, ch)
 			}
 		}
 	}
 
-	// Remove from user index.
 	if userClients := users[c.UserID]; userClients != nil {
 		delete(userClients, c)
 		if len(userClients) == 0 {
@@ -214,44 +359,42 @@ func (h *Hub) doUnregister(
 		}
 	}
 
-	h.metrics.ActiveConnections.Add(-1)
+	s.hub.metrics.ActiveConnections.Add(-1)
 	logger.Info().
 		Str("user_id", c.UserID.String()).
 		Msg("connection_closed")
 }
 
-func (h *Hub) doSubscribe(s subscriptionMsg, channels map[string]map[*Client]bool) {
-	if s.add {
-		if channels[s.channel] == nil {
-			channels[s.channel] = make(map[*Client]bool)
+func (s *hubShard) doSubscribe(sub subscriptionMsg, channels map[string]map[*Client]bool) {
+	if sub.add {
+		if channels[sub.channel] == nil {
+			channels[sub.channel] = make(map[*Client]bool)
 		}
-		if !channels[s.channel][s.client] {
-			channels[s.channel][s.client] = true
-			h.metrics.ActiveSubscriptions.Add(1)
+		if !channels[sub.channel][sub.client] {
+			channels[sub.channel][sub.client] = true
+			s.hub.metrics.ActiveSubscriptions.Add(1)
 			logger.Info().
-				Str("user_id", s.client.UserID.String()).
-				Str("channel", s.channel).
+				Str("user_id", sub.client.UserID.String()).
+				Str("channel", sub.channel).
 				Msg("subscription_added")
 		}
 		return
 	}
 
-	if channels[s.channel] != nil && channels[s.channel][s.client] {
-		delete(channels[s.channel], s.client)
-		h.metrics.ActiveSubscriptions.Add(-1)
-		if len(channels[s.channel]) == 0 {
-			delete(channels, s.channel)
+	if channels[sub.channel] != nil && channels[sub.channel][sub.client] {
+		delete(channels[sub.channel], sub.client)
+		s.hub.metrics.ActiveSubscriptions.Add(-1)
+		if len(channels[sub.channel]) == 0 {
+			delete(channels, sub.channel)
 		}
 		logger.Info().
-			Str("user_id", s.client.UserID.String()).
-			Str("channel", s.channel).
+			Str("user_id", sub.client.UserID.String()).
+			Str("channel", sub.channel).
 			Msg("subscription_removed")
 	}
 }
 
-// doDisconnectUser forcibly terminates every connection owned by a user and
-// removes them from all Hub state (CR-9).
-func (h *Hub) doDisconnectUser(
+func (s *hubShard) doDisconnectUser(
 	d disconnectMsg,
 	clients map[*Client]bool,
 	channels map[string]map[*Client]bool,
@@ -261,14 +404,13 @@ func (h *Hub) doDisconnectUser(
 	if len(targets) == 0 {
 		return
 	}
-	// Snapshot first; doUnregister mutates the users map.
 	victims := make([]*Client, 0, len(targets))
 	for c := range targets {
 		victims = append(victims, c)
 	}
 	for _, c := range victims {
-		h.doUnregister(c, clients, channels, users)
-		h.metrics.UsersDisconnected.Add(1)
+		s.doUnregister(c, clients, channels, users)
+		s.hub.metrics.UsersDisconnected.Add(1)
 	}
 	logger.Info().
 		Str("user_id", d.userID.String()).
@@ -276,10 +418,7 @@ func (h *Hub) doDisconnectUser(
 		Msg("user_disconnected")
 }
 
-// doUsersQuery snapshots distinct user IDs — all connected users or one
-// channel's subscribers. The reply channel is buffered, so this never blocks
-// the event loop.
-func (h *Hub) doUsersQuery(
+func (s *hubShard) doUsersQuery(
 	q usersQuery,
 	channels map[string]map[*Client]bool,
 	users map[uuid.UUID]map[*Client]bool,
@@ -305,8 +444,7 @@ func (h *Hub) doUsersQuery(
 	q.reply <- ids
 }
 
-// dispatch routes a publishMsg to the appropriate clients.
-func (h *Hub) dispatch(
+func (s *hubShard) dispatch(
 	msg publishMsg,
 	clients map[*Client]bool,
 	channels map[string]map[*Client]bool,
@@ -315,51 +453,35 @@ func (h *Hub) dispatch(
 	switch {
 	case msg.channel != nil:
 		for c := range channels[*msg.channel] {
-			h.sendToClient(c, msg.data)
+			s.sendToClient(c, msg.data)
 		}
 
 	case msg.userID != nil:
 		for c := range users[*msg.userID] {
-			h.sendToClient(c, msg.data)
+			s.sendToClient(c, msg.data)
 		}
 
 	default:
 		for c := range clients {
-			h.sendToClient(c, msg.data)
+			s.sendToClient(c, msg.data)
 		}
 	}
 }
 
-// sendToClient writes to a client's send buffer.
-//
-// It first checks whether the client has already been closed: sending on a
-// closed channel panics in Go, and a select/default does NOT protect against a
-// closed channel (only a full one). Guarding on c.closed makes delivery safe
-// even when the client is still present in a channel map but pending eviction
-// (fixes F-001).
-//
-// If the buffer is full the client is considered slow/dead and is closed; its
-// readPump/writePump goroutines then unblock and the client is fully removed on
-// the subsequent unregister.
-func (h *Hub) sendToClient(c *Client, data []byte) {
+func (s *hubShard) sendToClient(c *Client, data []byte) {
 	select {
 	case <-c.closed:
-		// Already evicted — never write to a closed Send channel.
 		return
 	default:
 	}
 
 	select {
 	case c.Send <- data:
-		h.metrics.EventsDelivered.Add(1)
-		logger.Debug().
-			Str("user_id", c.UserID.String()).
-			Int("bytes", len(data)).
-			Msg("event_delivered")
+		s.hub.metrics.EventsDelivered.Add(1)
 	default:
-		h.closeClient(c)
-		h.metrics.EventsFailed.Add(1)
-		h.metrics.ClientsDroppedBufferFull.Add(1)
+		s.closeClient(c)
+		s.hub.metrics.EventsFailed.Add(1)
+		s.hub.metrics.ClientsDroppedBufferFull.Add(1)
 		logger.Warn().
 			Str("user_id", c.UserID.String()).
 			Str("reason", "send_buffer_full").
@@ -367,32 +489,24 @@ func (h *Hub) sendToClient(c *Client, data []byte) {
 	}
 }
 
-// closeClient drains and closes the client's Send channel.
-// Idempotent — safe to call more than once.
-func (h *Hub) closeClient(c *Client) {
+func (s *hubShard) closeClient(c *Client) {
 	select {
 	case <-c.closed:
-		// already closed
 	default:
 		close(c.closed)
 		close(c.Send)
 	}
 }
 
-// teardown closes every active client on shutdown and then drains the
-// unregister channel for a bounded period so that per-client readPump
-// goroutines blocked on `hub.unregister <- c` are released rather than leaked
-// (fixes F-006).
-func (h *Hub) teardown(
+func (s *hubShard) teardown(
 	clients map[*Client]bool,
 	channels map[string]map[*Client]bool,
 	users map[uuid.UUID]map[*Client]bool,
 ) {
 	remaining := len(clients)
 	for c := range clients {
-		h.closeClient(c)
+		s.closeClient(c)
 	}
-	// Clear maps eagerly to release references.
 	for k := range channels {
 		delete(channels, k)
 	}
@@ -410,7 +524,7 @@ func (h *Hub) teardown(
 	deadline := time.After(hubShutdownDrainTimeout)
 	for remaining > 0 {
 		select {
-		case <-h.unregister:
+		case <-s.unregister:
 			remaining--
 		case <-deadline:
 			logger.Warn().
@@ -420,8 +534,6 @@ func (h *Hub) teardown(
 		}
 	}
 }
-
-// ─── Channel helpers ──────────────────────────────────────────────────────────
 
 // MatchChannel returns the canonical channel name for a match.
 func MatchChannel(matchID uuid.UUID) string {

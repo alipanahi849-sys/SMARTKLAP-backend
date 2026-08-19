@@ -203,7 +203,7 @@ func (d *EventDispatcher) process(ctx context.Context, item *schedulersvc.Schedu
 	// Remove from in-memory queue to avoid re-dispatch.
 	_ = d.scheduler.CancelEvent(ctx, item.ID)
 
-	logger.Info().
+	logger.Debug().
 		Str("event_id", itemID.String()).
 		Str("event_type", eventType).
 		Str("match_id", matchID.String()).

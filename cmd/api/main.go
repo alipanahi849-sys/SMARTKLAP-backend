@@ -154,14 +154,14 @@ func run() error {
 	pushSvc := notifsvc.NewNotificationService(pushDevices, fcmSender)
 
 	// Notify connected users ~2 minutes before an active chant starts and
-	// auto-schedule chant.started + lyric sync events. Also send one FCM
+	// schedule chant.started as a recovery signal. Also send one FCM
 	// push so backgrounded devices see the song name and 2-minute warning.
 	chantNotifier := realtimesvc.NewChantUpcomingNotifier(
 		chantrepo.NewChantRepository(db),
 		chant.NewService(),
 		chantEventScheduler,
-		cm,
 		wsGateway,
+		cm,
 		pushSvc,
 		0, 0,
 	)

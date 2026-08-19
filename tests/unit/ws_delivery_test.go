@@ -193,3 +193,21 @@ func TestWSDelivery_MultipleSubscriptions(t *testing.T) {
 	e2 := readEnvelope(t, conn)
 	assert.Equal(t, match2.String(), e2.MatchID.String())
 }
+
+func TestWSDelivery_WelcomeOnConnect(t *testing.T) {
+	srv := newTestWSServer(t)
+
+	env := dto.NewEnvelope(dto.EventTypeChantUpcoming, nil, map[string]any{
+		"chant_id": uuid.New().String(),
+		"title":    "welcome",
+	})
+	data, err := json.Marshal(env)
+	require.NoError(t, err)
+	srv.cm.SetWelcomeMessage(data)
+
+	conn := dialWS(t, srv.server)
+	defer conn.Close()
+
+	got := readEnvelope(t, conn)
+	assert.Equal(t, dto.EventTypeChantUpcoming, got.Type)
+}

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	chantdto "clap/internal/modules/chant/dto"
@@ -16,10 +17,12 @@ const (
 	// defaultChantLeadTime is how far before a chant's scheduled start the
 	// upcoming notification is emitted.
 	defaultChantLeadTime = 2 * time.Minute
-	// defaultChantNotifierInterval is how often the DB is polled and the
-	// upcoming event is re-broadcast. Kept short so a device that connects
-	// (or reconnects) mid-window joins the countdown almost immediately.
+	// defaultChantNotifierInterval is how often the DB is polled for chants
+	// entering the lead-time window. This is a cheap lookup, not a fan-out.
 	defaultChantNotifierInterval = 5 * time.Second
+	// lyricsDeadline is how close to start we give up waiting for lyrics and
+	// still broadcast the countdown so devices can start on time.
+	lyricsDeadline = 15 * time.Second
 )
 
 // ChantLyricsProvider builds the full synced-lyrics payload for a chant.
@@ -31,13 +34,18 @@ type ChantLyricsProvider interface {
 // upcomingChantSource is the subset of ChantRepository used by the notifier.
 type upcomingChantSource interface {
 	FindStartingBetween(ctx context.Context, from, to time.Time) ([]chantmodels.Chant, error)
-	TodayPoints(ctx context.Context, userID uuid.UUID) (int, error)
 }
 
-// UserEnvelopePublisher delivers an EventEnvelope to all connections of one
-// user. Implemented by WebSocketRealtimeGateway.
-type UserEnvelopePublisher interface {
-	PublishToUser(ctx context.Context, userID uuid.UUID, env *realtimedto.EventEnvelope) error
+// BroadcastPublisher delivers one envelope to every connected client.
+// Implemented by WebSocketRealtimeGateway.
+type BroadcastPublisher interface {
+	BroadcastEnvelope(ctx context.Context, env *realtimedto.EventEnvelope) error
+}
+
+// WelcomeSetter stores a snapshot pushed to clients that connect after the
+// one-shot broadcast. Implemented by ws.ConnectionManager. Optional.
+type WelcomeSetter interface {
+	SetWelcomeMessage(data []byte)
 }
 
 // ChantCountdownPusher sends a one-shot FCM notification when a chant
@@ -47,15 +55,9 @@ type ChantCountdownPusher interface {
 	NotifyChantCountdown(ctx context.Context, chantID, matchID, title string, startsAt time.Time, leadTime time.Duration) error
 }
 
-// ConnectedUserLister returns the distinct user IDs of all connected clients.
-// Implemented by ws.ConnectionManager.
-type ConnectedUserLister interface {
-	ConnectedUserIDs(ctx context.Context) ([]uuid.UUID, error)
-}
-
 // ChantUpcomingPayload is the body of a chant.upcoming event.
-// Field order follows the contract: lyrics first, then the user's points
-// earned today, then the chant's own points.
+// Personalization (today_points) is intentionally omitted — clients fetch it
+// over HTTP so the hot path stays a single identical broadcast.
 type ChantUpcomingPayload struct {
 	ChantID         string                        `json:"chant_id"`
 	MatchID         string                        `json:"match_id"`
@@ -63,45 +65,33 @@ type ChantUpcomingPayload struct {
 	StartsAt        time.Time                     `json:"starts_at"`
 	StartsInSeconds int64                         `json:"starts_in_seconds"`
 	Lyrics          *chantdto.ChantLyricsResponse `json:"lyrics"`
-	TodayPoints     int                           `json:"today_points"`
+	TodayPoints     int                           `json:"today_points,omitempty"`
 	ChantPoints     int                           `json:"chant_points"`
 }
 
-// pendingChant caches per-chant data (lyrics) for the duration of the
-// lead-time window so they are loaded from the DB only once.
+// pendingChant caches per-chant data for the duration of the lead-time window.
 type pendingChant struct {
 	chant           chantmodels.Chant
 	lyrics          *chantdto.ChantLyricsResponse
 	eventsScheduled bool
 	pushSent        bool
+	broadcastSent   bool
 }
 
-// ChantUpcomingNotifier is a background service that watches for active chants
-// approaching their scheduled start and pushes a personalised chant.upcoming
-// event to every connected user, regardless of channel subscriptions — the
-// mobile app must surface the countdown no matter which screen is open.
+// ChantUpcomingNotifier watches for active chants approaching their scheduled
+// start and broadcasts a single chant.upcoming program to every connected
+// client. Late joiners receive the same envelope as a welcome snapshot on
+// connect — there is no per-user loop and no 5-second rebroadcast.
 //
-// The event is deliberately re-broadcast on every tick for the whole window:
-// devices that connect or reconnect mid-window still receive it (at most one
-// interval late), and multiple devices on the same account all get their own
-// copy. The app deduplicates by chant_id and simply refreshes the countdown
-// data on repeats. Because the countdown is anchored to the absolute starts_at
-// timestamp, late delivery never shifts the actual start moment.
-//
-// A single FCM push is also sent the first time a chant enters the window so
-// backgrounded / killed devices still see the song name and the 2-minute warning.
-//
-// Lifecycle mirrors EventDispatcher:
-//
-//	n := NewChantUpcomingNotifier(...)
-//	go n.Run(ctx)   // blocks until ctx is cancelled
-//	<-n.Done()
+// The countdown is anchored to the absolute starts_at timestamp, so delivery
+// latency never shifts the start moment. A single FCM push is also sent the
+// first time a chant enters the window so backgrounded devices still wake.
 type ChantUpcomingNotifier struct {
 	chantRepo      upcomingChantSource
 	lyricsSvc      ChantLyricsProvider
 	eventScheduler ChantEventScheduler
-	users          ConnectedUserLister
-	publisher      UserEnvelopePublisher
+	publisher      BroadcastPublisher
+	welcome        WelcomeSetter
 	pusher         ChantCountdownPusher
 	interval       time.Duration
 	leadTime       time.Duration
@@ -113,13 +103,14 @@ type ChantUpcomingNotifier struct {
 
 // NewChantUpcomingNotifier constructs the notifier.
 // Pass 0 for interval/leadTime to use the defaults (5s poll, 2min lead).
-// pusher may be nil to disable FCM delivery.
+// pusher may be nil to disable FCM delivery. welcome may be nil to skip
+// late-join snapshots.
 func NewChantUpcomingNotifier(
 	chantRepo upcomingChantSource,
 	lyricsSvc ChantLyricsProvider,
 	eventScheduler ChantEventScheduler,
-	users ConnectedUserLister,
-	publisher UserEnvelopePublisher,
+	publisher BroadcastPublisher,
+	welcome WelcomeSetter,
 	pusher ChantCountdownPusher,
 	interval, leadTime time.Duration,
 ) *ChantUpcomingNotifier {
@@ -133,8 +124,8 @@ func NewChantUpcomingNotifier(
 		chantRepo:      chantRepo,
 		lyricsSvc:      lyricsSvc,
 		eventScheduler: eventScheduler,
-		users:          users,
 		publisher:      publisher,
+		welcome:        welcome,
 		pusher:         pusher,
 		interval:       interval,
 		leadTime:       leadTime,
@@ -170,8 +161,10 @@ func (n *ChantUpcomingNotifier) tick(ctx context.Context, now time.Time) {
 		return
 	}
 
+	seen := make(map[uuid.UUID]struct{}, len(chants))
 	for i := range chants {
 		chant := chants[i]
+		seen[chant.ID] = struct{}{}
 		entry := n.pending[chant.ID]
 		if entry == nil {
 			entry = &pendingChant{chant: chant}
@@ -184,7 +177,6 @@ func (n *ChantUpcomingNotifier) tick(ctx context.Context, now time.Time) {
 
 		n.sendCountdownPush(ctx, entry)
 
-		// Load lyrics once per chant; retry on later ticks if it failed.
 		if entry.lyrics == nil {
 			lyrics, lyricsErr := n.lyricsSvc.Lyrics(ctx, chant.ID, "upcoming_notification")
 			if lyricsErr != nil {
@@ -208,15 +200,16 @@ func (n *ChantUpcomingNotifier) tick(ctx context.Context, now time.Time) {
 			}
 		}
 
-		n.notifyUsers(ctx, entry)
+		n.maybeBroadcast(ctx, entry, now)
 	}
 
-	// Drop chants whose start time has passed.
 	for id, entry := range n.pending {
-		if entry.chant.ScheduledAt.Before(now) {
-			delete(n.pending, id)
+		if _, ok := seen[id]; ok && !entry.chant.ScheduledAt.Before(now) {
+			continue
 		}
+		delete(n.pending, id)
 	}
+	n.refreshWelcome()
 }
 
 func (n *ChantUpcomingNotifier) sendCountdownPush(ctx context.Context, entry *pendingChant) {
@@ -242,66 +235,87 @@ func (n *ChantUpcomingNotifier) sendCountdownPush(ctx context.Context, entry *pe
 	entry.pushSent = true
 }
 
-// notifyUsers re-broadcasts the event to every connected user.
-// Repeats are intentional (see the type comment); per-user failures are
-// logged and simply retried on the next tick.
-func (n *ChantUpcomingNotifier) notifyUsers(ctx context.Context, entry *pendingChant) {
-	chant := entry.chant
-
-	userIDs, err := n.users.ConnectedUserIDs(ctx)
-	if err != nil {
-		logger.Warn().
-			Str("chant_id", chant.ID.String()).
-			Err(err).
-			Msg("chant notifier: failed to list connected users")
+func (n *ChantUpcomingNotifier) maybeBroadcast(ctx context.Context, entry *pendingChant, now time.Time) {
+	if entry.broadcastSent || n.publisher == nil {
 		return
 	}
 
+	untilStart := entry.chant.ScheduledAt.Sub(now)
+	ready := entry.lyrics != nil || untilStart <= lyricsDeadline
+	if !ready {
+		return
+	}
+
+	n.broadcast(ctx, entry)
+}
+
+func (n *ChantUpcomingNotifier) broadcast(ctx context.Context, entry *pendingChant) {
+	chant := entry.chant
 	startsIn := int64(time.Until(chant.ScheduledAt).Seconds())
 	if startsIn < 0 {
 		startsIn = 0
 	}
 
-	notified := 0
-	for _, userID := range userIDs {
-		todayPoints, pointsErr := n.chantRepo.TodayPoints(ctx, userID)
-		if pointsErr != nil {
-			logger.Warn().
-				Str("chant_id", chant.ID.String()).
-				Str("user_id", userID.String()).
-				Err(pointsErr).
-				Msg("chant notifier: failed to load today's points")
-			continue
-		}
-
-		payload := &ChantUpcomingPayload{
-			ChantID:         chant.ID.String(),
-			MatchID:         chant.MatchID.String(),
-			Title:           chant.Title,
-			StartsAt:        chant.ScheduledAt,
-			StartsInSeconds: startsIn,
-			Lyrics:          entry.lyrics,
-			TodayPoints:     todayPoints,
-			ChantPoints:     chant.Points,
-		}
-		env := realtimedto.NewEnvelope(realtimedto.EventTypeChantUpcoming, &chant.MatchID, payload)
-
-		if pubErr := n.publisher.PublishToUser(ctx, userID, env); pubErr != nil {
-			logger.Warn().
-				Str("chant_id", chant.ID.String()).
-				Str("user_id", userID.String()).
-				Err(pubErr).
-				Msg("chant notifier: publish failed")
-			continue
-		}
-		notified++
+	payload := &ChantUpcomingPayload{
+		ChantID:         chant.ID.String(),
+		MatchID:         chant.MatchID.String(),
+		Title:           chant.Title,
+		StartsAt:        chant.ScheduledAt,
+		StartsInSeconds: startsIn,
+		Lyrics:          entry.lyrics,
+		ChantPoints:     chant.Points,
 	}
+	env := realtimedto.NewEnvelope(realtimedto.EventTypeChantUpcoming, &chant.MatchID, payload)
 
-	if notified > 0 {
-		logger.Debug().
+	data, err := json.Marshal(env)
+	if err != nil {
+		logger.Error().
 			Str("chant_id", chant.ID.String()).
-			Int("users", notified).
-			Int64("starts_in_seconds", startsIn).
-			Msg("chant notifier: upcoming chant broadcast")
+			Err(err).
+			Msg("chant notifier: failed to marshal upcoming envelope")
+		return
 	}
+	if n.welcome != nil {
+		n.welcome.SetWelcomeMessage(data)
+	}
+
+	if pubErr := n.publisher.BroadcastEnvelope(ctx, env); pubErr != nil {
+		logger.Warn().
+			Str("chant_id", chant.ID.String()).
+			Err(pubErr).
+			Msg("chant notifier: broadcast failed")
+		return
+	}
+
+	entry.broadcastSent = true
+	logger.Info().
+		Str("chant_id", chant.ID.String()).
+		Int64("starts_in_seconds", startsIn).
+		Msg("chant notifier: upcoming chant broadcast")
+}
+
+func (n *ChantUpcomingNotifier) refreshWelcome() {
+	if n.welcome == nil {
+		return
+	}
+	for _, entry := range n.pending {
+		if !entry.broadcastSent {
+			continue
+		}
+		payload := &ChantUpcomingPayload{
+			ChantID:         entry.chant.ID.String(),
+			MatchID:         entry.chant.MatchID.String(),
+			Title:           entry.chant.Title,
+			StartsAt:        entry.chant.ScheduledAt,
+			StartsInSeconds: int64(time.Until(entry.chant.ScheduledAt).Seconds()),
+			Lyrics:          entry.lyrics,
+			ChantPoints:     entry.chant.Points,
+		}
+		env := realtimedto.NewEnvelope(realtimedto.EventTypeChantUpcoming, &entry.chant.MatchID, payload)
+		if data, err := json.Marshal(env); err == nil {
+			n.welcome.SetWelcomeMessage(data)
+			return
+		}
+	}
+	n.welcome.SetWelcomeMessage(nil)
 }

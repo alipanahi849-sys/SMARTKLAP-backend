@@ -83,7 +83,7 @@ func NewClientWithOptions(hub *Hub, conn *websocket.Conn, userID uuid.UUID, opts
 		tokenExpiresAt: opts.TokenExpiresAt,
 	}
 	c.lastHeartbeatMs.Store(time.Now().UnixMilli())
-	hub.register <- c
+	hub.enqueueRegister(c)
 	return c
 }
 
@@ -91,7 +91,7 @@ func NewClientWithOptions(hub *Hub, conn *websocket.Conn, userID uuid.UUID, opts
 // One goroutine per client; when it returns the client is deregistered.
 func (c *Client) ReadPump() {
 	defer func() {
-		c.hub.unregister <- c
+		c.hub.enqueueUnregister(c)
 		c.Conn.Close()
 	}()
 
@@ -174,7 +174,7 @@ func (c *Client) WritePump() {
 				_ = c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
 				_ = c.Conn.WriteMessage(websocket.CloseMessage,
 					websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "token expired"))
-				c.hub.unregister <- c
+				c.hub.enqueueUnregister(c)
 				return
 			}
 
@@ -240,12 +240,12 @@ func (c *Client) handleInbound(raw []byte) {
 			c.sendError("subscription_rate_limited", "Subscription rate limit exceeded. Slow down.", channel)
 			return
 		}
-		c.hub.subscribe <- subscriptionMsg{client: c, channel: channel, add: true}
+		c.hub.enqueueSubscribe(subscriptionMsg{client: c, channel: channel, add: true})
 
 	case "unsubscribe":
 		channel := sanitiseChannel(msg.Channel)
 		if channel != "" {
-			c.hub.subscribe <- subscriptionMsg{client: c, channel: channel, add: false}
+			c.hub.enqueueSubscribe(subscriptionMsg{client: c, channel: channel, add: false})
 		}
 	}
 }

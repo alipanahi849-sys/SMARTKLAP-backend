@@ -23,81 +23,48 @@ func NewConnectionManager(hub *Hub) *ConnectionManager {
 }
 
 // PublishToChannel sends data to every client subscribed to the named channel.
-// Non-blocking: the message is placed on the Hub's publish queue; callers
-// receive a context-cancellation error if the queue is full when ctx expires.
+// Non-blocking: the message is placed on each shard's publish queue; callers
+// receive a context-cancellation error if a queue is full when ctx expires.
 func (cm *ConnectionManager) PublishToChannel(ctx context.Context, channel string, data []byte) error {
-	select {
-	case cm.hub.publish <- publishMsg{channel: &channel, data: data}:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	return cm.hub.enqueuePublish(ctx, publishMsg{channel: &channel, data: data})
 }
 
 // PublishToUser sends data to all active connections of a single user.
 func (cm *ConnectionManager) PublishToUser(ctx context.Context, userID uuid.UUID, data []byte) error {
-	select {
-	case cm.hub.publish <- publishMsg{userID: &userID, data: data}:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	return cm.hub.enqueuePublish(ctx, publishMsg{userID: &userID, data: data})
 }
 
 // Broadcast sends data to every connected client regardless of channel.
 func (cm *ConnectionManager) Broadcast(ctx context.Context, data []byte) error {
-	select {
-	case cm.hub.publish <- publishMsg{data: data}:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	return cm.hub.enqueuePublish(ctx, publishMsg{data: data})
+}
+
+// SetWelcomeMessage stores a snapshot delivered to newly registered connections
+// (late join during a chant countdown). Pass nil to clear.
+func (cm *ConnectionManager) SetWelcomeMessage(data []byte) {
+	cm.hub.SetWelcomeMessage(data)
 }
 
 // DisconnectUser forcibly terminates every WebSocket connection owned by the
 // given user and removes them from all channels (CR-9).
 func (cm *ConnectionManager) DisconnectUser(ctx context.Context, userID uuid.UUID) error {
-	select {
-	case cm.hub.disconnectUser <- disconnectMsg{userID: userID}:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	return cm.hub.enqueueDisconnectUser(ctx, userID)
 }
 
 // ConnectedUserIDs returns the distinct user IDs of every connected client.
-// The snapshot is taken inside the Hub event loop, so it is consistent but
+// The snapshot is taken inside the shard event loops, so it is consistent but
 // may be stale by the time it is used.
 func (cm *ConnectionManager) ConnectedUserIDs(ctx context.Context) ([]uuid.UUID, error) {
-	return cm.queryUsers(ctx, usersQuery{all: true, reply: make(chan []uuid.UUID, 1)})
+	return cm.hub.queryUsers(ctx, usersQuery{all: true})
 }
 
 // ChannelUserIDs returns the distinct user IDs currently subscribed to the
 // named channel.
 func (cm *ConnectionManager) ChannelUserIDs(ctx context.Context, channel string) ([]uuid.UUID, error) {
-	return cm.queryUsers(ctx, usersQuery{channel: channel, reply: make(chan []uuid.UUID, 1)})
+	return cm.hub.queryUsers(ctx, usersQuery{channel: channel})
 }
 
-func (cm *ConnectionManager) queryUsers(ctx context.Context, q usersQuery) ([]uuid.UUID, error) {
-	select {
-	case cm.hub.usersQueries <- q:
-	case <-cm.hub.done:
-		return nil, ErrHubStopped
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
-
-	select {
-	case ids := <-q.reply:
-		return ids, nil
-	case <-cm.hub.done:
-		return nil, ErrHubStopped
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
-}
-
-// Healthy reports whether the underlying Hub event loop is operating normally.
+// Healthy reports whether the underlying Hub event loops are operating normally.
 func (cm *ConnectionManager) Healthy() bool {
 	return cm.hub.Healthy()
 }

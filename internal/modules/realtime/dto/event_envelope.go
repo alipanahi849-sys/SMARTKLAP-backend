@@ -14,11 +14,12 @@ const (
 	EventTypeSongPlaybackCancelled = "song.playback.cancelled"
 	EventTypeLyricsLineChanged     = "lyrics.line.changed"
 	EventTypeServerNotification    = "server.notification"
-	// EventTypeChantUpcoming is emitted (per user) when an active chant is
-	// about to start (~2 minutes before its scheduled time).
+	// EventTypeChantUpcoming is broadcast once when an active chant is
+	// about to start (~2 minutes before its scheduled time). Late joiners
+	// receive the same envelope as a welcome snapshot on connect.
 	EventTypeChantUpcoming = "chant.upcoming"
-	// EventTypeChantStarted is broadcast to every connected client at the
-	// chant's scheduled start time — the authoritative "go" signal.
+	// EventTypeChantStarted is broadcast at the scheduled start as a recovery
+	// signal. Clients that already have starts_at must not use it as "go".
 	EventTypeChantStarted = "chant.started"
 
 	// Control events (client ↔ server)

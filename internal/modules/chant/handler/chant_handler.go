@@ -18,6 +18,7 @@ type ChantHandler interface {
 	List(c *gin.Context)
 	Lyrics(c *gin.Context)
 	Complete(c *gin.Context)
+	TodayStats(c *gin.Context)
 }
 
 type chantHandler struct {
@@ -147,4 +148,28 @@ func (h *chantHandler) Complete(c *gin.Context) {
 		return
 	}
 	response.SuccessWithMessage(c, result, "Chant completed successfully")
+}
+
+// Today stats godoc
+//
+//	@Summary		Today's chant points
+//	@Tags			chants
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Router			/api/v1/chants/me/today [get]
+func (h *chantHandler) TodayStats(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == uuid.Nil {
+		response.Unauthorized(c, "Invalid user")
+		return
+	}
+
+	result, err := h.svc.TodayStats(c.Request.Context(), userID)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.Success(c, result)
 }

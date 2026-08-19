@@ -114,7 +114,7 @@ func (g *WebSocketRealtimeGateway) PublishEnvelope(ctx context.Context, channel 
 		return pubErr
 	}
 	g.metrics.EventsPublished.Add(1)
-	logger.Info().
+	logger.Debug().
 		Str("event_id", env.ID).
 		Str("event_type", env.Type).
 		Str("channel", channel).

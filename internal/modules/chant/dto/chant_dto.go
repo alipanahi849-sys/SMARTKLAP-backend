@@ -57,6 +57,12 @@ type ChantLyricLine struct {
 	VibrationDurationMs int    `json:"vibration_duration_ms"`
 }
 
+// ChantTodayStatsResponse is GET /chants/me/today.
+type ChantTodayStatsResponse struct {
+	TodayPoints int `json:"today_points"`
+	TodayTarget int `json:"today_target"`
+}
+
 // ChantLyricsResponse is GET /chants/{id}/lyrics.
 type ChantLyricsResponse struct {
 	Title    string           `json:"title"`

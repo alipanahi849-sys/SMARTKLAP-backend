@@ -29,6 +29,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	chants.Use(middleware.Auth())
 	{
 		chants.GET("", h.List)
+		chants.GET("/me/today", h.TodayStats)
 		chants.GET("/:chant_id/lyrics", h.Lyrics)
 		chants.POST("/:chant_id/complete", h.Complete)
 	}

@@ -30,6 +30,7 @@ type ChantService interface {
 	List(ctx context.Context, userID uuid.UUID, filters dto.ChantListFilters) (*dto.ChantListResponse, error)
 	Lyrics(ctx context.Context, chantID uuid.UUID, mode string) (*dto.ChantLyricsResponse, error)
 	Complete(ctx context.Context, userID, chantID uuid.UUID) (*dto.ChantCompleteResponse, error)
+	TodayStats(ctx context.Context, userID uuid.UUID) (*dto.ChantTodayStatsResponse, error)
 	// TodayProgram powers the Home "chant program" card (contract §3.1).
 	TodayProgram(ctx context.Context, userID uuid.UUID, recentLimit int) (todayPoints, todayTarget int, recent []models.ChantCompletion, chants map[uuid.UUID]models.Chant, err error)
 }
@@ -257,6 +258,17 @@ func (s *chantService) TodayProgram(ctx context.Context, userID uuid.UUID, recen
 		return 0, 0, nil, nil, err
 	}
 	return todayPoints, s.dailyTarget, recent, chants, nil
+}
+
+func (s *chantService) TodayStats(ctx context.Context, userID uuid.UUID) (*dto.ChantTodayStatsResponse, error) {
+	todayPoints, err := s.chantRepo.TodayPoints(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return &dto.ChantTodayStatsResponse{
+		TodayPoints: todayPoints,
+		TodayTarget: s.dailyTarget,
+	}, nil
 }
 
 // ─── internals ────────────────────────────────────────────────────────────────
