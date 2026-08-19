@@ -50,11 +50,14 @@ type ChantCompleteResponse struct {
 
 // ChantLyricLine is one synced lyric line (contract §4.3).
 type ChantLyricLine struct {
-	ID                  int    `json:"id"`
-	TimeSeconds         int64  `json:"time_seconds"`
-	Text                string `json:"text"`
-	FlashDurationMs     int    `json:"flash_duration_ms"`
-	VibrationDurationMs int    `json:"vibration_duration_ms"`
+	ID int `json:"id"`
+	// TimeSeconds must stay fractional. Clients fire the torch and haptics on
+	// these offsets, so rounding to a whole second puts the flash up to a
+	// second away from the beat — and by a different amount on every line.
+	TimeSeconds         float64 `json:"time_seconds"`
+	Text                string  `json:"text"`
+	FlashDurationMs     int     `json:"flash_duration_ms"`
+	VibrationDurationMs int     `json:"vibration_duration_ms"`
 }
 
 // ChantTodayStatsResponse is GET /chants/me/today.

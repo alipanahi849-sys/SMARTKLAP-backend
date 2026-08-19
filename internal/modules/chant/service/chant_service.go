@@ -205,7 +205,7 @@ func (s *chantService) Lyrics(ctx context.Context, chantID uuid.UUID, mode strin
 	for i, entry := range timeline.Entries {
 		lines[i] = dto.ChantLyricLine{
 			ID:                  i + 1,
-			TimeSeconds:         entry.TimestampMs / 1000,
+			TimeSeconds:         float64(entry.TimestampMs) / 1000,
 			Text:                entry.Text,
 			FlashDurationMs:     chant.FlashDurationMs,
 			VibrationDurationMs: chant.VibrationDurationMs,
