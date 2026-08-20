@@ -11,14 +11,19 @@
 -- different index. Migration 062 already installed the two partial indexes that
 -- express the rule correctly, so these leftovers are only drift.
 
+-- Drop the constraint before the index: where the name belongs to a table
+-- constraint the index only backs it, and DROP INDEX refuses to touch it.
+ALTER TABLE chant_completions
+    DROP CONSTRAINT IF EXISTS uidx_chant_completions_song_user;
+
 DROP INDEX IF EXISTS uidx_chant_completions_song_user;
 
 -- Same shape as uidx_chant_completions_online for every row that index covers
 -- (catalog rows have no chant_id), so this is redundant rather than wrong.
-DROP INDEX IF EXISTS uidx_chant_completions_chant_user;
-
 ALTER TABLE chant_completions
     DROP CONSTRAINT IF EXISTS uidx_chant_completions_chant_user;
+
+DROP INDEX IF EXISTS uidx_chant_completions_chant_user;
 
 -- Kept from the out-of-band migration and created here too, so new databases
 -- match: CompletedSongIDs looks completions up by song.
