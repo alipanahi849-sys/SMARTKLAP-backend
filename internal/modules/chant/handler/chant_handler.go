@@ -19,6 +19,7 @@ type ChantHandler interface {
 	List(c *gin.Context)
 	Lyrics(c *gin.Context)
 	Complete(c *gin.Context)
+	Cancel(c *gin.Context)
 	TodayStats(c *gin.Context)
 	Program(c *gin.Context)
 
@@ -190,6 +191,41 @@ func (h *chantHandler) Complete(c *gin.Context) {
 		return
 	}
 	response.SuccessWithMessage(c, result, "Chant completed successfully")
+}
+
+// Cancel chant godoc
+//
+//	@Summary		Cancel chant
+//	@Description	Records that the user left a live chant before it finished. The
+//	@Description	chant is settled as cancelled: it is worth no points and cannot
+//	@Description	be earned later.
+//	@Tags			chants
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			chant_id	path		string	true	"Chant ID"
+//	@Success		200			{object}	response.Response
+//	@Failure		400			{object}	response.Response
+//	@Failure		401			{object}	response.Response
+//	@Failure		404			{object}	response.Response
+//	@Router			/api/v1/chants/{chant_id}/cancel [post]
+func (h *chantHandler) Cancel(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == uuid.Nil {
+		response.Unauthorized(c, "Invalid user")
+		return
+	}
+
+	chantID, err := uuid.Parse(c.Param("chant_id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid chant ID")
+		return
+	}
+
+	if svcErr := h.svc.Cancel(c.Request.Context(), userID, chantID); svcErr != nil {
+		response.Error(c, svcErr)
+		return
+	}
+	response.SuccessWithMessage(c, nil, "Chant cancelled")
 }
 
 // Today stats godoc

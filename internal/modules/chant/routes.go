@@ -27,6 +27,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 		chants.GET("/program", h.Program)
 		chants.GET("/:chant_id/lyrics", h.Lyrics)
 		chants.POST("/:chant_id/complete", h.Complete)
+		chants.POST("/:chant_id/cancel", h.Cancel)
 	}
 
 	admin := r.Group("/admin")

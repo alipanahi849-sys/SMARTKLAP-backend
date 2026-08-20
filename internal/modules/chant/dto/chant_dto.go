@@ -94,9 +94,12 @@ type ChantProgramItem struct {
 	ID          string     `json:"id"`
 	UserID      *uuid.UUID `json:"user_id,omitempty"`
 	UserName    string     `json:"user_name,omitempty"`
-	Title       string     `json:"title"`
-	Points      int        `json:"points"`
-	IsDone      bool       `json:"is_done"`
+	Title  string `json:"title"`
+	Points int    `json:"points"`
+	IsDone bool   `json:"is_done"`
+	// IsCancelled marks an attempt the fan walked out of. Such a row is settled
+	// like a completion — it is simply worth nothing.
+	IsCancelled bool       `json:"is_cancelled"`
 	IsNew       bool       `json:"is_new"`
 	IsSelf      bool       `json:"is_self"`
 	CompletedAt *time.Time `json:"completed_at,omitempty"`

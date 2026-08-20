@@ -30,14 +30,16 @@ type CompletionTarget struct {
 	Points  int
 }
 
-// ProgramCompletion is a points row for the Home scoreboard, joined with the
-// chant or song title and the user who earned it.
+// ProgramCompletion is a settled attempt shown on the Home scoreboard, joined
+// with the chant or song title and the user it belongs to. Status tells apart a
+// finished chant from one the fan walked out of.
 type ProgramCompletion struct {
 	ID           uuid.UUID
 	UserID       uuid.UUID
 	FirstName    string
 	LastName     string
 	Title        string
+	Status       string
 	PointsEarned int
 	CreatedAt    time.Time
 }
@@ -93,6 +95,9 @@ type ChantRepository interface {
 	// Complete records a completion and atomically credits the user's points.
 	// Returns created=false when the target was already awarded (idempotent).
 	Complete(ctx context.Context, target CompletionTarget) (totalPoints int, created bool, err error)
+	// Cancel settles the target as walked out of, worth no points. Returns
+	// recorded=false when an earlier attempt already settled it.
+	Cancel(ctx context.Context, target CompletionTarget) (recorded bool, err error)
 	// FindStartingBetween returns active chants scheduled to start within
 	// (from, to], ordered by schedule time. Used by the realtime upcoming-chant
 	// notifier.
@@ -172,9 +177,12 @@ func (r *chantRepository) CompletedChantIDs(ctx context.Context, userID uuid.UUI
 		return done, nil
 	}
 
+	// Only finished chants carry the "you earned this" badge; a cancelled one is
+	// settled but was never sung.
 	var ids []uuid.UUID
 	if err := r.db.WithContext(ctx).Model(&models.ChantCompletion{}).
-		Where("user_id = ? AND source = ? AND chant_id IN ?", userID, models.SourceOnline, chantIDs).
+		Where("user_id = ? AND source = ? AND status = ? AND chant_id IN ?",
+			userID, models.SourceOnline, models.StatusCompleted, chantIDs).
 		Pluck("chant_id", &ids).Error; err != nil {
 		return nil, errors.NewInternal("Failed to load completions", err)
 	}
@@ -290,7 +298,8 @@ func (r *chantRepository) CompletedSongIDs(ctx context.Context, userID uuid.UUID
 
 	var ids []uuid.UUID
 	if err := r.db.WithContext(ctx).Model(&models.ChantCompletion{}).
-		Where("user_id = ? AND source = ? AND song_id IN ?", userID, models.SourceCatalog, songIDs).
+		Where("user_id = ? AND source = ? AND status = ? AND song_id IN ?",
+			userID, models.SourceCatalog, models.StatusCompleted, songIDs).
 		Pluck("song_id", &ids).Error; err != nil {
 		return nil, errors.NewInternal("Failed to load completions", err)
 	}
@@ -354,6 +363,7 @@ func (r *chantRepository) TodayProgramFeed(ctx context.Context, limit int) ([]Pr
 		       u.first_name,
 		       u.last_name,
 		       COALESCE(c.title, s.title, '') AS title,
+		       cc.status,
 		       cc.points_earned,
 		       cc.created_at
 		FROM chant_completions cc
@@ -429,13 +439,15 @@ func (r *chantRepository) DeactivateChant(ctx context.Context, id uuid.UUID) err
 }
 
 // insertCompletion writes the row, letting the partial unique index decide
-// whether this is a first award. Catalog rows conflict on (user, song) and
-// online rows on (user, chant), so the same song can be earned once from the
-// library and once again as a scheduled chant.
-func insertCompletion(tx *gorm.DB, target CompletionTarget) (int64, error) {
+// whether this attempt is the one that settles the chant. Catalog rows conflict
+// on (user, song) and online rows on (user, chant), so the same song can be
+// earned once from the library and once again as a scheduled chant. A cancelled
+// row conflicts the same way, which is what stops a walked-out chant from being
+// re-entered for points.
+func insertCompletion(tx *gorm.DB, target CompletionTarget, status string) (int64, error) {
 	const insert = `
-		INSERT INTO chant_completions (chant_id, song_id, source, user_id, points_earned)
-		VALUES (?, ?, ?, ?, ?)`
+		INSERT INTO chant_completions (chant_id, song_id, source, status, user_id, points_earned)
+		VALUES (?, ?, ?, ?, ?, ?)`
 
 	conflict := " ON CONFLICT (user_id, chant_id) WHERE source = 'online' DO NOTHING"
 	if target.Source == models.SourceCatalog {
@@ -443,8 +455,19 @@ func insertCompletion(tx *gorm.DB, target CompletionTarget) (int64, error) {
 	}
 
 	res := tx.Exec(insert+conflict,
-		target.ChantID, target.SongID, target.Source, target.UserID, target.Points)
+		target.ChantID, target.SongID, target.Source, status, target.UserID, target.Points)
 	return res.RowsAffected, res.Error
+}
+
+// Cancel settles the chant as walked out of, worth nothing. It loses the race
+// against an already-recorded attempt, so finishing the song still wins.
+func (r *chantRepository) Cancel(ctx context.Context, target CompletionTarget) (bool, error) {
+	target.Points = 0
+	rows, err := insertCompletion(r.db.WithContext(ctx), target, models.StatusCancelled)
+	if err != nil {
+		return false, errors.NewInternal("Failed to record cancellation", err)
+	}
+	return rows > 0, nil
 }
 
 func (r *chantRepository) Complete(ctx context.Context, target CompletionTarget) (int, bool, error) {
@@ -452,7 +475,7 @@ func (r *chantRepository) Complete(ctx context.Context, target CompletionTarget)
 	created := false
 
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		rows, insertErr := insertCompletion(tx, target)
+		rows, insertErr := insertCompletion(tx, target, models.StatusCompleted)
 		if insertErr != nil {
 			return errors.NewInternal("Failed to record completion", insertErr)
 		}

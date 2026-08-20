@@ -51,14 +51,23 @@ func NormalizeSource(raw string) string {
 	return SourceOnline
 }
 
-// ChantCompletion records that a user played a song through to the end.
-// Catalog completions are unique per user+song and carry no chant; online
-// completions are unique per user+chant. Either way points land exactly once.
+// Outcomes of a chant attempt. Both occupy the same per-user slot, so whichever
+// lands first settles the chant for that user.
+const (
+	StatusCompleted = "completed"
+	StatusCancelled = "cancelled"
+)
+
+// ChantCompletion records how a user's attempt at a song ended: played through
+// to the end, or walked out of. Catalog rows are unique per user+song and carry
+// no chant; online rows are unique per user+chant. Either way points land
+// exactly once, and a cancelled row leaves nothing left to earn.
 type ChantCompletion struct {
 	ID           uuid.UUID  `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	ChantID      *uuid.UUID `gorm:"type:uuid" json:"chant_id,omitempty"`
 	SongID       *uuid.UUID `gorm:"type:uuid" json:"song_id,omitempty"`
 	Source       string     `gorm:"type:varchar(16);not null;default:online" json:"source"`
+	Status       string     `gorm:"type:varchar(16);not null;default:completed" json:"status"`
 	UserID       uuid.UUID  `gorm:"type:uuid;not null" json:"user_id"`
 	PointsEarned int        `gorm:"not null;default:0" json:"points_earned"`
 	CreatedAt    time.Time  `json:"created_at"`

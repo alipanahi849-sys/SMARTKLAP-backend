@@ -59,6 +59,9 @@ type ChantService interface {
 	// notifier broadcasts one payload for everyone).
 	Lyrics(ctx context.Context, userID, id uuid.UUID, mode, source string) (*dto.ChantLyricsResponse, error)
 	Complete(ctx context.Context, userID, id uuid.UUID, source string) (*dto.ChantCompleteResponse, error)
+	// Cancel settles a live chant the user walked out of. Only online chants can
+	// be cancelled: the catalog is a library to browse, not a scheduled event.
+	Cancel(ctx context.Context, userID, id uuid.UUID) error
 	TodayStats(ctx context.Context, userID uuid.UUID) (*dto.ChantTodayStatsResponse, error)
 	// Program powers the Home "Chants Program" scoreboard.
 	Program(ctx context.Context, userID uuid.UUID, limit int) (*dto.ChantProgramResponse, error)
@@ -405,6 +408,27 @@ func (s *chantService) Complete(ctx context.Context, userID, id uuid.UUID, sourc
 	}, nil
 }
 
+func (s *chantService) Cancel(ctx context.Context, userID, id uuid.UUID) error {
+	resolved, err := s.resolveTarget(ctx, userID, id, models.SourceOnline, s.points(ctx))
+	if err != nil {
+		return err
+	}
+
+	recorded, err := s.chantRepo.Cancel(ctx, resolved.target)
+	if err != nil {
+		return err
+	}
+	// Not recorded means the chant was already settled — the fan finished it, or
+	// backed out twice. Either way there is nothing to report.
+	if recorded {
+		logger.Info().
+			Str("user_id", userID.String()).
+			Str("chant_id", id.String()).
+			Msg("chant_cancelled")
+	}
+	return nil
+}
+
 func (s *chantService) Program(ctx context.Context, userID uuid.UUID, limit int) (*dto.ChantProgramResponse, error) {
 	if limit <= 0 {
 		limit = 20
@@ -426,13 +450,16 @@ func (s *chantService) Program(ctx context.Context, userID uuid.UUID, limit int)
 	for _, row := range feed {
 		completedAt := row.CreatedAt
 		scorer := row.UserID
+		cancelled := row.Status == models.StatusCancelled
 		items = append(items, dto.ChantProgramItem{
-			ID:          row.ID.String(),
-			UserID:      &scorer,
-			UserName:    displayName(row.FirstName, row.LastName),
-			Title:       row.Title,
-			Points:      row.PointsEarned,
-			IsDone:      true,
+			ID:       row.ID.String(),
+			UserID:   &scorer,
+			UserName: displayName(row.FirstName, row.LastName),
+			Title:    row.Title,
+			Points:   row.PointsEarned,
+			// A cancelled attempt is settled but never sung, so it is not "done".
+			IsDone:      !cancelled,
+			IsCancelled: cancelled,
 			IsNew:       now.Sub(completedAt.UTC()) <= programNewWindow,
 			IsSelf:      row.UserID == userID,
 			CompletedAt: &completedAt,

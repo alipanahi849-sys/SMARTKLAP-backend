@@ -166,10 +166,17 @@ type listenKey struct {
 	source string
 }
 
+// stubAttempt mirrors a chant_completions row: the slot is taken either way,
+// but only a completed one is worth points.
+type stubAttempt struct {
+	status string
+	points int
+}
+
 type stubChantRepo struct {
 	chants      map[uuid.UUID]*chantmodels.Chant
 	songs       map[uuid.UUID]*songmodels.Song
-	completions map[completionKey]int
+	completions map[completionKey]stubAttempt
 	listens     map[listenKey]time.Time
 	userPoints  map[uuid.UUID]int
 }
@@ -180,7 +187,7 @@ func newStubChantRepo() *stubChantRepo {
 	return &stubChantRepo{
 		chants:      map[uuid.UUID]*chantmodels.Chant{},
 		songs:       map[uuid.UUID]*songmodels.Song{},
-		completions: map[completionKey]int{},
+		completions: map[completionKey]stubAttempt{},
 		listens:     map[listenKey]time.Time{},
 		userPoints:  map[uuid.UUID]int{},
 	}
@@ -274,7 +281,8 @@ func (r *stubChantRepo) FindActiveByMatch(_ context.Context, matchID uuid.UUID, 
 func (r *stubChantRepo) CompletedChantIDs(_ context.Context, userID uuid.UUID, chantIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
 	done := map[uuid.UUID]bool{}
 	for _, id := range chantIDs {
-		if _, ok := r.completions[completionKey{target: id, user: userID, source: chantmodels.SourceOnline}]; ok {
+		attempt, ok := r.completions[completionKey{target: id, user: userID, source: chantmodels.SourceOnline}]
+		if ok && attempt.status == chantmodels.StatusCompleted {
 			done[id] = true
 		}
 	}
@@ -283,9 +291,9 @@ func (r *stubChantRepo) CompletedChantIDs(_ context.Context, userID uuid.UUID, c
 
 func (r *stubChantRepo) TodayPoints(_ context.Context, userID uuid.UUID) (int, error) {
 	total := 0
-	for key, points := range r.completions {
+	for key, attempt := range r.completions {
 		if key.user == userID {
-			total += points
+			total += attempt.points
 		}
 	}
 	return total, nil
@@ -297,12 +305,21 @@ func (r *stubChantRepo) TodayCompletions(_ context.Context, _ uuid.UUID, _ int) 
 
 func (r *stubChantRepo) Complete(_ context.Context, target chantrepo.CompletionTarget) (int, bool, error) {
 	key := keyFor(target)
-	if _, completed := r.completions[key]; completed {
+	if _, settled := r.completions[key]; settled {
 		return r.userPoints[target.UserID], false, nil
 	}
-	r.completions[key] = target.Points
+	r.completions[key] = stubAttempt{status: chantmodels.StatusCompleted, points: target.Points}
 	r.userPoints[target.UserID] += target.Points
 	return r.userPoints[target.UserID], true, nil
+}
+
+func (r *stubChantRepo) Cancel(_ context.Context, target chantrepo.CompletionTarget) (bool, error) {
+	key := keyFor(target)
+	if _, settled := r.completions[key]; settled {
+		return false, nil
+	}
+	r.completions[key] = stubAttempt{status: chantmodels.StatusCancelled}
+	return true, nil
 }
 
 func (r *stubChantRepo) FindSongByID(_ context.Context, id uuid.UUID) (*songmodels.Song, error) {
@@ -326,7 +343,8 @@ func (r *stubChantRepo) FindCatalogSongs(_ context.Context, _ string, limit int)
 func (r *stubChantRepo) CompletedSongIDs(_ context.Context, userID uuid.UUID, songIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
 	done := map[uuid.UUID]bool{}
 	for _, id := range songIDs {
-		if _, ok := r.completions[completionKey{target: id, user: userID, source: chantmodels.SourceCatalog}]; ok {
+		attempt, ok := r.completions[completionKey{target: id, user: userID, source: chantmodels.SourceCatalog}]
+		if ok && attempt.status == chantmodels.StatusCompleted {
 			done[id] = true
 		}
 	}
@@ -429,6 +447,81 @@ func TestChant_CompleteAwardsOnlinePointsOnce(t *testing.T) {
 	}
 	if !resp.IsDone || resp.PointsEarned != 0 || resp.TotalPoints != 250 {
 		t.Fatalf("unexpected idempotent response: %+v", resp)
+	}
+}
+
+func TestChant_CancelBurnsTheChantForPoints(t *testing.T) {
+	chantRepo := newStubChantRepo()
+	svc := newChantService(chantRepo, newStubMatchRepo())
+
+	chant := &chantmodels.Chant{
+		ID:      uuid.New(),
+		MatchID: uuid.New(),
+		SongID:  uuid.New(),
+		Title:   "Chant number 1",
+		Points:  100,
+	}
+	chantRepo.chants[chant.ID] = chant
+	userID := uuid.New()
+
+	if err := svc.Cancel(context.Background(), userID, chant.ID); err != nil {
+		t.Fatalf("Cancel failed: %v", err)
+	}
+
+	// Walking out settles the chant, so singing it afterwards pays nothing.
+	resp, err := svc.Complete(context.Background(), userID, chant.ID, chantmodels.SourceOnline)
+	if err != nil {
+		t.Fatalf("Complete after cancel failed: %v", err)
+	}
+	if resp.PointsEarned != 0 || resp.TotalPoints != 0 {
+		t.Fatalf("cancelled chant still paid out: %+v", resp)
+	}
+
+	// The Chants list must not badge it as earned either.
+	done, err := chantRepo.CompletedChantIDs(context.Background(), userID, []uuid.UUID{chant.ID})
+	if err != nil {
+		t.Fatalf("CompletedChantIDs failed: %v", err)
+	}
+	if done[chant.ID] {
+		t.Fatal("cancelled chant reported as completed")
+	}
+}
+
+func TestChant_CancelLosesToAFinishedChant(t *testing.T) {
+	chantRepo := newStubChantRepo()
+	svc := newChantService(chantRepo, newStubMatchRepo())
+
+	chant := &chantmodels.Chant{
+		ID:      uuid.New(),
+		MatchID: uuid.New(),
+		SongID:  uuid.New(),
+		Title:   "Chant number 1",
+		Points:  100,
+	}
+	chantRepo.chants[chant.ID] = chant
+	userID := uuid.New()
+
+	if _, err := svc.Complete(context.Background(), userID, chant.ID, chantmodels.SourceOnline); err != nil {
+		t.Fatalf("Complete failed: %v", err)
+	}
+	// Leaving the screen after the song ended must not undo the award.
+	if err := svc.Cancel(context.Background(), userID, chant.ID); err != nil {
+		t.Fatalf("Cancel failed: %v", err)
+	}
+
+	total, err := chantRepo.TodayPoints(context.Background(), userID)
+	if err != nil {
+		t.Fatalf("TodayPoints failed: %v", err)
+	}
+	if total != 250 {
+		t.Fatalf("expected the award to survive cancellation, got %d", total)
+	}
+	done, err := chantRepo.CompletedChantIDs(context.Background(), userID, []uuid.UUID{chant.ID})
+	if err != nil {
+		t.Fatalf("CompletedChantIDs failed: %v", err)
+	}
+	if !done[chant.ID] {
+		t.Fatal("finished chant stopped counting as completed")
 	}
 }
 
