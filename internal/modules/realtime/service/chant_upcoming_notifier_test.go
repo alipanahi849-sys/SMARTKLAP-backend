@@ -24,7 +24,7 @@ type stubLyricsProvider struct {
 	err error
 }
 
-func (s stubLyricsProvider) Lyrics(context.Context, uuid.UUID, string) (*chantdto.ChantLyricsResponse, error) {
+func (s stubLyricsProvider) Lyrics(context.Context, uuid.UUID, uuid.UUID, string, string) (*chantdto.ChantLyricsResponse, error) {
 	if s.err != nil {
 		return nil, s.err
 	}

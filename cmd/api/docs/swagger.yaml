@@ -1,5 +1,44 @@
 basePath: /
 definitions:
+  clap_internal_modules_chant_dto.SetOnlineChantRequest:
+    properties:
+      duration_seconds:
+        minimum: 0
+        type: integer
+      flash_duration_ms:
+        minimum: 0
+        type: integer
+      match_id:
+        type: string
+      scheduled_at:
+        type: string
+      song_id:
+        type: string
+      title:
+        type: string
+      vibration_duration_ms:
+        minimum: 0
+        type: integer
+    required:
+    - match_id
+    - scheduled_at
+    - song_id
+    type: object
+  clap_internal_modules_chant_dto.UpdateChantPointsRequest:
+    properties:
+      chant_daily_target:
+        maximum: 1000000
+        minimum: 1
+        type: integer
+      chant_online_points:
+        maximum: 100000
+        minimum: 0
+        type: integer
+      chant_song_points:
+        maximum: 100000
+        minimum: 0
+        type: integer
+    type: object
   clap_internal_modules_guess_dto.AnswerQuizRequest:
     properties:
       choice:
@@ -432,6 +471,109 @@ info:
   title: Clap Backend API
   version: "1.0"
 paths:
+  /api/v1/admin/chants:
+    get:
+      parameters:
+      - description: Match ID filter
+        in: query
+        name: match_id
+        type: string
+      - description: Items to return (default 20, max 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: List scheduled online chants
+      tags:
+      - admin-chants
+    post:
+      consumes:
+      - application/json
+      description: Promotes a song from the predefined chant list into a live chant
+        for a match.
+      parameters:
+      - description: Online chant
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/clap_internal_modules_chant_dto.SetOnlineChantRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Schedule an online chant
+      tags:
+      - admin-chants
+  /api/v1/admin/chants/{chant_id}:
+    delete:
+      parameters:
+      - description: Chant ID
+        in: path
+        name: chant_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Unschedule an online chant
+      tags:
+      - admin-chants
   /api/v1/admin/football/teams:
     get:
       parameters:
@@ -482,6 +624,63 @@ paths:
       summary: Sync featured-club fixtures
       tags:
       - admin-matches
+  /api/v1/admin/settings/chant-points:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get chant point values
+      tags:
+      - admin-chants
+    put:
+      consumes:
+      - application/json
+      description: Catalog songs and online chants are scored separately.
+      parameters:
+      - description: Point values
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/clap_internal_modules_chant_dto.UpdateChantPointsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Set chant point values
+      tags:
+      - admin-chants
   /api/v1/admin/settings/featured-club:
     get:
       produces:
@@ -903,10 +1102,14 @@ paths:
   /api/v1/chants/{chant_id}/complete:
     post:
       parameters:
-      - description: Chant ID
+      - description: Chant ID, or song ID when source=catalog
         in: path
         name: chant_id
         required: true
+        type: string
+      - description: catalog or online (default online)
+        in: query
+        name: source
         type: string
       produces:
       - application/json
@@ -927,6 +1130,10 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/clap_internal_shared_response.Response'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
       security:
       - BearerAuth: []
       summary: Complete chant
@@ -935,10 +1142,18 @@ paths:
   /api/v1/chants/{chant_id}/lyrics:
     get:
       parameters:
-      - description: Chant ID
+      - description: Chant ID, or song ID when source=catalog
         in: path
         name: chant_id
         required: true
+        type: string
+      - description: preview or main (logged only)
+        in: query
+        name: mode
+        type: string
+      - description: catalog or online (default online)
+        in: query
+        name: source
         type: string
       produces:
       - application/json
@@ -976,6 +1191,30 @@ paths:
       security:
       - BearerAuth: []
       summary: Today's chant points
+      tags:
+      - chants
+  /api/v1/chants/program:
+    get:
+      description: Today's points scoreboard for the Home "Chants Program" card.
+      parameters:
+      - description: Items to return (default 20, max 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Chant scores
       tags:
       - chants
   /api/v1/guess/matches/{match_id}:

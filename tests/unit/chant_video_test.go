@@ -10,11 +10,14 @@ import (
 	"testing"
 	"time"
 
-	chantmodels "clap/internal/modules/chant/models"
 	chantdto "clap/internal/modules/chant/dto"
+	chantmodels "clap/internal/modules/chant/models"
 	chantrepo "clap/internal/modules/chant/repository"
 	chantsvc "clap/internal/modules/chant/service"
 	matchmodels "clap/internal/modules/match/models"
+	settingsmodels "clap/internal/modules/settings/models"
+	settingsrepo "clap/internal/modules/settings/repository"
+	songmodels "clap/internal/modules/song/models"
 	usermodels "clap/internal/modules/user/models"
 	videodto "clap/internal/modules/video/dto"
 	videomodels "clap/internal/modules/video/models"
@@ -149,9 +152,25 @@ func newScheduledMatch(repo *stubMatchRepo, kickoff time.Time) *matchmodels.Matc
 
 // ─── chant stubs ──────────────────────────────────────────────────────────────
 
+// completionKey identifies an award the way the partial unique indexes do:
+// online chants by chant, catalog songs by song.
+type completionKey struct {
+	target uuid.UUID
+	user   uuid.UUID
+	source string
+}
+
+type listenKey struct {
+	user   uuid.UUID
+	song   uuid.UUID
+	source string
+}
+
 type stubChantRepo struct {
 	chants      map[uuid.UUID]*chantmodels.Chant
-	completions map[uuid.UUID]map[uuid.UUID]int // chantID → userID → points
+	songs       map[uuid.UUID]*songmodels.Song
+	completions map[completionKey]int
+	listens     map[listenKey]time.Time
 	userPoints  map[uuid.UUID]int
 }
 
@@ -160,9 +179,49 @@ var _ chantrepo.ChantRepository = (*stubChantRepo)(nil)
 func newStubChantRepo() *stubChantRepo {
 	return &stubChantRepo{
 		chants:      map[uuid.UUID]*chantmodels.Chant{},
-		completions: map[uuid.UUID]map[uuid.UUID]int{},
+		songs:       map[uuid.UUID]*songmodels.Song{},
+		completions: map[completionKey]int{},
+		listens:     map[listenKey]time.Time{},
 		userPoints:  map[uuid.UUID]int{},
 	}
+}
+
+func keyFor(target chantrepo.CompletionTarget) completionKey {
+	key := completionKey{user: target.UserID, source: target.Source}
+	if target.Source == chantmodels.SourceCatalog {
+		key.target = target.SongID
+		return key
+	}
+	if target.ChantID != nil {
+		key.target = *target.ChantID
+	}
+	return key
+}
+
+// stubSettingsRepo lets a test pin the admin-configurable point values.
+type stubSettingsRepo struct {
+	settings settingsmodels.AppSettings
+}
+
+var _ settingsrepo.SettingsRepository = (*stubSettingsRepo)(nil)
+
+func newStubSettingsRepo(songPoints, onlinePoints int) *stubSettingsRepo {
+	return &stubSettingsRepo{settings: settingsmodels.AppSettings{
+		ID:                1,
+		ChantSongPoints:   songPoints,
+		ChantOnlinePoints: onlinePoints,
+		ChantDailyTarget:  500,
+	}}
+}
+
+func (r *stubSettingsRepo) Get(_ context.Context) (*settingsmodels.AppSettings, error) {
+	copied := r.settings
+	return &copied, nil
+}
+
+func (r *stubSettingsRepo) Save(_ context.Context, settings *settingsmodels.AppSettings) error {
+	r.settings = *settings
+	return nil
 }
 
 func (r *stubChantRepo) FindByID(_ context.Context, id uuid.UUID) (*chantmodels.Chant, error) {
@@ -215,10 +274,8 @@ func (r *stubChantRepo) FindActiveByMatch(_ context.Context, matchID uuid.UUID, 
 func (r *stubChantRepo) CompletedChantIDs(_ context.Context, userID uuid.UUID, chantIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
 	done := map[uuid.UUID]bool{}
 	for _, id := range chantIDs {
-		if users, ok := r.completions[id]; ok {
-			if _, completed := users[userID]; completed {
-				done[id] = true
-			}
+		if _, ok := r.completions[completionKey{target: id, user: userID, source: chantmodels.SourceOnline}]; ok {
+			done[id] = true
 		}
 	}
 	return done, nil
@@ -226,8 +283,10 @@ func (r *stubChantRepo) CompletedChantIDs(_ context.Context, userID uuid.UUID, c
 
 func (r *stubChantRepo) TodayPoints(_ context.Context, userID uuid.UUID) (int, error) {
 	total := 0
-	for _, users := range r.completions {
-		total += users[userID]
+	for key, points := range r.completions {
+		if key.user == userID {
+			total += points
+		}
 	}
 	return total, nil
 }
@@ -236,57 +295,206 @@ func (r *stubChantRepo) TodayCompletions(_ context.Context, _ uuid.UUID, _ int) 
 	return nil, map[uuid.UUID]chantmodels.Chant{}, nil
 }
 
-func (r *stubChantRepo) Complete(_ context.Context, chantID, userID uuid.UUID, points int) (int, bool, error) {
-	if users, ok := r.completions[chantID]; ok {
-		if _, completed := users[userID]; completed {
-			return r.userPoints[userID], false, nil
+func (r *stubChantRepo) Complete(_ context.Context, target chantrepo.CompletionTarget) (int, bool, error) {
+	key := keyFor(target)
+	if _, completed := r.completions[key]; completed {
+		return r.userPoints[target.UserID], false, nil
+	}
+	r.completions[key] = target.Points
+	r.userPoints[target.UserID] += target.Points
+	return r.userPoints[target.UserID], true, nil
+}
+
+func (r *stubChantRepo) FindSongByID(_ context.Context, id uuid.UUID) (*songmodels.Song, error) {
+	if s, ok := r.songs[id]; ok {
+		return s, nil
+	}
+	return nil, sharederrors.NewNotFound("Chant not found", nil)
+}
+
+func (r *stubChantRepo) FindCatalogSongs(_ context.Context, _ string, limit int) ([]songmodels.Song, error) {
+	var result []songmodels.Song
+	for _, s := range r.songs {
+		result = append(result, *s)
+	}
+	if limit > 0 && len(result) > limit {
+		result = result[:limit]
+	}
+	return result, nil
+}
+
+func (r *stubChantRepo) CompletedSongIDs(_ context.Context, userID uuid.UUID, songIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
+	done := map[uuid.UUID]bool{}
+	for _, id := range songIDs {
+		if _, ok := r.completions[completionKey{target: id, user: userID, source: chantmodels.SourceCatalog}]; ok {
+			done[id] = true
 		}
 	}
-	if r.completions[chantID] == nil {
-		r.completions[chantID] = map[uuid.UUID]int{}
+	return done, nil
+}
+
+func (r *stubChantRepo) IsCompleted(_ context.Context, target chantrepo.CompletionTarget) (bool, error) {
+	_, ok := r.completions[keyFor(target)]
+	return ok, nil
+}
+
+func (r *stubChantRepo) StartListenSession(_ context.Context, userID, songID uuid.UUID, source string) error {
+	r.listens[listenKey{user: userID, song: songID, source: source}] = time.Now().UTC()
+	return nil
+}
+
+func (r *stubChantRepo) ListenStartedAt(_ context.Context, userID, songID uuid.UUID, source string) (*time.Time, error) {
+	if at, ok := r.listens[listenKey{user: userID, song: songID, source: source}]; ok {
+		return &at, nil
 	}
-	r.completions[chantID][userID] = points
-	r.userPoints[userID] += points
-	return r.userPoints[userID], true, nil
+	return nil, nil
+}
+
+func (r *stubChantRepo) TodayProgramFeed(_ context.Context, _ int) ([]chantrepo.ProgramCompletion, error) {
+	return nil, nil
+}
+
+func (r *stubChantRepo) PendingTodayChants(_ context.Context, _ uuid.UUID, _ int) ([]chantrepo.PendingChant, error) {
+	return nil, nil
+}
+
+func (r *stubChantRepo) CreateChant(_ context.Context, chant *chantmodels.Chant) error {
+	if chant.ID == uuid.Nil {
+		chant.ID = uuid.New()
+	}
+	r.chants[chant.ID] = chant
+	return nil
+}
+
+func (r *stubChantRepo) FindScheduled(_ context.Context, matchID *uuid.UUID, limit int) ([]chantmodels.Chant, error) {
+	var result []chantmodels.Chant
+	for _, c := range r.chants {
+		if !c.IsActive {
+			continue
+		}
+		if matchID != nil && c.MatchID != *matchID {
+			continue
+		}
+		result = append(result, *c)
+	}
+	if limit > 0 && len(result) > limit {
+		result = result[:limit]
+	}
+	return result, nil
+}
+
+func (r *stubChantRepo) DeactivateChant(_ context.Context, id uuid.UUID) error {
+	c, ok := r.chants[id]
+	if !ok {
+		return sharederrors.NewNotFound("Chant not found", nil)
+	}
+	c.IsActive = false
+	return nil
 }
 
 // ─── chant tests ──────────────────────────────────────────────────────────────
 
-func TestChant_CompleteAwardsPointsOnce(t *testing.T) {
+// newChantService wires the service with admin point values of 100 for catalog
+// songs and 250 for online chants.
+func newChantService(chantRepo *stubChantRepo, matchRepo *stubMatchRepo) chantsvc.ChantService {
+	return chantsvc.NewChantService(chantRepo, matchRepo, nil, newStubSettingsRepo(100, 250), nil)
+}
+
+func TestChant_CompleteAwardsOnlinePointsOnce(t *testing.T) {
 	chantRepo := newStubChantRepo()
-	matchRepo := newStubMatchRepo()
-	svc := chantsvc.NewChantService(chantRepo, matchRepo, nil, nil)
+	svc := newChantService(chantRepo, newStubMatchRepo())
 
 	chant := &chantmodels.Chant{
 		ID:      uuid.New(),
 		MatchID: uuid.New(),
+		SongID:  uuid.New(),
 		Title:   "Chant number 1",
 		Points:  100,
 	}
 	chantRepo.chants[chant.ID] = chant
 	userID := uuid.New()
 
-	resp, err := svc.Complete(context.Background(), userID, chant.ID)
+	// The award comes from the admin setting, not the chant's own column.
+	resp, err := svc.Complete(context.Background(), userID, chant.ID, chantmodels.SourceOnline)
 	if err != nil {
 		t.Fatalf("Complete failed: %v", err)
 	}
-	if !resp.IsDone || resp.PointsEarned != 100 || resp.TotalPoints != 100 {
+	if !resp.IsDone || resp.PointsEarned != 250 || resp.TotalPoints != 250 {
 		t.Fatalf("unexpected response: %+v", resp)
 	}
 
-	resp, err = svc.Complete(context.Background(), userID, chant.ID)
+	resp, err = svc.Complete(context.Background(), userID, chant.ID, chantmodels.SourceOnline)
 	if err != nil {
 		t.Fatalf("second Complete failed: %v", err)
 	}
-	if !resp.IsDone || resp.PointsEarned != 0 || resp.TotalPoints != 100 {
+	if !resp.IsDone || resp.PointsEarned != 0 || resp.TotalPoints != 250 {
 		t.Fatalf("unexpected idempotent response: %+v", resp)
 	}
 }
 
-func TestChant_CompleteUnknownChantNotFound(t *testing.T) {
-	svc := chantsvc.NewChantService(newStubChantRepo(), newStubMatchRepo(), nil, nil)
+func TestChant_CatalogCompleteAwardsSongPointsOncePerSong(t *testing.T) {
+	chantRepo := newStubChantRepo()
+	svc := newChantService(chantRepo, newStubMatchRepo())
 
-	_, err := svc.Complete(context.Background(), uuid.New(), uuid.New())
+	song := &songmodels.Song{ID: uuid.New(), Title: "We will rock you", IsActive: true}
+	chantRepo.songs[song.ID] = song
+	userID := uuid.New()
+
+	resp, err := svc.Complete(context.Background(), userID, song.ID, chantmodels.SourceCatalog)
+	if err != nil {
+		t.Fatalf("Complete failed: %v", err)
+	}
+	if resp.PointsEarned != 100 || resp.TotalPoints != 100 {
+		t.Fatalf("unexpected catalog award: %+v", resp)
+	}
+
+	resp, err = svc.Complete(context.Background(), userID, song.ID, chantmodels.SourceCatalog)
+	if err != nil {
+		t.Fatalf("second Complete failed: %v", err)
+	}
+	if resp.PointsEarned != 0 || resp.TotalPoints != 100 {
+		t.Fatalf("catalog song paid out twice: %+v", resp)
+	}
+}
+
+func TestChant_CompleteRejectedBeforeSongEnds(t *testing.T) {
+	chantRepo := newStubChantRepo()
+	svc := newChantService(chantRepo, newStubMatchRepo())
+
+	song := &songmodels.Song{ID: uuid.New(), Title: "Long song", Duration: 180, IsActive: true}
+	chantRepo.songs[song.ID] = song
+	userID := uuid.New()
+
+	// Lyrics were opened a moment ago, so a three-minute song cannot be over.
+	if err := chantRepo.StartListenSession(context.Background(), userID, song.ID, chantmodels.SourceCatalog); err != nil {
+		t.Fatalf("StartListenSession failed: %v", err)
+	}
+
+	_, err := svc.Complete(context.Background(), userID, song.ID, chantmodels.SourceCatalog)
+	if err == nil {
+		t.Fatal("expected the short listen to be rejected")
+	}
+	if status := appErrorStatus(t, err); status != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", status)
+	}
+
+	// Backdate the session past the song length and the award goes through.
+	chantRepo.listens[listenKey{user: userID, song: song.ID, source: chantmodels.SourceCatalog}] =
+		time.Now().UTC().Add(-4 * time.Minute)
+
+	resp, err := svc.Complete(context.Background(), userID, song.ID, chantmodels.SourceCatalog)
+	if err != nil {
+		t.Fatalf("Complete after full listen failed: %v", err)
+	}
+	if resp.PointsEarned != 100 {
+		t.Fatalf("expected 100 points after a full listen, got %d", resp.PointsEarned)
+	}
+}
+
+func TestChant_CompleteUnknownChantNotFound(t *testing.T) {
+	svc := newChantService(newStubChantRepo(), newStubMatchRepo())
+
+	_, err := svc.Complete(context.Background(), uuid.New(), uuid.New(), chantmodels.SourceOnline)
 	if err == nil {
 		t.Fatal("expected not-found error")
 	}
@@ -298,7 +506,7 @@ func TestChant_CompleteUnknownChantNotFound(t *testing.T) {
 func TestChant_ListGroupsIntoSections(t *testing.T) {
 	chantRepo := newStubChantRepo()
 	matchRepo := newStubMatchRepo()
-	svc := chantsvc.NewChantService(chantRepo, matchRepo, nil, nil)
+	svc := newChantService(chantRepo, matchRepo)
 
 	match := newScheduledMatch(matchRepo, time.Now().Add(2*time.Hour))
 	chantRepo.chants[uuid.New()] = &chantmodels.Chant{
@@ -320,6 +528,114 @@ func TestChant_ListGroupsIntoSections(t *testing.T) {
 	}
 	if len(resp.Sections) == 0 {
 		t.Fatal("expected at least one section")
+	}
+}
+
+func TestChant_ListSeparatesCatalogFromOnlineChants(t *testing.T) {
+	chantRepo := newStubChantRepo()
+	matchRepo := newStubMatchRepo()
+	svc := newChantService(chantRepo, matchRepo)
+
+	match := newScheduledMatch(matchRepo, time.Now().Add(2*time.Hour))
+	chant := &chantmodels.Chant{
+		ID:          uuid.New(),
+		MatchID:     match.ID,
+		SongID:      uuid.New(),
+		Title:       "Scheduled chant",
+		ScheduledAt: time.Now().UTC().Add(time.Hour),
+		IsActive:    true,
+	}
+	chantRepo.chants[chant.ID] = chant
+
+	song := &songmodels.Song{ID: uuid.New(), Title: "Library song", Duration: 120, IsActive: true}
+	chantRepo.songs[song.ID] = song
+
+	resp, err := svc.List(context.Background(), uuid.New(), chantdto.ChantListFilters{
+		MatchID: &match.ID,
+		Limit:   20,
+	})
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+
+	var online, catalog *chantdto.ChantItem
+	for _, section := range resp.Sections {
+		for i, item := range section.Items {
+			switch item.Source {
+			case chantmodels.SourceOnline:
+				online = &section.Items[i]
+			case chantmodels.SourceCatalog:
+				catalog = &section.Items[i]
+			}
+		}
+	}
+
+	if online == nil {
+		t.Fatal("expected the scheduled chant in the list")
+	}
+	if catalog == nil {
+		t.Fatal("expected the song catalog in the list")
+	}
+	// is_preview would open the silent lyrics-only view; the Chants screen must
+	// hand out playable chants so a full listen can be scored.
+	if online.IsPreview || catalog.IsPreview {
+		t.Fatal("everything on the Chants screen must be playable, not silent")
+	}
+	if online.SongPoints != 250 || catalog.SongPoints != 100 {
+		t.Fatalf("online and catalog must score differently: %d vs %d", online.SongPoints, catalog.SongPoints)
+	}
+	if !online.IsNext {
+		t.Fatal("is_next must still be marked on the first incomplete scheduled chant")
+	}
+}
+
+func TestChant_SetOnlineChantFromCatalogSong(t *testing.T) {
+	chantRepo := newStubChantRepo()
+	matchRepo := newStubMatchRepo()
+	svc := newChantService(chantRepo, matchRepo)
+
+	match := newScheduledMatch(matchRepo, time.Now().Add(2*time.Hour))
+	song := &songmodels.Song{ID: uuid.New(), Title: "Library song", Duration: 120, IsActive: true}
+	chantRepo.songs[song.ID] = song
+
+	created, err := svc.SetOnlineChant(context.Background(), uuid.New(), chantdto.SetOnlineChantRequest{
+		SongID:      song.ID,
+		MatchID:     match.ID,
+		ScheduledAt: time.Now().UTC().Add(90 * time.Minute),
+	})
+	if err != nil {
+		t.Fatalf("SetOnlineChant failed: %v", err)
+	}
+	if created.SongID != song.ID || created.Title != song.Title {
+		t.Fatalf("online chant should inherit the song: %+v", created)
+	}
+	if created.DurationSeconds != song.Duration {
+		t.Fatalf("expected duration %d, got %d", song.Duration, created.DurationSeconds)
+	}
+	if created.Points != 250 {
+		t.Fatalf("expected the configured online points, got %d", created.Points)
+	}
+}
+
+func TestChant_UpdatePointsSettings(t *testing.T) {
+	settings := newStubSettingsRepo(100, 250)
+	svc := chantsvc.NewChantService(newStubChantRepo(), newStubMatchRepo(), nil, settings, nil)
+
+	songPoints := 40
+	onlinePoints := 900
+	updated, err := svc.UpdatePointsSettings(context.Background(), chantdto.UpdateChantPointsRequest{
+		ChantSongPoints:   &songPoints,
+		ChantOnlinePoints: &onlinePoints,
+	})
+	if err != nil {
+		t.Fatalf("UpdatePointsSettings failed: %v", err)
+	}
+	if updated.ChantSongPoints != 40 || updated.ChantOnlinePoints != 900 {
+		t.Fatalf("unexpected settings: %+v", updated)
+	}
+	// Unspecified values are left alone.
+	if updated.ChantDailyTarget != 500 {
+		t.Fatalf("daily target should be untouched, got %d", updated.ChantDailyTarget)
 	}
 }
 

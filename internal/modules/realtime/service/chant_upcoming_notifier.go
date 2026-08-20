@@ -28,7 +28,7 @@ const (
 // ChantLyricsProvider builds the full synced-lyrics payload for a chant.
 // Implemented by chant/service.ChantService.
 type ChantLyricsProvider interface {
-	Lyrics(ctx context.Context, chantID uuid.UUID, mode string) (*chantdto.ChantLyricsResponse, error)
+	Lyrics(ctx context.Context, userID, chantID uuid.UUID, mode, source string) (*chantdto.ChantLyricsResponse, error)
 }
 
 // upcomingChantSource is the subset of ChantRepository used by the notifier.
@@ -178,7 +178,9 @@ func (n *ChantUpcomingNotifier) tick(ctx context.Context, now time.Time) {
 		n.sendCountdownPush(ctx, entry)
 
 		if entry.lyrics == nil {
-			lyrics, lyricsErr := n.lyricsSvc.Lyrics(ctx, chant.ID, "upcoming_notification")
+			// uuid.Nil: one broadcast payload for every listener, so it carries
+			// no per-user completion state.
+			lyrics, lyricsErr := n.lyricsSvc.Lyrics(ctx, uuid.Nil, chant.ID, "upcoming_notification", chantmodels.SourceOnline)
 			if lyricsErr != nil {
 				logger.Warn().
 					Str("chant_id", chant.ID.String()).

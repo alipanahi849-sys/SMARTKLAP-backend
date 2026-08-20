@@ -18,6 +18,168 @@
     },
     "basePath": "/",
     "paths": {
+        "/api/v1/admin/chants": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-chants"
+                ],
+                "summary": "List scheduled online chants",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Match ID filter",
+                        "name": "match_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items to return (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Promotes a song from the predefined chant list into a live chant for a match.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-chants"
+                ],
+                "summary": "Schedule an online chant",
+                "parameters": [
+                    {
+                        "description": "Online chant",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_chant_dto.SetOnlineChantRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/chants/{chant_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-chants"
+                ],
+                "summary": "Unschedule an online chant",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Chant ID",
+                        "name": "chant_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/football/teams": {
             "get": {
                 "security": [
@@ -80,6 +242,97 @@
                 "responses": {
                     "200": {
                         "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/settings/chant-points": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-chants"
+                ],
+                "summary": "Get chant point values",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Catalog songs and online chants are scored separately.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-chants"
+                ],
+                "summary": "Set chant point values",
+                "parameters": [
+                    {
+                        "description": "Point values",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_chant_dto.UpdateChantPointsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/clap_internal_shared_response.Response"
                         }
@@ -773,6 +1026,45 @@
                 }
             }
         },
+        "/api/v1/chants/program": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Today's points scoreboard for the Home \"Chants Program\" card.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chants"
+                ],
+                "summary": "Chant scores",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Items to return (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/chants/{chant_id}/complete": {
             "post": {
                 "security": [
@@ -790,10 +1082,16 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Chant ID",
+                        "description": "Chant ID, or song ID when source=catalog",
                         "name": "chant_id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "catalog or online (default online)",
+                        "name": "source",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -820,6 +1118,12 @@
                         "schema": {
                             "$ref": "#/definitions/clap_internal_shared_response.Response"
                         }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
                     }
                 }
             }
@@ -841,10 +1145,22 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Chant ID",
+                        "description": "Chant ID, or song ID when source=catalog",
                         "name": "chant_id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "preview or main (logged only)",
+                        "name": "mode",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "catalog or online (default online)",
+                        "name": "source",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -4100,6 +4416,60 @@
         }
     },
     "definitions": {
+        "clap_internal_modules_chant_dto.SetOnlineChantRequest": {
+            "type": "object",
+            "required": [
+                "match_id",
+                "scheduled_at",
+                "song_id"
+            ],
+            "properties": {
+                "duration_seconds": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "flash_duration_ms": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "match_id": {
+                    "type": "string"
+                },
+                "scheduled_at": {
+                    "type": "string"
+                },
+                "song_id": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "vibration_duration_ms": {
+                    "type": "integer",
+                    "minimum": 0
+                }
+            }
+        },
+        "clap_internal_modules_chant_dto.UpdateChantPointsRequest": {
+            "type": "object",
+            "properties": {
+                "chant_daily_target": {
+                    "type": "integer",
+                    "maximum": 1000000,
+                    "minimum": 1
+                },
+                "chant_online_points": {
+                    "type": "integer",
+                    "maximum": 100000,
+                    "minimum": 0
+                },
+                "chant_song_points": {
+                    "type": "integer",
+                    "maximum": 100000,
+                    "minimum": 0
+                }
+            }
+        },
         "clap_internal_modules_guess_dto.AnswerQuizRequest": {
             "type": "object",
             "required": [
