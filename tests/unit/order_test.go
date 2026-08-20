@@ -140,12 +140,15 @@ func (r *stubOrderRepo) UpdatePendingCheckout(_ context.Context, orderID uuid.UU
 	if v, ok := updates["delivery_method"].(string); ok {
 		o.DeliveryMethod = v
 	}
-	if v, ok := updates["seat_number"].(string); ok {
-		if v == "" {
+	if v, exists := updates["seat_number"]; exists {
+		if v == nil {
 			o.SeatNumber = nil
-		} else {
-			o.SeatNumber = &v
+		} else if n, ok := v.(int); ok {
+			o.SeatNumber = &n
 		}
+	}
+	if v, ok := updates["zone"].(string); ok {
+		o.Zone = v
 	}
 	if v, ok := updates["payment_method"].(string); ok {
 		o.PaymentMethod = &v
@@ -381,16 +384,50 @@ func TestOrderService_CreateOrderFromCart(t *testing.T) {
 	}
 
 	svc := newOrderService(newStubOrderRepo(), cart, stubProductRepo{}, stubSizeStockRepo{}, newStubUserRepo(), nil)
-	seat := "1"
+	seat := 1
+	zone := "A"
 	resp, err := svc.CreateOrder(context.Background(), userID, &orderdto.CreateOrderRequest{
 		DeliveryMethod: ordermodels.DeliveryMethodSeat,
 		SeatNumber:     &seat,
+		Zone:           &zone,
 	})
 	require.NoError(t, err)
 	assert.Equal(t, ordermodels.OrderStatusPendingPayment, resp.Status)
 	assert.Equal(t, "16,40 €", resp.Subtotal)
 	assert.Equal(t, "16,40 €", resp.Total)
 	assert.Len(t, cart.lines, 0)
+
+	detail, err := svc.GetOrder(context.Background(), userID, resp.OrderID)
+	require.NoError(t, err)
+	assert.Equal(t, "A", detail.Zone)
+	require.NotNil(t, detail.SeatNumber)
+	assert.Equal(t, 1, *detail.SeatNumber)
+}
+
+func TestOrderService_CreateSeatOrderRequiresZone(t *testing.T) {
+	userID := uuid.New()
+	cart := &stubCartRepo{
+		lines: []shoprepo.UserCartLine{
+			{
+				CartItem: shopmodels.CartItem{
+					ProductID:   uuid.New(),
+					ProductType: shopmodels.ProductTypeFood,
+					Quantity:    1,
+				},
+				Name:       "Burger",
+				PriceCents: 820,
+			},
+		},
+	}
+
+	svc := newOrderService(newStubOrderRepo(), cart, stubProductRepo{}, stubSizeStockRepo{}, newStubUserRepo(), nil)
+	seat := 12
+	_, err := svc.CreateOrder(context.Background(), userID, &orderdto.CreateOrderRequest{
+		DeliveryMethod: ordermodels.DeliveryMethodSeat,
+		SeatNumber:     &seat,
+	})
+	require.Error(t, err)
+	assert.Len(t, cart.lines, 1)
 }
 
 func TestOrderService_CalculateOrderWithPoints(t *testing.T) {
@@ -470,10 +507,12 @@ func TestOrderService_CreateOrderInsufficientPoints(t *testing.T) {
 	}
 
 	svc := newOrderService(newStubOrderRepo(), cart, stubProductRepo{}, stubSizeStockRepo{}, seedOrderUserRepo(userID, 100), nil)
-	seat := "12"
+	seat := 12
+	zone := "B"
 	_, err := svc.CreateOrder(context.Background(), userID, &orderdto.CreateOrderRequest{
 		DeliveryMethod: ordermodels.DeliveryMethodSeat,
 		SeatNumber:     &seat,
+		Zone:           &zone,
 		Currency:       "POINT",
 	})
 	require.Error(t, err)
@@ -654,10 +693,12 @@ func TestOrderService_CreateOrderWithCardWithoutPoints(t *testing.T) {
 	}
 
 	svc := newOrderService(newStubOrderRepo(), cart, stubProductRepo{}, stubSizeStockRepo{}, seedOrderUserRepo(userID, 0), nil)
-	seat := "5"
+	seat := 5
+	zone := "C"
 	resp, err := svc.CreateOrder(context.Background(), userID, &orderdto.CreateOrderRequest{
 		DeliveryMethod: ordermodels.DeliveryMethodSeat,
 		SeatNumber:     &seat,
+		Zone:           &zone,
 		Currency:       "EUR",
 	})
 	require.NoError(t, err)
@@ -750,12 +791,14 @@ func TestOrderService_UpdatePendingDeliveryAppliesPickupDiscount(t *testing.T) {
 	userID := uuid.New()
 	orderRepo := newStubOrderRepo()
 	orderID := uuid.New()
-	seat := "101"
+	seat := 101
+	zone := "A"
 	card := ordermodels.PaymentMethodCard
 	orderRepo.orders[orderID] = &ordermodels.Order{
 		UserID:         userID,
 		Status:         ordermodels.OrderStatusPendingPayment,
 		DeliveryMethod: ordermodels.DeliveryMethodSeat,
+		Zone:           zone,
 		SeatNumber:     &seat,
 		PaymentMethod:  &card,
 		SubtotalCents:  3250,

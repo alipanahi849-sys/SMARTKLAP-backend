@@ -5,7 +5,8 @@ import "github.com/google/uuid"
 // CreateOrderRequest is POST /api/v1/orders.
 type CreateOrderRequest struct {
 	DeliveryMethod string  `json:"delivery_method" binding:"required,oneof=seat pickup"`
-	SeatNumber     *string `json:"seat_number"`
+	Zone           *string `json:"zone"`
+	SeatNumber     *int    `json:"seat_number"`
 	Currency       string  `json:"currency"`
 }
 
@@ -17,7 +18,8 @@ type PayOrderRequest struct {
 // UpdateOrderRequest is PATCH /api/v1/orders/{order_id} for unpaid orders.
 type UpdateOrderRequest struct {
 	DeliveryMethod *string `json:"delivery_method"`
-	SeatNumber     *string `json:"seat_number"`
+	Zone           *string `json:"zone"`
+	SeatNumber     *int    `json:"seat_number"`
 	PaymentMethod  *string `json:"payment_method"`
 }
 
@@ -66,7 +68,8 @@ type OrderListItem struct {
 	OrderID        uuid.UUID              `json:"order_id"`
 	Status         string                 `json:"status"`
 	DeliveryMethod string                 `json:"delivery_method"`
-	SeatNumber     string                 `json:"seat_number,omitempty"`
+	Zone           string                 `json:"zone,omitempty"`
+	SeatNumber     *int                   `json:"seat_number,omitempty"`
 	Subtotal       string                 `json:"subtotal"`
 	Shipping       string                 `json:"shipping,omitempty"`
 	Total          string                 `json:"total"`
@@ -101,7 +104,8 @@ type OrderDetailResponse struct {
 	OrderID        uuid.UUID         `json:"order_id"`
 	Status         string            `json:"status"`
 	DeliveryMethod string            `json:"delivery_method"`
-	SeatNumber     string            `json:"seat_number,omitempty"`
+	Zone           string            `json:"zone,omitempty"`
+	SeatNumber     *int              `json:"seat_number,omitempty"`
 	Subtotal       string            `json:"subtotal"`
 	Shipping       string            `json:"shipping,omitempty"`
 	Total          string            `json:"total"`

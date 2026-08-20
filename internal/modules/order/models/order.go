@@ -30,7 +30,8 @@ type Order struct {
 	UserID                uuid.UUID   `gorm:"type:uuid;not null;index" json:"user_id"`
 	Status                string      `gorm:"type:varchar(30);not null;default:'pending_payment'" json:"status"`
 	DeliveryMethod        string      `gorm:"type:varchar(20);not null" json:"delivery_method"`
-	SeatNumber            *string     `gorm:"type:varchar(50)" json:"seat_number,omitempty"`
+	Zone                  string      `gorm:"type:varchar(50);not null;default:''" json:"zone,omitempty"`
+	SeatNumber            *int        `gorm:"type:integer" json:"seat_number,omitempty"`
 	SubtotalCents         int64       `gorm:"not null" json:"subtotal_cents"`
 	ShippingCents         int64       `gorm:"not null;default:0" json:"shipping_cents"`
 	TotalCents            int64       `gorm:"not null" json:"total_cents"`

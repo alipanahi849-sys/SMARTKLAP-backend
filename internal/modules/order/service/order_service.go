@@ -24,6 +24,8 @@ import (
 const (
 	orderListImageLimit = 3
 	imageURLExpiry      = 6 * time.Hour
+	maxSeatNumber       = 99999
+	maxZoneLength       = 50
 )
 
 // OrderService manages checkout and payment for shop orders.
@@ -197,7 +199,7 @@ func (s *orderService) CalculateOrder(ctx context.Context, userID uuid.UUID, req
 }
 
 func (s *orderService) UpdateOrder(ctx context.Context, userID, orderID uuid.UUID, req *dto.UpdateOrderRequest) (*dto.OrderDetailResponse, error) {
-	if req == nil || (req.DeliveryMethod == nil && req.SeatNumber == nil && req.PaymentMethod == nil) {
+	if req == nil || (req.DeliveryMethod == nil && req.Zone == nil && req.SeatNumber == nil && req.PaymentMethod == nil) {
 		return nil, errors.NewBadRequest("No order fields to update", nil)
 	}
 
@@ -218,28 +220,40 @@ func (s *orderService) UpdateOrder(ctx context.Context, userID, orderID uuid.UUI
 		}
 	}
 
-	seatNumber := ""
-	if order.SeatNumber != nil {
-		seatNumber = strings.TrimSpace(*order.SeatNumber)
+	zone := strings.TrimSpace(order.Zone)
+	if req.Zone != nil {
+		zone = normalizeZone(req.Zone)
 	}
+	seatNumber := order.SeatNumber
 	if req.SeatNumber != nil {
-		seatNumber = strings.TrimSpace(*req.SeatNumber)
+		parsed, err := normalizeSeatNumber(req.SeatNumber)
+		if err != nil {
+			return nil, err
+		}
+		seatNumber = parsed
 	}
 
-	changingDelivery := req.DeliveryMethod != nil || req.SeatNumber != nil
-	if changingDelivery && deliveryMethod == models.DeliveryMethodSeat && seatNumber == "" {
-		return nil, errors.NewBadRequest("seat_number is required for seat delivery", nil)
+	changingLocation := req.DeliveryMethod != nil || req.Zone != nil || req.SeatNumber != nil
+	if changingLocation && deliveryMethod == models.DeliveryMethodPickup {
+		zone = ""
+		seatNumber = nil
+	}
+	if changingLocation {
+		if err := requireSeatLocation(deliveryMethod, zone, seatNumber); err != nil {
+			return nil, err
+		}
 	}
 
 	updates := map[string]interface{}{
 		"stripe_payment_intent_id": nil,
 	}
-	if changingDelivery {
+	if changingLocation {
 		updates["delivery_method"] = deliveryMethod
-		if deliveryMethod == models.DeliveryMethodPickup {
-			updates["seat_number"] = ""
+		updates["zone"] = zone
+		if seatNumber == nil {
+			updates["seat_number"] = nil
 		} else {
-			updates["seat_number"] = seatNumber
+			updates["seat_number"] = *seatNumber
 		}
 	}
 
@@ -276,12 +290,16 @@ func (s *orderService) CreateOrder(ctx context.Context, userID uuid.UUID, req *d
 		return nil, err
 	}
 
-	seatNumber := ""
-	if req.SeatNumber != nil {
-		seatNumber = strings.TrimSpace(*req.SeatNumber)
+	seatNumber, err := normalizeSeatNumber(req.SeatNumber)
+	if err != nil {
+		return nil, err
 	}
-	if deliveryMethod == models.DeliveryMethodSeat && seatNumber == "" {
-		return nil, errors.NewBadRequest("seat_number is required for seat delivery", nil)
+	zone := normalizeZone(req.Zone)
+	if deliveryMethod == models.DeliveryMethodPickup {
+		seatNumber = nil
+		zone = ""
+	} else if err := requireSeatLocation(deliveryMethod, zone, seatNumber); err != nil {
+		return nil, err
 	}
 
 	totals, lines, err := s.loadCartTotals(ctx, userID, deliveryMethod)
@@ -311,13 +329,12 @@ func (s *orderService) CreateOrder(ctx context.Context, userID uuid.UUID, req *d
 		UserID:         userID,
 		Status:         models.OrderStatusPendingPayment,
 		DeliveryMethod: deliveryMethod,
+		Zone:           zone,
+		SeatNumber:     seatNumber,
 		SubtotalCents:  totals.SubtotalCents,
 		TotalCents:     totals.TotalCents,
 		SubtotalPoints: totals.SubtotalPoints,
 		TotalPoints:    totals.TotalPoints,
-	}
-	if seatNumber != "" {
-		order.SeatNumber = &seatNumber
 	}
 
 	paymentMethod := models.PaymentMethodCard
@@ -790,8 +807,11 @@ func toOrderListItem(ctx context.Context, order *models.Order, imageKeys map[uui
 		Items:          previewItems,
 		CreatedAt:      order.CreatedAt.UTC().Format(time.RFC3339),
 	}
+	if zone := strings.TrimSpace(order.Zone); zone != "" {
+		item.Zone = zone
+	}
 	if order.SeatNumber != nil {
-		item.SeatNumber = strings.TrimSpace(*order.SeatNumber)
+		item.SeatNumber = order.SeatNumber
 	}
 	if order.PaymentMethod != nil {
 		item.PaymentMethod = strings.TrimSpace(*order.PaymentMethod)
@@ -817,8 +837,11 @@ func toOrderDetailResponse(ctx context.Context, order *models.Order, imageKeys m
 		Items:          orderDetailItems(ctx, order, imageKeys, resolve, currency),
 		CreatedAt:      order.CreatedAt.UTC().Format(time.RFC3339),
 	}
+	if zone := strings.TrimSpace(order.Zone); zone != "" {
+		resp.Zone = zone
+	}
 	if order.SeatNumber != nil {
-		resp.SeatNumber = strings.TrimSpace(*order.SeatNumber)
+		resp.SeatNumber = order.SeatNumber
 	}
 	if order.PaymentMethod != nil {
 		resp.PaymentMethod = strings.TrimSpace(*order.PaymentMethod)
@@ -940,4 +963,38 @@ func formatOrderAmount(cents int64, points int, currency string) string {
 		return utils.FormatPoints(points)
 	}
 	return utils.FormatEuro(cents)
+}
+
+func normalizeZone(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return strings.TrimSpace(*value)
+}
+
+func normalizeSeatNumber(value *int) (*int, error) {
+	if value == nil {
+		return nil, nil
+	}
+	if *value <= 0 || *value > maxSeatNumber {
+		return nil, errors.NewBadRequest("seat_number must be a positive number", nil)
+	}
+	n := *value
+	return &n, nil
+}
+
+func requireSeatLocation(deliveryMethod, zone string, seatNumber *int) error {
+	if deliveryMethod != models.DeliveryMethodSeat {
+		return nil
+	}
+	if zone == "" {
+		return errors.NewBadRequest("zone is required for seat delivery", nil)
+	}
+	if len(zone) > maxZoneLength {
+		return errors.NewBadRequest("zone is too long", nil)
+	}
+	if seatNumber == nil {
+		return errors.NewBadRequest("seat_number is required for seat delivery", nil)
+	}
+	return nil
 }

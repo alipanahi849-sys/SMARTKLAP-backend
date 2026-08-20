@@ -3338,6 +3338,9 @@ const docTemplate = `{
                     ]
                 },
                 "seat_number": {
+                    "type": "integer"
+                },
+                "zone": {
                     "type": "string"
                 }
             }
