@@ -81,6 +81,7 @@ func NewOrderService(
 
 type orderTotals struct {
 	SubtotalCents  int64
+	TaxCents       int64
 	TotalCents     int64
 	SubtotalPoints int
 	TotalPoints    int
@@ -194,6 +195,9 @@ func (s *orderService) CalculateOrder(ctx context.Context, userID uuid.UUID, req
 		PointsRequired:   totals.TotalPoints,
 		UserPoints:       user.Points,
 		SufficientPoints: user.Points >= totals.TotalPoints,
+	}
+	if displayCurrency == shopdto.CurrencyEUR && totals.TaxCents > 0 {
+		resp.Tax = utils.FormatEuro(totals.TaxCents)
 	}
 	return resp, nil
 }
@@ -319,7 +323,7 @@ func (s *orderService) CreateOrder(ctx context.Context, userID uuid.UUID, req *d
 			Size:        line.Size,
 			Name:        line.Name,
 			Subname:     subname,
-			PriceCents:  line.PriceCents,
+			PriceCents:  utils.TaxInclusiveCents(line.PriceCents, line.TaxRateBps),
 			PricePoints: line.PricePoints,
 			Quantity:    line.Quantity,
 		}
@@ -332,6 +336,7 @@ func (s *orderService) CreateOrder(ctx context.Context, userID uuid.UUID, req *d
 		Zone:           zone,
 		SeatNumber:     seatNumber,
 		SubtotalCents:  totals.SubtotalCents,
+		TaxCents:       totals.TaxCents,
 		TotalCents:     totals.TotalCents,
 		SubtotalPoints: totals.SubtotalPoints,
 		TotalPoints:    totals.TotalPoints,
@@ -365,19 +370,20 @@ func (s *orderService) loadCartTotals(ctx context.Context, userID uuid.UUID, del
 		return orderTotals{}, nil, errors.NewUnprocessable("Cart is empty", nil)
 	}
 
-	subtotalCents, err := s.cartRepo.SumSubtotalCents(ctx, userID)
-	if err != nil {
-		return orderTotals{}, nil, err
-	}
-
-	subtotalPoints, err := s.cartRepo.SumSubtotalPoints(ctx, userID)
-	if err != nil {
-		return orderTotals{}, nil, err
+	var subtotalCents, taxCents int64
+	var subtotalPoints int
+	for _, line := range lines {
+		unitGross := utils.TaxInclusiveCents(line.PriceCents, line.TaxRateBps)
+		qty := int64(line.Quantity)
+		subtotalCents += unitGross * qty
+		taxCents += (unitGross - line.PriceCents) * qty
+		subtotalPoints += line.PricePoints * line.Quantity
 	}
 
 	totalCents, totalPoints := applyPickupDiscount(subtotalCents, subtotalPoints, deliveryMethod)
 	return orderTotals{
 		SubtotalCents:  subtotalCents,
+		TaxCents:       taxCents,
 		TotalCents:     totalCents,
 		SubtotalPoints: subtotalPoints,
 		TotalPoints:    totalPoints,
@@ -785,6 +791,7 @@ func toOrderResponse(order *models.Order, currency string) *dto.OrderResponse {
 		OrderID:  order.ID,
 		Items:    items,
 		Subtotal: formatOrderAmount(order.SubtotalCents, order.SubtotalPoints, currency),
+		Tax:      formatOrderTax(order.TaxCents, currency),
 		Total:    formatOrderAmount(order.TotalCents, order.TotalPoints, currency),
 		Status:   order.Status,
 	}
@@ -802,6 +809,7 @@ func toOrderListItem(ctx context.Context, order *models.Order, imageKeys map[uui
 		Status:         order.Status,
 		DeliveryMethod: order.DeliveryMethod,
 		Subtotal:       formatOrderAmount(order.SubtotalCents, order.SubtotalPoints, currency),
+		Tax:            formatOrderTax(order.TaxCents, currency),
 		Total:          formatOrderAmount(order.TotalCents, order.TotalPoints, currency),
 		ItemCount:      orderTotalQuantity(order.Items),
 		Items:          previewItems,
@@ -832,6 +840,7 @@ func toOrderDetailResponse(ctx context.Context, order *models.Order, imageKeys m
 		Status:         order.Status,
 		DeliveryMethod: order.DeliveryMethod,
 		Subtotal:       formatOrderAmount(order.SubtotalCents, order.SubtotalPoints, currency),
+		Tax:            formatOrderTax(order.TaxCents, currency),
 		Total:          formatOrderAmount(order.TotalCents, order.TotalPoints, currency),
 		ItemCount:      orderTotalQuantity(order.Items),
 		Items:          orderDetailItems(ctx, order, imageKeys, resolve, currency),
@@ -963,6 +972,13 @@ func formatOrderAmount(cents int64, points int, currency string) string {
 		return utils.FormatPoints(points)
 	}
 	return utils.FormatEuro(cents)
+}
+
+func formatOrderTax(taxCents int64, currency string) string {
+	if currency != shopdto.CurrencyEUR || taxCents <= 0 {
+		return ""
+	}
+	return utils.FormatEuro(taxCents)
 }
 
 func normalizeZone(value *string) string {

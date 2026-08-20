@@ -33,6 +33,7 @@ type Order struct {
 	Zone                  string      `gorm:"type:varchar(50);not null;default:''" json:"zone,omitempty"`
 	SeatNumber            *int        `gorm:"type:integer" json:"seat_number,omitempty"`
 	SubtotalCents         int64       `gorm:"not null" json:"subtotal_cents"`
+	TaxCents              int64       `gorm:"not null;default:0" json:"tax_cents"`
 	ShippingCents         int64       `gorm:"not null;default:0" json:"shipping_cents"`
 	TotalCents            int64       `gorm:"not null" json:"total_cents"`
 	SubtotalPoints        int         `gorm:"not null;default:0" json:"subtotal_points"`

@@ -404,6 +404,46 @@ func TestOrderService_CreateOrderFromCart(t *testing.T) {
 	assert.Equal(t, 1, *detail.SeatNumber)
 }
 
+func TestOrderService_CreateOrderIncludesTax(t *testing.T) {
+	userID := uuid.New()
+	productID := uuid.New()
+	cart := &stubCartRepo{
+		lines: []shoprepo.UserCartLine{
+			{
+				CartItem: shopmodels.CartItem{
+					ProductID:   productID,
+					ProductType: shopmodels.ProductTypeFood,
+					Quantity:    2,
+				},
+				Name:       "Burger",
+				PriceCents: 820,
+				TaxRateBps: 700,
+			},
+		},
+	}
+
+	svc := newOrderService(newStubOrderRepo(), cart, stubProductRepo{}, stubSizeStockRepo{}, newStubUserRepo(), nil)
+	seat := 1
+	zone := "A"
+	resp, err := svc.CreateOrder(context.Background(), userID, &orderdto.CreateOrderRequest{
+		DeliveryMethod: ordermodels.DeliveryMethodSeat,
+		SeatNumber:     &seat,
+		Zone:           &zone,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "17,54 €", resp.Subtotal)
+	assert.Equal(t, "1,14 €", resp.Tax)
+	assert.Equal(t, "17,54 €", resp.Total)
+	require.Len(t, resp.Items, 1)
+	assert.Equal(t, "8,77 €", resp.Items[0].Price)
+
+	detail, err := svc.GetOrder(context.Background(), userID, resp.OrderID)
+	require.NoError(t, err)
+	assert.Equal(t, "1,14 €", detail.Tax)
+	require.Len(t, detail.Items, 1)
+	assert.Equal(t, "8,77 €", detail.Items[0].Price)
+}
+
 func TestOrderService_CreateSeatOrderRequiresZone(t *testing.T) {
 	userID := uuid.New()
 	cart := &stubCartRepo{

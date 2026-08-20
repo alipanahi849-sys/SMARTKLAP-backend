@@ -75,11 +75,11 @@ func (s *cartService) GetBasket(ctx context.Context, userID uuid.UUID, filters d
 	}
 
 	orders := []dto.BasketOrder{}
+	allLines, err := s.cartRepo.ListUserLines(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
 	if filters.Cursor == nil {
-		allLines, err := s.cartRepo.ListUserLines(ctx, userID)
-		if err != nil {
-			return nil, err
-		}
 		grouped := map[string][]repository.UserCartLine{
 			models.ProductTypeFood:  {},
 			models.ProductTypeMerch: {},
@@ -104,13 +104,14 @@ func (s *cartService) GetBasket(ctx context.Context, userID uuid.UUID, filters d
 		return nil, err
 	}
 
-	subtotalCents, err := s.cartRepo.SumSubtotalCents(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
+	grossCents, taxCents := sumCartMoney(allLines)
 	subtotal := ""
-	if subtotalCents > 0 {
-		subtotal = utils.FormatEuro(subtotalCents)
+	tax := ""
+	if grossCents > 0 {
+		subtotal = utils.FormatEuro(grossCents)
+	}
+	if taxCents > 0 {
+		tax = utils.FormatEuro(taxCents)
 	}
 
 	meta := dto.CursorListMeta{
@@ -126,6 +127,7 @@ func (s *cartService) GetBasket(ctx context.Context, userID uuid.UUID, filters d
 		Orders:    orders,
 		Items:     buildCheckoutItems(ctx, lines, s.resolveURL),
 		Subtotal:  subtotal,
+		Tax:       tax,
 		Shipping:  "",
 		Total:     subtotal,
 		CartCount: cartCount,
@@ -181,6 +183,7 @@ func buildBasketOrder(
 		Date:      latest.Format("2006-01-02"),
 		Items:     items,
 		ExtraText: extraText,
+		Total:     utils.FormatEuro(sumCartGross(lines)),
 	}
 }
 
@@ -197,7 +200,7 @@ func buildCheckoutItems(ctx context.Context, lines []repository.UserCartLine, re
 			Name:        line.Name,
 			Subname:     subname,
 			Description: description,
-			Price:       utils.FormatEuro(line.PriceCents),
+			Price:       utils.FormatEuro(utils.TaxInclusiveCents(line.PriceCents, line.TaxRateBps)),
 			ImageURL:    resolve(ctx, line.ImageKey),
 			Quantity:    line.Quantity,
 		}
@@ -211,6 +214,21 @@ func basketGroupType(productType string) string {
 		return models.ProductTypeFood
 	}
 	return pt
+}
+
+func sumCartMoney(lines []repository.UserCartLine) (grossCents, taxCents int64) {
+	for _, line := range lines {
+		unitGross := utils.TaxInclusiveCents(line.PriceCents, line.TaxRateBps)
+		qty := int64(line.Quantity)
+		grossCents += unitGross * qty
+		taxCents += (unitGross - line.PriceCents) * qty
+	}
+	return grossCents, taxCents
+}
+
+func sumCartGross(lines []repository.UserCartLine) int64 {
+	gross, _ := sumCartMoney(lines)
+	return gross
 }
 
 func (s *cartService) resolveURL(ctx context.Context, stored string) string {

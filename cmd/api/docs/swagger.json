@@ -18,6 +18,307 @@
     },
     "basePath": "/",
     "paths": {
+        "/api/v1/admin/football/teams": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-matches"
+                ],
+                "summary": "Search football teams",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team name",
+                        "name": "search",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/matches/sync": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-matches"
+                ],
+                "summary": "Sync featured-club fixtures",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/settings/featured-club": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-matches"
+                ],
+                "summary": "Get featured club",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-matches"
+                ],
+                "summary": "Set featured club",
+                "parameters": [
+                    {
+                        "description": "Featured club",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_match_dto.SetFeaturedClubRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/settings/news-club": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-news"
+                ],
+                "summary": "Get news club",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-news"
+                ],
+                "summary": "Set news club",
+                "parameters": [
+                    {
+                        "description": "News club",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_news_dto.SetNewsClubRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/apple": {
+            "post": {
+                "description": "Verify a Sign in with Apple identity token and issue access/refresh tokens. Creates the user if the email is new; links an existing OTP/Google account. Name is only sent by Apple on the first authorization.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Login with Apple",
+                "parameters": [
+                    {
+                        "description": "Apple identity token",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_modules_auth_handler.AppleLoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/auth/change-email": {
             "post": {
                 "security": [
@@ -74,6 +375,58 @@
                     },
                     "429": {
                         "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/google": {
+            "post": {
+                "description": "Verify a Google ID token from native Sign-In and issue access/refresh tokens. Creates the user if the email is new; links an existing OTP account.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Login with Google",
+                "parameters": [
+                    {
+                        "description": "Google ID token",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_modules_auth_handler.GoogleLoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
                         "schema": {
                             "$ref": "#/definitions/clap_internal_shared_response.Response"
                         }
@@ -390,6 +743,36 @@
                 }
             }
         },
+        "/api/v1/chants/me/today": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chants"
+                ],
+                "summary": "Today's chant points",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/chants/{chant_id}/complete": {
             "post": {
                 "security": [
@@ -479,6 +862,258 @@
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/guess/matches/{match_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "guess"
+                ],
+                "summary": "Guess match overview",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Match ID",
+                        "name": "match_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/guess/quizzes/{quiz_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "guess"
+                ],
+                "summary": "Quiz detail",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Quiz ID",
+                        "name": "quiz_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/guess/quizzes/{quiz_id}/answer": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "guess"
+                ],
+                "summary": "Answer quiz",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Quiz ID",
+                        "name": "quiz_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_guess_dto.AnswerQuizRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/matches": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "matches"
+                ],
+                "summary": "Featured-club match slider (2 past, 1 next, 2 future)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/matches/current": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "matches"
+                ],
+                "summary": "Current featured-club match",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/matches/{match_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "matches"
+                ],
+                "summary": "Match detail",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Match ID",
+                        "name": "match_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/clap_internal_shared_response.Response"
                         }
@@ -578,6 +1213,101 @@
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/news": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "news"
+                ],
+                "summary": "List club news",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Opaque page cursor from the previous response",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/news/{news_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "news"
+                ],
+                "summary": "News article",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "News ID",
+                        "name": "news_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/clap_internal_shared_response.Response"
                         }
@@ -792,7 +1522,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Preview subtotal, shipping, total, and points required for the current cart",
+                "description": "Preview subtotal, total, pickup savings, and points required for the current cart",
                 "consumes": [
                     "application/json"
                 ],
@@ -875,6 +1605,62 @@
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Changes delivery or payment method on a pending_payment order and recalculates totals",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Update unpaid order",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "order_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_modules_order_dto.UpdateOrderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
                         "schema": {
                             "$ref": "#/definitions/clap_internal_shared_response.Response"
                         }
@@ -985,6 +1771,51 @@
                     },
                     "422": {
                         "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/players/{player_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "stats"
+                ],
+                "summary": "Player detail",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Player ID",
+                        "name": "player_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/clap_internal_shared_response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/clap_internal_shared_response.Response"
                         }
@@ -3212,7 +4043,7 @@
         },
         "/api/v1/webhooks/stripe": {
             "post": {
-                "description": "Receives Stripe payment events and fulfills paid card orders",
+                "description": "Receives Stripe payment events, emails finalized invoices, and fulfills paid card orders",
                 "consumes": [
                     "application/json"
                 ],
@@ -3269,6 +4100,39 @@
         }
     },
     "definitions": {
+        "clap_internal_modules_guess_dto.AnswerQuizRequest": {
+            "type": "object",
+            "required": [
+                "choice"
+            ],
+            "properties": {
+                "choice": {
+                    "type": "string"
+                }
+            }
+        },
+        "clap_internal_modules_match_dto.SetFeaturedClubRequest": {
+            "type": "object",
+            "properties": {
+                "club_id": {
+                    "type": "string"
+                },
+                "provider_team_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "clap_internal_modules_news_dto.SetNewsClubRequest": {
+            "type": "object",
+            "properties": {
+                "club_id": {
+                    "type": "string"
+                },
+                "provider_team_id": {
+                    "type": "string"
+                }
+            }
+        },
         "clap_internal_modules_notification_dto.RegisterDeviceRequest": {
             "type": "object",
             "required": [
@@ -3357,6 +4221,23 @@
                 }
             }
         },
+        "clap_internal_modules_order_dto.UpdateOrderRequest": {
+            "type": "object",
+            "properties": {
+                "delivery_method": {
+                    "type": "string"
+                },
+                "payment_method": {
+                    "type": "string"
+                },
+                "seat_number": {
+                    "type": "integer"
+                },
+                "zone": {
+                    "type": "string"
+                }
+            }
+        },
         "clap_internal_modules_playback_dto.ScheduleSongRequest": {
             "type": "object",
             "required": [
@@ -3420,7 +4301,8 @@
                 "name",
                 "price_cents",
                 "price_points",
-                "product_type"
+                "product_type",
+                "tax_rate"
             ],
             "properties": {
                 "available_sizes": {
@@ -3470,6 +4352,9 @@
                 "subname": {
                     "type": "string",
                     "maxLength": 60
+                },
+                "tax_rate": {
+                    "type": "number"
                 }
             }
         },
@@ -3512,7 +4397,8 @@
                 "name",
                 "price_cents",
                 "price_points",
-                "product_type"
+                "product_type",
+                "tax_rate"
             ],
             "properties": {
                 "available_sizes": {
@@ -3562,6 +4448,9 @@
                 "subname": {
                     "type": "string",
                     "maxLength": 60
+                },
+                "tax_rate": {
+                    "type": "number"
                 }
             }
         },
@@ -3710,6 +4599,23 @@
                 }
             }
         },
+        "internal_modules_auth_handler.AppleLoginRequest": {
+            "type": "object",
+            "required": [
+                "id_token"
+            ],
+            "properties": {
+                "family_name": {
+                    "type": "string"
+                },
+                "given_name": {
+                    "type": "string"
+                },
+                "id_token": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_modules_auth_handler.ChangeEmailRequest": {
             "type": "object",
             "required": [
@@ -3717,6 +4623,17 @@
             ],
             "properties": {
                 "email": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_modules_auth_handler.GoogleLoginRequest": {
+            "type": "object",
+            "required": [
+                "id_token"
+            ],
+            "properties": {
+                "id_token": {
                     "type": "string"
                 }
             }

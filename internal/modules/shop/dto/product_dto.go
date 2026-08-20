@@ -56,7 +56,8 @@ type CreateProductRequest struct {
 	Description    string           `json:"description"`
 	Category       string           `json:"category" binding:"required"`
 	PriceCents     int64            `json:"price_cents" binding:"required,min=0"`
-	PricePoints    int            `json:"price_points" binding:"required,min=0"`
+	PricePoints    int              `json:"price_points" binding:"required,min=0"`
+	TaxRate        *float64         `json:"tax_rate" binding:"required"`
 	ImageURL       string           `json:"image_url"`
 	SellerName     string           `json:"seller_name"`
 	AvailableSizes []string         `json:"available_sizes"`
@@ -73,7 +74,8 @@ type UpdateProductRequest struct {
 	Description    string           `json:"description"`
 	Category       string           `json:"category" binding:"required"`
 	PriceCents     int64            `json:"price_cents" binding:"required,min=0"`
-	PricePoints    int            `json:"price_points" binding:"required,min=0"`
+	PricePoints    int              `json:"price_points" binding:"required,min=0"`
+	TaxRate        *float64         `json:"tax_rate" binding:"required"`
 	ImageURL       string           `json:"image_url"`
 	SellerName     string           `json:"seller_name"`
 	AvailableSizes []string         `json:"available_sizes"`
@@ -99,6 +101,7 @@ type ProductItem struct {
 	Subname     string           `json:"subname,omitempty"`
 	Description string           `json:"description"`
 	Price       string           `json:"price"`
+	TaxRate     float64          `json:"tax_rate"`
 	ImageURL    string           `json:"image_url"`
 	Stock       ProductStockInfo `json:"stock"`
 }
@@ -120,6 +123,7 @@ type ProductDetailResponse struct {
 	SellerName     string    `json:"seller_name,omitempty"`
 	Description    string    `json:"description"`
 	Price          string           `json:"price"`
+	TaxRate        float64          `json:"tax_rate"`
 	ImageURL       string           `json:"image_url"`
 	AvailableSizes []string         `json:"available_sizes,omitempty"`
 	Stock          ProductStockInfo `json:"stock"`

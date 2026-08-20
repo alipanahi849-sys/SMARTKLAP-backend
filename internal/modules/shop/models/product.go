@@ -3,6 +3,8 @@ package models
 import (
 	"time"
 
+	"clap/internal/shared/utils"
+
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -38,6 +40,7 @@ type Product struct {
 	Category       string         `gorm:"type:varchar(50);not null" json:"category"`
 	PriceCents     int64          `gorm:"not null" json:"price_cents"`
 	PricePoints    int            `gorm:"not null" json:"price_points"`
+	TaxRateBps     int            `gorm:"column:tax_rate_bps;not null;default:0" json:"tax_rate_bps"`
 	ImageKey       string         `gorm:"type:varchar(500);not null;default:''" json:"-"`
 	SellerName     string         `gorm:"type:varchar(200);not null;default:''" json:"seller_name"`
 	AvailableSizes string         `gorm:"type:jsonb;not null;default:'[]'" json:"available_sizes"`
@@ -66,6 +69,11 @@ func (p Product) InStock() bool {
 		return true
 	}
 	return *p.StockQuantity > 0
+}
+
+// UnitGrossCents is the customer-facing EUR unit price including VAT.
+func (p Product) UnitGrossCents() int64 {
+	return utils.TaxInclusiveCents(p.PriceCents, p.TaxRateBps)
 }
 
 // IsSoldOut is true when limited inventory was depleted by orders (not admin zero-stock).

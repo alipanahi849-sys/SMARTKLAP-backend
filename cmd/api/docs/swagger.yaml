@@ -1,5 +1,26 @@
 basePath: /
 definitions:
+  clap_internal_modules_guess_dto.AnswerQuizRequest:
+    properties:
+      choice:
+        type: string
+    required:
+    - choice
+    type: object
+  clap_internal_modules_match_dto.SetFeaturedClubRequest:
+    properties:
+      club_id:
+        type: string
+      provider_team_id:
+        type: string
+    type: object
+  clap_internal_modules_news_dto.SetNewsClubRequest:
+    properties:
+      club_id:
+        type: string
+      provider_team_id:
+        type: string
+    type: object
   clap_internal_modules_notification_dto.RegisterDeviceRequest:
     properties:
       fcm_token:
@@ -58,6 +79,17 @@ definitions:
         type: string
     required:
     - payment_method
+    type: object
+  clap_internal_modules_order_dto.UpdateOrderRequest:
+    properties:
+      delivery_method:
+        type: string
+      payment_method:
+        type: string
+      seat_number:
+        type: integer
+      zone:
+        type: string
     type: object
   clap_internal_modules_playback_dto.ScheduleSongRequest:
     properties:
@@ -135,12 +167,15 @@ definitions:
       subname:
         maxLength: 60
         type: string
+      tax_rate:
+        type: number
     required:
     - category
     - name
     - price_cents
     - price_points
     - product_type
+    - tax_rate
     type: object
   clap_internal_modules_shop_dto.DecreaseCartItemRequest:
     properties:
@@ -198,12 +233,15 @@ definitions:
       subname:
         maxLength: 60
         type: string
+      tax_rate:
+        type: number
     required:
     - category
     - name
     - price_cents
     - price_points
     - product_type
+    - tax_rate
     type: object
   clap_internal_modules_song_dto.CreateSongRequest:
     properties:
@@ -301,12 +339,30 @@ definitions:
       success:
         type: boolean
     type: object
+  internal_modules_auth_handler.AppleLoginRequest:
+    properties:
+      family_name:
+        type: string
+      given_name:
+        type: string
+      id_token:
+        type: string
+    required:
+    - id_token
+    type: object
   internal_modules_auth_handler.ChangeEmailRequest:
     properties:
       email:
         type: string
     required:
     - email
+    type: object
+  internal_modules_auth_handler.GoogleLoginRequest:
+    properties:
+      id_token:
+        type: string
+    required:
+    - id_token
     type: object
   internal_modules_auth_handler.LoginRequest:
     properties:
@@ -372,6 +428,196 @@ info:
   title: Clap Backend API
   version: "1.0"
 paths:
+  /api/v1/admin/football/teams:
+    get:
+      parameters:
+      - description: Team name
+        in: query
+        name: search
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Search football teams
+      tags:
+      - admin-matches
+  /api/v1/admin/matches/sync:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Sync featured-club fixtures
+      tags:
+      - admin-matches
+  /api/v1/admin/settings/featured-club:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get featured club
+      tags:
+      - admin-matches
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Featured club
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/clap_internal_modules_match_dto.SetFeaturedClubRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Set featured club
+      tags:
+      - admin-matches
+  /api/v1/admin/settings/news-club:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get news club
+      tags:
+      - admin-news
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: News club
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/clap_internal_modules_news_dto.SetNewsClubRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Set news club
+      tags:
+      - admin-news
+  /api/v1/auth/apple:
+    post:
+      consumes:
+      - application/json
+      description: Verify a Sign in with Apple identity token and issue access/refresh
+        tokens. Creates the user if the email is new; links an existing OTP/Google
+        account. Name is only sent by Apple on the first authorization.
+      parameters:
+      - description: Apple identity token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_auth_handler.AppleLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      summary: Login with Apple
+      tags:
+      - auth
   /api/v1/auth/change-email:
     post:
       consumes:
@@ -411,6 +657,41 @@ paths:
       security:
       - BearerAuth: []
       summary: Change email (request OTP)
+      tags:
+      - auth
+  /api/v1/auth/google:
+    post:
+      consumes:
+      - application/json
+      description: Verify a Google ID token from native Sign-In and issue access/refresh
+        tokens. Creates the user if the email is new; links an existing OTP account.
+      parameters:
+      - description: Google ID token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_auth_handler.GoogleLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      summary: Login with Google
       tags:
       - auth
   /api/v1/auth/login:
@@ -675,6 +956,180 @@ paths:
       summary: Chant lyrics
       tags:
       - chants
+  /api/v1/chants/me/today:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Today's chant points
+      tags:
+      - chants
+  /api/v1/guess/matches/{match_id}:
+    get:
+      parameters:
+      - description: Match ID
+        in: path
+        name: match_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Guess match overview
+      tags:
+      - guess
+  /api/v1/guess/quizzes/{quiz_id}:
+    get:
+      parameters:
+      - description: Quiz ID
+        in: path
+        name: quiz_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Quiz detail
+      tags:
+      - guess
+  /api/v1/guess/quizzes/{quiz_id}/answer:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Quiz ID
+        in: path
+        name: quiz_id
+        required: true
+        type: string
+      - description: Request body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/clap_internal_modules_guess_dto.AnswerQuizRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Answer quiz
+      tags:
+      - guess
+  /api/v1/matches:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Featured-club match slider (2 past, 1 next, 2 future)
+      tags:
+      - matches
+  /api/v1/matches/{match_id}:
+    get:
+      parameters:
+      - description: Match ID
+        in: path
+        name: match_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Match detail
+      tags:
+      - matches
+  /api/v1/matches/current:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Current featured-club match
+      tags:
+      - matches
   /api/v1/media/{id}/playback-url:
     get:
       parameters:
@@ -737,6 +1192,65 @@ paths:
       summary: Upload media
       tags:
       - media
+  /api/v1/news:
+    get:
+      parameters:
+      - description: Opaque page cursor from the previous response
+        in: query
+        name: cursor
+        type: string
+      - description: Items per page (default 20, max 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: List club news
+      tags:
+      - news
+  /api/v1/news/{news_id}:
+    get:
+      parameters:
+      - description: News ID
+        in: path
+        name: news_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: News article
+      tags:
+      - news
   /api/v1/notifications/devices:
     delete:
       consumes:
@@ -894,6 +1408,43 @@ paths:
       summary: Get order detail
       tags:
       - orders
+    patch:
+      consumes:
+      - application/json
+      description: Changes delivery or payment method on a pending_payment order and
+        recalculates totals
+      parameters:
+      - description: Order ID
+        in: path
+        name: order_id
+        required: true
+        type: string
+      - description: Request body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/clap_internal_modules_order_dto.UpdateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Update unpaid order
+      tags:
+      - orders
   /api/v1/orders/{order_id}/confirm-payment:
     post:
       description: Verifies Stripe Checkout Session status and marks the order paid
@@ -968,8 +1519,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Preview subtotal, shipping, total, and points required for the
-        current cart
+      description: Preview subtotal, total, pickup savings, and points required for
+        the current cart
       parameters:
       - description: Request body
         in: body
@@ -997,6 +1548,34 @@ paths:
       summary: Calculate checkout totals
       tags:
       - orders
+  /api/v1/players/{player_id}:
+    get:
+      parameters:
+      - description: Player ID
+        in: path
+        name: player_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/clap_internal_shared_response.Response'
+      security:
+      - BearerAuth: []
+      summary: Player detail
+      tags:
+      - stats
   /api/v1/profile/leaderboard:
     get:
       parameters:
@@ -2401,7 +2980,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Receives Stripe payment events and fulfills paid card orders
+      description: Receives Stripe payment events, emails finalized invoices, and
+        fulfills paid card orders
       produces:
       - application/json
       responses:

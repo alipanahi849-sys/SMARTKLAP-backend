@@ -34,6 +34,7 @@ type CalculateOrderResponse struct {
 	DeliveryMethod   string `json:"delivery_method"`
 	PaymentMethod    string `json:"payment_method"`
 	Subtotal         string `json:"subtotal"`
+	Tax              string `json:"tax,omitempty"`
 	Total            string `json:"total"`
 	DeliverySavings  string `json:"delivery_savings,omitempty"`
 	PaymentAmount    string `json:"payment_amount"`
@@ -71,6 +72,7 @@ type OrderListItem struct {
 	Zone           string                 `json:"zone,omitempty"`
 	SeatNumber     *int                   `json:"seat_number,omitempty"`
 	Subtotal       string                 `json:"subtotal"`
+	Tax            string                 `json:"tax,omitempty"`
 	Shipping       string                 `json:"shipping,omitempty"`
 	Total          string                 `json:"total"`
 	PaymentMethod  string                 `json:"payment_method,omitempty"`
@@ -107,6 +109,7 @@ type OrderDetailResponse struct {
 	Zone           string            `json:"zone,omitempty"`
 	SeatNumber     *int              `json:"seat_number,omitempty"`
 	Subtotal       string            `json:"subtotal"`
+	Tax            string            `json:"tax,omitempty"`
 	Shipping       string            `json:"shipping,omitempty"`
 	Total          string            `json:"total"`
 	PaymentMethod  string            `json:"payment_method,omitempty"`
@@ -130,6 +133,7 @@ type OrderResponse struct {
 	OrderID  uuid.UUID       `json:"order_id"`
 	Items    []OrderLineItem `json:"items"`
 	Subtotal string          `json:"subtotal"`
+	Tax      string          `json:"tax,omitempty"`
 	Shipping string          `json:"shipping,omitempty"`
 	Total    string          `json:"total"`
 	Status   string          `json:"status"`

@@ -177,6 +177,7 @@ func (s *productService) List(ctx context.Context, userID uuid.UUID, filters dto
 			Subname:     p.Subname,
 			Description: p.Description,
 			Price:       formatPrice(p, currency),
+			TaxRate:     utils.TaxRatePercent(p.TaxRateBps),
 			ImageURL:    s.resolveURL(ctx, p.ImageKey),
 			Stock:       buildProductStockInfo(&p, sizeStockMap[p.ID], ""),
 		}
@@ -272,6 +273,11 @@ func (s *productService) Create(ctx context.Context, req *dto.CreateProductReque
 		return nil, err
 	}
 
+	taxRateBps, err := parseTaxRate(req.TaxRate)
+	if err != nil {
+		return nil, err
+	}
+
 	product := &models.Product{
 		ProductType:    productType,
 		Name:           name,
@@ -280,6 +286,7 @@ func (s *productService) Create(ctx context.Context, req *dto.CreateProductReque
 		Category:       category,
 		PriceCents:     req.PriceCents,
 		PricePoints:    req.PricePoints,
+		TaxRateBps:     taxRateBps,
 		ImageKey:       imageRef,
 		SellerName:     strings.TrimSpace(req.SellerName),
 		AvailableSizes: marshalAvailableSizes(sizes),
@@ -339,6 +346,11 @@ func (s *productService) Update(ctx context.Context, id uuid.UUID, req *dto.Upda
 		return nil, err
 	}
 
+	taxRateBps, err := parseTaxRate(req.TaxRate)
+	if err != nil {
+		return nil, err
+	}
+
 	if imageURL := strings.TrimSpace(req.ImageURL); imageURL != "" {
 		oldKey := product.ImageKey
 		product.ImageKey = imageURL
@@ -352,6 +364,7 @@ func (s *productService) Update(ctx context.Context, id uuid.UUID, req *dto.Upda
 	product.Category = category
 	product.PriceCents = req.PriceCents
 	product.PricePoints = req.PricePoints
+	product.TaxRateBps = taxRateBps
 	product.SellerName = strings.TrimSpace(req.SellerName)
 	product.AvailableSizes = marshalAvailableSizes(sizes)
 	product.StockQuantity = stockQuantity
@@ -602,6 +615,7 @@ func toProductDetail(
 		Name:        p.Name,
 		Description: p.Description,
 		Price:       formatPrice(*p, currency),
+		TaxRate:     utils.TaxRatePercent(p.TaxRateBps),
 		ImageURL:    imageURL,
 		Stock:       buildProductStockInfo(p, sizeStocks, filterSize),
 	}
@@ -657,7 +671,18 @@ func formatPrice(p models.Product, currency string) string {
 	if currency == dto.CurrencyPoint {
 		return utils.FormatPoints(p.PricePoints)
 	}
-	return utils.FormatEuro(p.PriceCents)
+	return utils.FormatEuro(p.UnitGrossCents())
+}
+
+func parseTaxRate(raw *float64) (int, error) {
+	if raw == nil {
+		return 0, errors.NewBadRequest("tax_rate is required", nil)
+	}
+	bps, err := utils.TaxRateBpsFromPercent(*raw)
+	if err != nil {
+		return 0, errors.NewBadRequest(err.Error(), nil)
+	}
+	return bps, nil
 }
 
 func (s *productService) deleteStoredImage(ctx context.Context, oldKey, newKey string) {

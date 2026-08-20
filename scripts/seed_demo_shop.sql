@@ -505,6 +505,15 @@ ON CONFLICT (id) DO UPDATE SET
     image_key = EXCLUDED.image_key,
     updated_at = NOW();
 
+-- Demo VAT: reduced rate on food, standard rate on merch.
+UPDATE products SET
+    tax_rate_bps = CASE
+        WHEN product_type = 'food' THEN 700
+        ELSE 1900
+    END,
+    updated_at = NOW()
+WHERE deleted_at IS NULL;
+
 -- Stock quantities: NULL = unlimited, 0 = out of stock.
 -- Applies to all active products (demo UUIDs + legacy rows by product name).
 UPDATE products SET stock_quantity = CASE name

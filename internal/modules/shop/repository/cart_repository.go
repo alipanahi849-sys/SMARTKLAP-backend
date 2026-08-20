@@ -41,6 +41,7 @@ type UserCartLine struct {
 	Description string
 	PriceCents  int64
 	PricePoints int
+	TaxRateBps  int
 }
 
 type cartRepository struct {
@@ -68,7 +69,7 @@ func (r *cartRepository) FindLine(ctx context.Context, userID, productID uuid.UU
 func (r *cartRepository) userLinesQueryCtx(ctx context.Context, userID uuid.UUID) *gorm.DB {
 	return r.db.WithContext(ctx).
 		Table("cart_items").
-		Select("cart_items.*, products.image_key, products.name, products.subname, products.description, products.price_cents, products.price_points").
+		Select("cart_items.*, products.image_key, products.name, products.subname, products.description, products.price_cents, products.price_points, products.tax_rate_bps").
 		Joins("INNER JOIN products ON products.id = cart_items.product_id AND products.deleted_at IS NULL AND products.is_active = ?", true).
 		Where("cart_items.user_id = ?", userID)
 }
@@ -121,7 +122,7 @@ func (r *cartRepository) SumSubtotalCents(ctx context.Context, userID uuid.UUID)
 	var total int64
 	err := r.db.WithContext(ctx).
 		Table("cart_items").
-		Select("COALESCE(SUM(products.price_cents * cart_items.quantity), 0)").
+		Select("COALESCE(SUM(((products.price_cents * (10000 + products.tax_rate_bps) + 5000) / 10000) * cart_items.quantity), 0)").
 		Joins("INNER JOIN products ON products.id = cart_items.product_id AND products.deleted_at IS NULL AND products.is_active = ?", true).
 		Where("cart_items.user_id = ?", userID).
 		Scan(&total).Error

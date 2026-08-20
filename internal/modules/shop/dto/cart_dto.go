@@ -56,6 +56,7 @@ type BasketOrder struct {
 	Date      string            `json:"date"`
 	Items     []BasketOrderItem `json:"items"`
 	ExtraText string            `json:"extra_text,omitempty"`
+	Total     string            `json:"total,omitempty"`
 }
 
 // BasketListFilters are query params for GET /api/v1/shop/cart.
@@ -69,6 +70,7 @@ type BasketResponse struct {
 	Orders    []BasketOrder      `json:"orders"`
 	Items     []CheckoutLineItem `json:"items"`
 	Subtotal  string             `json:"subtotal,omitempty"`
+	Tax       string             `json:"tax,omitempty"`
 	Shipping  string             `json:"shipping,omitempty"`
 	Total     string             `json:"total,omitempty"`
 	CartCount int                `json:"cart_count"`
