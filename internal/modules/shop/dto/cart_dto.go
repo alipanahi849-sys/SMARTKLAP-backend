@@ -45,6 +45,8 @@ type CheckoutLineItem struct {
 	Subname     string    `json:"subname,omitempty"`
 	Description string    `json:"description,omitempty"`
 	Price       string    `json:"price"`
+	Tax         string    `json:"tax,omitempty"`
+	TaxRate     float64   `json:"tax_rate,omitempty"`
 	ImageURL    string    `json:"image_url"`
 	Quantity    int       `json:"quantity"`
 }

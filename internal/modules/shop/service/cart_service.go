@@ -192,7 +192,8 @@ func buildCheckoutItems(ctx context.Context, lines []repository.UserCartLine, re
 	for i, line := range lines {
 		description := strings.TrimSpace(line.Description)
 		subname := strings.TrimSpace(line.Subname)
-		items[i] = dto.CheckoutLineItem{
+		unitTax := utils.TaxAmountCents(line.PriceCents, line.TaxRateBps)
+		item := dto.CheckoutLineItem{
 			ID:          line.ID,
 			ProductID:   line.ProductID,
 			ProductType: line.ProductType,
@@ -204,6 +205,11 @@ func buildCheckoutItems(ctx context.Context, lines []repository.UserCartLine, re
 			ImageURL:    resolve(ctx, line.ImageKey),
 			Quantity:    line.Quantity,
 		}
+		if unitTax > 0 {
+			item.Tax = utils.FormatEuro(unitTax)
+			item.TaxRate = utils.TaxRatePercent(line.TaxRateBps)
+		}
+		items[i] = item
 	}
 	return items
 }
