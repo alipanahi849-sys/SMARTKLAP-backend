@@ -13,8 +13,8 @@ import (
 	ordersvc "clap/internal/modules/order/service"
 	shopmodels "clap/internal/modules/shop/models"
 	shoprepo "clap/internal/modules/shop/repository"
-	sharederrors "clap/internal/shared/errors"
 	"clap/internal/shared/database"
+	sharederrors "clap/internal/shared/errors"
 	"clap/pkg/payment"
 
 	"github.com/google/uuid"
@@ -444,6 +444,41 @@ func TestOrderService_CreateOrderIncludesTax(t *testing.T) {
 	assert.Equal(t, "8,77 €", detail.Items[0].Price)
 }
 
+func TestOrderService_CreateOrderAppliesProductDiscount(t *testing.T) {
+	userID := uuid.New()
+	productID := uuid.New()
+	cart := &stubCartRepo{
+		lines: []shoprepo.UserCartLine{
+			{
+				CartItem: shopmodels.CartItem{
+					ProductID:   productID,
+					ProductType: shopmodels.ProductTypeFood,
+					Quantity:    2,
+				},
+				Name:            "Burger",
+				PriceCents:      1000,
+				TaxRateBps:      1900,
+				DiscountRateBps: 2000,
+			},
+		},
+	}
+
+	svc := newOrderService(newStubOrderRepo(), cart, stubProductRepo{}, stubSizeStockRepo{}, newStubUserRepo(), nil)
+	seat := 1
+	zone := "A"
+	resp, err := svc.CreateOrder(context.Background(), userID, &orderdto.CreateOrderRequest{
+		DeliveryMethod: ordermodels.DeliveryMethodSeat,
+		SeatNumber:     &seat,
+		Zone:           &zone,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "19,04 €", resp.Subtotal)
+	assert.Equal(t, "3,04 €", resp.Tax)
+	assert.Equal(t, "19,04 €", resp.Total)
+	require.Len(t, resp.Items, 1)
+	assert.Equal(t, "9,52 €", resp.Items[0].Price)
+}
+
 func TestOrderService_CreateSeatOrderRequiresZone(t *testing.T) {
 	userID := uuid.New()
 	cart := &stubCartRepo{
@@ -750,9 +785,9 @@ func TestOrderService_PayOrderWithCard(t *testing.T) {
 	orderRepo := newStubOrderRepo()
 	orderID := uuid.New()
 	orderRepo.orders[orderID] = &ordermodels.Order{
-		UserID:      userID,
-		Status:      ordermodels.OrderStatusPendingPayment,
-		TotalCents:  1640,
+		UserID:        userID,
+		Status:        ordermodels.OrderStatusPendingPayment,
+		TotalCents:    1640,
 		SubtotalCents: 1640,
 	}
 	orderRepo.orders[orderID].ID = orderID

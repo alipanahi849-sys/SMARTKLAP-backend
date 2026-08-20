@@ -58,6 +58,7 @@ type CreateProductRequest struct {
 	PriceCents     int64            `json:"price_cents" binding:"required,min=0"`
 	PricePoints    int              `json:"price_points" binding:"required,min=0"`
 	TaxRate        *float64         `json:"tax_rate" binding:"required"`
+	DiscountRate   *float64         `json:"discount_rate"`
 	ImageURL       string           `json:"image_url"`
 	SellerName     string           `json:"seller_name"`
 	AvailableSizes []string         `json:"available_sizes"`
@@ -76,6 +77,7 @@ type UpdateProductRequest struct {
 	PriceCents     int64            `json:"price_cents" binding:"required,min=0"`
 	PricePoints    int              `json:"price_points" binding:"required,min=0"`
 	TaxRate        *float64         `json:"tax_rate" binding:"required"`
+	DiscountRate   *float64         `json:"discount_rate"`
 	ImageURL       string           `json:"image_url"`
 	SellerName     string           `json:"seller_name"`
 	AvailableSizes []string         `json:"available_sizes"`
@@ -95,15 +97,17 @@ type ProductStockInfo struct {
 
 // ProductItem is a single row on the shop list screen.
 type ProductItem struct {
-	ID          uuid.UUID        `json:"id"`
-	ProductType string           `json:"product_type"`
-	Name        string           `json:"name"`
-	Subname     string           `json:"subname,omitempty"`
-	Description string           `json:"description"`
-	Price       string           `json:"price"`
-	TaxRate     float64          `json:"tax_rate"`
-	ImageURL    string           `json:"image_url"`
-	Stock       ProductStockInfo `json:"stock"`
+	ID            uuid.UUID        `json:"id"`
+	ProductType   string           `json:"product_type"`
+	Name          string           `json:"name"`
+	Subname       string           `json:"subname,omitempty"`
+	Description   string           `json:"description"`
+	Price         string           `json:"price"`
+	OriginalPrice string           `json:"original_price,omitempty"`
+	TaxRate       float64          `json:"tax_rate"`
+	DiscountRate  float64          `json:"discount_rate,omitempty"`
+	ImageURL      string           `json:"image_url"`
+	Stock         ProductStockInfo `json:"stock"`
 }
 
 // ProductListResponse is GET /api/v1/shop.
@@ -116,14 +120,16 @@ type ProductListResponse struct {
 
 // ProductDetailResponse is GET /api/v1/shop/{id}.
 type ProductDetailResponse struct {
-	ID             uuid.UUID `json:"id"`
-	ProductType    string    `json:"product_type"`
-	Name           string    `json:"name"`
-	Subname        string    `json:"subname,omitempty"`
-	SellerName     string    `json:"seller_name,omitempty"`
-	Description    string    `json:"description"`
+	ID             uuid.UUID        `json:"id"`
+	ProductType    string           `json:"product_type"`
+	Name           string           `json:"name"`
+	Subname        string           `json:"subname,omitempty"`
+	SellerName     string           `json:"seller_name,omitempty"`
+	Description    string           `json:"description"`
 	Price          string           `json:"price"`
+	OriginalPrice  string           `json:"original_price,omitempty"`
 	TaxRate        float64          `json:"tax_rate"`
+	DiscountRate   float64          `json:"discount_rate,omitempty"`
 	ImageURL       string           `json:"image_url"`
 	AvailableSizes []string         `json:"available_sizes,omitempty"`
 	Stock          ProductStockInfo `json:"stock"`

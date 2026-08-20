@@ -4317,6 +4317,9 @@
                 "description": {
                     "type": "string"
                 },
+                "discount_rate": {
+                    "type": "number"
+                },
                 "image_url": {
                     "type": "string"
                 },
@@ -4412,6 +4415,9 @@
                 },
                 "description": {
                     "type": "string"
+                },
+                "discount_rate": {
+                    "type": "number"
                 },
                 "image_url": {
                     "type": "string"

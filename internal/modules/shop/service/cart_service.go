@@ -192,7 +192,7 @@ func buildCheckoutItems(ctx context.Context, lines []repository.UserCartLine, re
 	for i, line := range lines {
 		description := strings.TrimSpace(line.Description)
 		subname := strings.TrimSpace(line.Subname)
-		unitTax := utils.TaxAmountCents(line.PriceCents, line.TaxRateBps)
+		unitTax := line.UnitTaxCents()
 		item := dto.CheckoutLineItem{
 			ID:          line.ID,
 			ProductID:   line.ProductID,
@@ -201,9 +201,13 @@ func buildCheckoutItems(ctx context.Context, lines []repository.UserCartLine, re
 			Name:        line.Name,
 			Subname:     subname,
 			Description: description,
-			Price:       utils.FormatEuro(utils.TaxInclusiveCents(line.PriceCents, line.TaxRateBps)),
+			Price:       utils.FormatEuro(line.UnitGrossCents()),
 			ImageURL:    resolve(ctx, line.ImageKey),
 			Quantity:    line.Quantity,
+		}
+		if line.HasDiscount() {
+			item.OriginalPrice = utils.FormatEuro(utils.TaxInclusiveCents(line.PriceCents, line.TaxRateBps))
+			item.DiscountRate = utils.TaxRatePercent(line.DiscountRateBps)
 		}
 		if unitTax > 0 {
 			item.Tax = utils.FormatEuro(unitTax)
@@ -224,10 +228,10 @@ func basketGroupType(productType string) string {
 
 func sumCartMoney(lines []repository.UserCartLine) (grossCents, taxCents int64) {
 	for _, line := range lines {
-		unitGross := utils.TaxInclusiveCents(line.PriceCents, line.TaxRateBps)
+		unitGross := line.UnitGrossCents()
 		qty := int64(line.Quantity)
 		grossCents += unitGross * qty
-		taxCents += (unitGross - line.PriceCents) * qty
+		taxCents += line.UnitTaxCents() * qty
 	}
 	return grossCents, taxCents
 }

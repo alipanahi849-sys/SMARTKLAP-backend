@@ -4320,6 +4320,9 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "discount_rate": {
+                    "type": "number"
+                },
                 "image_url": {
                     "type": "string"
                 },
@@ -4415,6 +4418,9 @@ const docTemplate = `{
                 },
                 "description": {
                     "type": "string"
+                },
+                "discount_rate": {
+                    "type": "number"
                 },
                 "image_url": {
                     "type": "string"

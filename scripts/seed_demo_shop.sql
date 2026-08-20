@@ -514,6 +514,20 @@ UPDATE products SET
     updated_at = NOW()
 WHERE deleted_at IS NULL;
 
+-- Demo product discounts (percent off) so the app can show original vs sale price.
+UPDATE products SET
+    discount_rate_bps = CASE name
+        WHEN 'Sport T-shirt' THEN 2000
+        WHEN 'Away T-shirt' THEN 3000
+        WHEN 'Match Ball' THEN 1500
+        WHEN 'Double Burger' THEN 1000
+        WHEN 'Club Hot Dog' THEN 2500
+        WHEN 'Loaded Nachos' THEN 2000
+        ELSE 0
+    END,
+    updated_at = NOW()
+WHERE deleted_at IS NULL;
+
 -- Stock quantities: NULL = unlimited, 0 = out of stock.
 -- Applies to all active products (demo UUIDs + legacy rows by product name).
 UPDATE products SET stock_quantity = CASE name

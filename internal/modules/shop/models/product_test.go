@@ -56,3 +56,22 @@ func TestProduct_IsSoldOut(t *testing.T) {
 		})
 	}
 }
+
+func TestProduct_UnitGrossCentsAppliesDiscountThenTax(t *testing.T) {
+	t.Parallel()
+
+	p := Product{
+		PriceCents:      1000,
+		TaxRateBps:      1900,
+		DiscountRateBps: 2000,
+	}
+	if got := p.DiscountedNetCents(); got != 800 {
+		t.Fatalf("DiscountedNetCents() = %d, want 800", got)
+	}
+	if got := p.OriginalUnitGrossCents(); got != 1190 {
+		t.Fatalf("OriginalUnitGrossCents() = %d, want 1190", got)
+	}
+	if got := p.UnitGrossCents(); got != 952 {
+		t.Fatalf("UnitGrossCents() = %d, want 952", got)
+	}
+}

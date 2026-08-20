@@ -32,24 +32,25 @@ const (
 
 // Product is a shop catalog item (food or merch).
 type Product struct {
-	ID             uuid.UUID      `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	ProductType    string         `gorm:"type:varchar(20);not null;default:merch" json:"product_type"`
-	Name           string         `gorm:"type:varchar(200);not null" json:"name"`
-	Subname        string         `gorm:"type:varchar(200);not null;default:''" json:"subname"`
-	Description    string         `gorm:"type:text;not null;default:''" json:"description"`
-	Category       string         `gorm:"type:varchar(50);not null" json:"category"`
-	PriceCents     int64          `gorm:"not null" json:"price_cents"`
-	PricePoints    int            `gorm:"not null" json:"price_points"`
-	TaxRateBps     int            `gorm:"column:tax_rate_bps;not null;default:0" json:"tax_rate_bps"`
-	ImageKey       string         `gorm:"type:varchar(500);not null;default:''" json:"-"`
-	SellerName     string         `gorm:"type:varchar(200);not null;default:''" json:"seller_name"`
-	AvailableSizes string         `gorm:"type:jsonb;not null;default:'[]'" json:"available_sizes"`
-	StockQuantity  *int           `gorm:"column:stock_quantity" json:"stock_quantity"`
-	SoldOut        bool           `gorm:"column:sold_out;not null;default:false" json:"sold_out"`
-	IsActive       bool           `gorm:"not null;default:true" json:"is_active"`
-	CreatedAt      time.Time      `json:"created_at"`
-	UpdatedAt      time.Time      `json:"updated_at"`
-	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
+	ID              uuid.UUID      `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	ProductType     string         `gorm:"type:varchar(20);not null;default:merch" json:"product_type"`
+	Name            string         `gorm:"type:varchar(200);not null" json:"name"`
+	Subname         string         `gorm:"type:varchar(200);not null;default:''" json:"subname"`
+	Description     string         `gorm:"type:text;not null;default:''" json:"description"`
+	Category        string         `gorm:"type:varchar(50);not null" json:"category"`
+	PriceCents      int64          `gorm:"not null" json:"price_cents"`
+	PricePoints     int            `gorm:"not null" json:"price_points"`
+	TaxRateBps      int            `gorm:"column:tax_rate_bps;not null;default:0" json:"tax_rate_bps"`
+	DiscountRateBps int            `gorm:"column:discount_rate_bps;not null;default:0" json:"discount_rate_bps"`
+	ImageKey        string         `gorm:"type:varchar(500);not null;default:''" json:"-"`
+	SellerName      string         `gorm:"type:varchar(200);not null;default:''" json:"seller_name"`
+	AvailableSizes  string         `gorm:"type:jsonb;not null;default:'[]'" json:"available_sizes"`
+	StockQuantity   *int           `gorm:"column:stock_quantity" json:"stock_quantity"`
+	SoldOut         bool           `gorm:"column:sold_out;not null;default:false" json:"sold_out"`
+	IsActive        bool           `gorm:"not null;default:true" json:"is_active"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 func (Product) TableName() string {
@@ -71,9 +72,28 @@ func (p Product) InStock() bool {
 	return *p.StockQuantity > 0
 }
 
-// UnitGrossCents is the customer-facing EUR unit price including VAT.
-func (p Product) UnitGrossCents() int64 {
+func (p Product) HasDiscount() bool {
+	return p.DiscountRateBps > 0
+}
+
+// DiscountedNetCents is the catalog net after the product discount.
+func (p Product) DiscountedNetCents() int64 {
+	return utils.DiscountedAmount(p.PriceCents, p.DiscountRateBps)
+}
+
+// DiscountedPoints is the points price after the product discount.
+func (p Product) DiscountedPoints() int {
+	return utils.DiscountedPoints(p.PricePoints, p.DiscountRateBps)
+}
+
+// OriginalUnitGrossCents is the pre-discount EUR unit price including VAT.
+func (p Product) OriginalUnitGrossCents() int64 {
 	return utils.TaxInclusiveCents(p.PriceCents, p.TaxRateBps)
+}
+
+// UnitGrossCents is the customer-facing EUR unit price including VAT (after discount).
+func (p Product) UnitGrossCents() int64 {
+	return utils.TaxInclusiveCents(p.DiscountedNetCents(), p.TaxRateBps)
 }
 
 // IsSoldOut is true when limited inventory was depleted by orders (not admin zero-stock).

@@ -142,6 +142,8 @@ definitions:
         type: string
       description:
         type: string
+      discount_rate:
+        type: number
       image_url:
         type: string
       is_active:
@@ -208,6 +210,8 @@ definitions:
         type: string
       description:
         type: string
+      discount_rate:
+        type: number
       image_url:
         type: string
       is_active:

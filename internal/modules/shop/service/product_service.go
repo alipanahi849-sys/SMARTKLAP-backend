@@ -24,8 +24,8 @@ import (
 )
 
 const (
-	imageURLExpiry      = 6 * time.Hour
-	maxShopImageBytes   = 5 * 1024 * 1024
+	imageURLExpiry    = 6 * time.Hour
+	maxShopImageBytes = 5 * 1024 * 1024
 )
 
 var allowedShopImageMimeTypes = map[string]string{
@@ -64,12 +64,12 @@ type CartCounter interface {
 }
 
 type productService struct {
-	productRepo     repository.ProductRepository
-	sizeStockRepo   repository.ProductSizeStockRepository
-	userRepo        authrepo.UserRepository
-	storage         storage.StorageProvider
-	cartCounter     CartCounter
-	optimizer       optimize.Optimizer
+	productRepo   repository.ProductRepository
+	sizeStockRepo repository.ProductSizeStockRepository
+	userRepo      authrepo.UserRepository
+	storage       storage.StorageProvider
+	cartCounter   CartCounter
+	optimizer     optimize.Optimizer
 }
 
 func NewProductService(
@@ -171,15 +171,17 @@ func (s *productService) List(ctx context.Context, userID uuid.UUID, filters dto
 	items := make([]dto.ProductItem, len(products))
 	for i, p := range products {
 		items[i] = dto.ProductItem{
-			ID:          p.ID,
-			ProductType: p.ProductType,
-			Name:        p.Name,
-			Subname:     p.Subname,
-			Description: p.Description,
-			Price:       formatPrice(p, currency),
-			TaxRate:     utils.TaxRatePercent(p.TaxRateBps),
-			ImageURL:    s.resolveURL(ctx, p.ImageKey),
-			Stock:       buildProductStockInfo(&p, sizeStockMap[p.ID], ""),
+			ID:            p.ID,
+			ProductType:   p.ProductType,
+			Name:          p.Name,
+			Subname:       p.Subname,
+			Description:   p.Description,
+			Price:         formatPrice(p, currency),
+			OriginalPrice: formatOriginalPrice(p, currency),
+			TaxRate:       utils.TaxRatePercent(p.TaxRateBps),
+			DiscountRate:  utils.TaxRatePercent(p.DiscountRateBps),
+			ImageURL:      s.resolveURL(ctx, p.ImageKey),
+			Stock:         buildProductStockInfo(&p, sizeStockMap[p.ID], ""),
 		}
 	}
 
@@ -278,20 +280,26 @@ func (s *productService) Create(ctx context.Context, req *dto.CreateProductReque
 		return nil, err
 	}
 
+	discountRateBps, err := parseDiscountRate(req.DiscountRate)
+	if err != nil {
+		return nil, err
+	}
+
 	product := &models.Product{
-		ProductType:    productType,
-		Name:           name,
-		Subname:        subname,
-		Description:    strings.TrimSpace(req.Description),
-		Category:       category,
-		PriceCents:     req.PriceCents,
-		PricePoints:    req.PricePoints,
-		TaxRateBps:     taxRateBps,
-		ImageKey:       imageRef,
-		SellerName:     strings.TrimSpace(req.SellerName),
-		AvailableSizes: marshalAvailableSizes(sizes),
-		StockQuantity:  stockQuantity,
-		IsActive:       isActive,
+		ProductType:     productType,
+		Name:            name,
+		Subname:         subname,
+		Description:     strings.TrimSpace(req.Description),
+		Category:        category,
+		PriceCents:      req.PriceCents,
+		PricePoints:     req.PricePoints,
+		TaxRateBps:      taxRateBps,
+		DiscountRateBps: discountRateBps,
+		ImageKey:        imageRef,
+		SellerName:      strings.TrimSpace(req.SellerName),
+		AvailableSizes:  marshalAvailableSizes(sizes),
+		StockQuantity:   stockQuantity,
+		IsActive:        isActive,
 	}
 
 	if err := s.productRepo.Create(ctx, product); err != nil {
@@ -351,6 +359,11 @@ func (s *productService) Update(ctx context.Context, id uuid.UUID, req *dto.Upda
 		return nil, err
 	}
 
+	discountRateBps, err := parseDiscountRate(req.DiscountRate)
+	if err != nil {
+		return nil, err
+	}
+
 	if imageURL := strings.TrimSpace(req.ImageURL); imageURL != "" {
 		oldKey := product.ImageKey
 		product.ImageKey = imageURL
@@ -365,6 +378,7 @@ func (s *productService) Update(ctx context.Context, id uuid.UUID, req *dto.Upda
 	product.PriceCents = req.PriceCents
 	product.PricePoints = req.PricePoints
 	product.TaxRateBps = taxRateBps
+	product.DiscountRateBps = discountRateBps
 	product.SellerName = strings.TrimSpace(req.SellerName)
 	product.AvailableSizes = marshalAvailableSizes(sizes)
 	product.StockQuantity = stockQuantity
@@ -610,14 +624,16 @@ func toProductDetail(
 	filterSize string,
 ) *dto.ProductDetailResponse {
 	resp := &dto.ProductDetailResponse{
-		ID:          p.ID,
-		ProductType: p.ProductType,
-		Name:        p.Name,
-		Description: p.Description,
-		Price:       formatPrice(*p, currency),
-		TaxRate:     utils.TaxRatePercent(p.TaxRateBps),
-		ImageURL:    imageURL,
-		Stock:       buildProductStockInfo(p, sizeStocks, filterSize),
+		ID:            p.ID,
+		ProductType:   p.ProductType,
+		Name:          p.Name,
+		Description:   p.Description,
+		Price:         formatPrice(*p, currency),
+		OriginalPrice: formatOriginalPrice(*p, currency),
+		TaxRate:       utils.TaxRatePercent(p.TaxRateBps),
+		DiscountRate:  utils.TaxRatePercent(p.DiscountRateBps),
+		ImageURL:      imageURL,
+		Stock:         buildProductStockInfo(p, sizeStocks, filterSize),
 	}
 	if p.Subname != "" {
 		resp.Subname = p.Subname
@@ -669,9 +685,19 @@ func filterAvailableSizes(raw, size string) ([]string, error) {
 
 func formatPrice(p models.Product, currency string) string {
 	if currency == dto.CurrencyPoint {
-		return utils.FormatPoints(p.PricePoints)
+		return utils.FormatPoints(p.DiscountedPoints())
 	}
 	return utils.FormatEuro(p.UnitGrossCents())
+}
+
+func formatOriginalPrice(p models.Product, currency string) string {
+	if !p.HasDiscount() {
+		return ""
+	}
+	if currency == dto.CurrencyPoint {
+		return utils.FormatPoints(p.PricePoints)
+	}
+	return utils.FormatEuro(p.OriginalUnitGrossCents())
 }
 
 func parseTaxRate(raw *float64) (int, error) {
@@ -679,6 +705,17 @@ func parseTaxRate(raw *float64) (int, error) {
 		return 0, errors.NewBadRequest("tax_rate is required", nil)
 	}
 	bps, err := utils.TaxRateBpsFromPercent(*raw)
+	if err != nil {
+		return 0, errors.NewBadRequest(err.Error(), nil)
+	}
+	return bps, nil
+}
+
+func parseDiscountRate(raw *float64) (int, error) {
+	if raw == nil {
+		return 0, nil
+	}
+	bps, err := utils.DiscountRateBpsFromPercent(*raw)
 	if err != nil {
 		return 0, errors.NewBadRequest(err.Error(), nil)
 	}

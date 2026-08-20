@@ -37,18 +37,20 @@ type BasketOrderItem struct {
 
 // CheckoutLineItem is one full cart row for the Checkout screen.
 type CheckoutLineItem struct {
-	ID          uuid.UUID `json:"id"`
-	ProductID   uuid.UUID `json:"product_id"`
-	ProductType string    `json:"product_type"`
-	Size        string    `json:"size,omitempty"`
-	Name        string    `json:"name"`
-	Subname     string    `json:"subname,omitempty"`
-	Description string    `json:"description,omitempty"`
-	Price       string    `json:"price"`
-	Tax         string    `json:"tax,omitempty"`
-	TaxRate     float64   `json:"tax_rate,omitempty"`
-	ImageURL    string    `json:"image_url"`
-	Quantity    int       `json:"quantity"`
+	ID            uuid.UUID `json:"id"`
+	ProductID     uuid.UUID `json:"product_id"`
+	ProductType   string    `json:"product_type"`
+	Size          string    `json:"size,omitempty"`
+	Name          string    `json:"name"`
+	Subname       string    `json:"subname,omitempty"`
+	Description   string    `json:"description,omitempty"`
+	Price         string    `json:"price"`
+	OriginalPrice string    `json:"original_price,omitempty"`
+	Tax           string    `json:"tax,omitempty"`
+	TaxRate       float64   `json:"tax_rate,omitempty"`
+	DiscountRate  float64   `json:"discount_rate,omitempty"`
+	ImageURL      string    `json:"image_url"`
+	Quantity      int       `json:"quantity"`
 }
 
 // BasketOrder groups cart lines by product type for the Basket screen.

@@ -323,8 +323,8 @@ func (s *orderService) CreateOrder(ctx context.Context, userID uuid.UUID, req *d
 			Size:        line.Size,
 			Name:        line.Name,
 			Subname:     subname,
-			PriceCents:  utils.TaxInclusiveCents(line.PriceCents, line.TaxRateBps),
-			PricePoints: line.PricePoints,
+			PriceCents:  line.UnitGrossCents(),
+			PricePoints: line.Points(),
 			Quantity:    line.Quantity,
 		}
 	}
@@ -373,11 +373,11 @@ func (s *orderService) loadCartTotals(ctx context.Context, userID uuid.UUID, del
 	var subtotalCents, taxCents int64
 	var subtotalPoints int
 	for _, line := range lines {
-		unitGross := utils.TaxInclusiveCents(line.PriceCents, line.TaxRateBps)
+		unitGross := line.UnitGrossCents()
 		qty := int64(line.Quantity)
 		subtotalCents += unitGross * qty
-		taxCents += (unitGross - line.PriceCents) * qty
-		subtotalPoints += line.PricePoints * line.Quantity
+		taxCents += line.UnitTaxCents() * qty
+		subtotalPoints += line.Points() * line.Quantity
 	}
 
 	totalCents, totalPoints := applyPickupDiscount(subtotalCents, subtotalPoints, deliveryMethod)

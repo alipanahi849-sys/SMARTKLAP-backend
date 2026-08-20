@@ -6,6 +6,7 @@ import (
 
 	"clap/internal/modules/shop/models"
 	"clap/internal/shared/errors"
+	"clap/internal/shared/utils"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -35,13 +36,34 @@ type CartRepository interface {
 // UserCartLine is a cart row joined with its product for basket display.
 type UserCartLine struct {
 	models.CartItem
-	ImageKey    string
-	Name        string
-	Subname     string
-	Description string
-	PriceCents  int64
-	PricePoints int
-	TaxRateBps  int
+	ImageKey        string
+	Name            string
+	Subname         string
+	Description     string
+	PriceCents      int64
+	PricePoints     int
+	TaxRateBps      int
+	DiscountRateBps int
+}
+
+func (l UserCartLine) HasDiscount() bool {
+	return l.DiscountRateBps > 0
+}
+
+func (l UserCartLine) NetCents() int64 {
+	return utils.DiscountedAmount(l.PriceCents, l.DiscountRateBps)
+}
+
+func (l UserCartLine) UnitGrossCents() int64 {
+	return utils.TaxInclusiveCents(l.NetCents(), l.TaxRateBps)
+}
+
+func (l UserCartLine) UnitTaxCents() int64 {
+	return utils.TaxAmountCents(l.NetCents(), l.TaxRateBps)
+}
+
+func (l UserCartLine) Points() int {
+	return utils.DiscountedPoints(l.PricePoints, l.DiscountRateBps)
 }
 
 type cartRepository struct {
@@ -69,7 +91,7 @@ func (r *cartRepository) FindLine(ctx context.Context, userID, productID uuid.UU
 func (r *cartRepository) userLinesQueryCtx(ctx context.Context, userID uuid.UUID) *gorm.DB {
 	return r.db.WithContext(ctx).
 		Table("cart_items").
-		Select("cart_items.*, products.image_key, products.name, products.subname, products.description, products.price_cents, products.price_points, products.tax_rate_bps").
+		Select("cart_items.*, products.image_key, products.name, products.subname, products.description, products.price_cents, products.price_points, products.tax_rate_bps, products.discount_rate_bps").
 		Joins("INNER JOIN products ON products.id = cart_items.product_id AND products.deleted_at IS NULL AND products.is_active = ?", true).
 		Where("cart_items.user_id = ?", userID)
 }
@@ -122,7 +144,7 @@ func (r *cartRepository) SumSubtotalCents(ctx context.Context, userID uuid.UUID)
 	var total int64
 	err := r.db.WithContext(ctx).
 		Table("cart_items").
-		Select("COALESCE(SUM(((products.price_cents * (10000 + products.tax_rate_bps) + 5000) / 10000) * cart_items.quantity), 0)").
+		Select("COALESCE(SUM(((((products.price_cents * (10000 - products.discount_rate_bps) + 5000) / 10000) * (10000 + products.tax_rate_bps) + 5000) / 10000) * cart_items.quantity), 0)").
 		Joins("INNER JOIN products ON products.id = cart_items.product_id AND products.deleted_at IS NULL AND products.is_active = ?", true).
 		Where("cart_items.user_id = ?", userID).
 		Scan(&total).Error
@@ -136,7 +158,7 @@ func (r *cartRepository) SumSubtotalPoints(ctx context.Context, userID uuid.UUID
 	var total int64
 	err := r.db.WithContext(ctx).
 		Table("cart_items").
-		Select("COALESCE(SUM(products.price_points * cart_items.quantity), 0)").
+		Select("COALESCE(SUM(((products.price_points * (10000 - products.discount_rate_bps) + 5000) / 10000) * cart_items.quantity), 0)").
 		Joins("INNER JOIN products ON products.id = cart_items.product_id AND products.deleted_at IS NULL AND products.is_active = ?", true).
 		Where("cart_items.user_id = ?", userID).
 		Scan(&total).Error
