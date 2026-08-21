@@ -769,6 +769,10 @@ func TestChant_ProgramListsMatchChantsUntilTheyAreSettled(t *testing.T) {
 	if resp.Items[0].IsDone || resp.Items[0].Points != 250 {
 		t.Fatalf("a chant still to sing must be pending and worth the online points: %+v", resp.Items[0])
 	}
+	// The card names the moment the crowd picks the chant up.
+	if resp.Items[0].StartsAt == nil || !resp.Items[0].StartsAt.Equal(first.ScheduledAt) {
+		t.Fatalf("a pending chant must carry its schedule: %+v", resp.Items[0])
+	}
 
 	for _, chant := range []*chantmodels.Chant{first, second} {
 		if _, err := svc.Complete(context.Background(), userID, chant.ID, chantmodels.SourceOnline); err != nil {

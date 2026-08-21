@@ -446,11 +446,13 @@ func (s *chantService) Program(ctx context.Context, userID uuid.UUID, limit int)
 			return nil, pendingErr
 		}
 		for _, chant := range pending {
+			startsAt := chant.ScheduledAt
 			items = append(items, dto.ChantProgramItem{
-				ID:     chant.ID.String(),
-				Title:  chant.Title,
-				Points: points.online,
-				IsDone: false,
+				ID:       chant.ID.String(),
+				Title:    chant.Title,
+				Points:   points.online,
+				IsDone:   false,
+				StartsAt: &startsAt,
 			})
 		}
 	}

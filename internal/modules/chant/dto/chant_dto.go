@@ -97,8 +97,11 @@ type ChantProgramItem struct {
 	IsDone bool   `json:"is_done"`
 	// IsCancelled marks an attempt the fan walked out of. Such a row is settled
 	// like a completion — it is simply worth nothing.
-	IsCancelled bool       `json:"is_cancelled"`
-	IsNew       bool       `json:"is_new"`
+	IsCancelled bool `json:"is_cancelled"`
+	IsNew       bool `json:"is_new"`
+	// StartsAt is the schedule of a chant still to sing, so the card can say
+	// when the crowd picks it up. Settled rows carry CompletedAt instead.
+	StartsAt    *time.Time `json:"starts_at,omitempty"`
 	CompletedAt *time.Time `json:"completed_at,omitempty"`
 }
 
