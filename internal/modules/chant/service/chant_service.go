@@ -430,51 +430,51 @@ func (s *chantService) Program(ctx context.Context, userID uuid.UUID, limit int)
 		return nil, err
 	}
 
-	feed, err := s.chantRepo.TodayProgramFeed(ctx, userID, limit)
+	// What the fan still has to sing leads the card, soonest first. The pending
+	// rows are scoped to the match the Chants screen is showing — the live one,
+	// else the next fixture — so chants defined ahead of kickoff are listed
+	// instead of surfacing only on the day they are scheduled. Each one leaves
+	// the list the moment it is settled, whether sung or walked out of.
+	items := make([]dto.ChantProgramItem, 0, limit)
+	match, err := s.resolveMatch(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-
-	now := time.Now().UTC()
-	items := make([]dto.ChantProgramItem, 0, limit)
-	for _, row := range feed {
-		completedAt := row.CreatedAt
-		cancelled := row.Status == models.StatusCancelled
-		items = append(items, dto.ChantProgramItem{
-			ID:     row.ID.String(),
-			Title:  row.Title,
-			Points: row.PointsEarned,
-			// A cancelled attempt is settled but never sung, so it is not "done".
-			IsDone:      !cancelled,
-			IsCancelled: cancelled,
-			IsNew:       now.Sub(completedAt.UTC()) <= programNewWindow,
-			CompletedAt: &completedAt,
-		})
+	if match != nil {
+		pending, pendingErr := s.chantRepo.PendingChantsForMatch(ctx, userID, match.ID, limit)
+		if pendingErr != nil {
+			return nil, pendingErr
+		}
+		for _, chant := range pending {
+			items = append(items, dto.ChantProgramItem{
+				ID:     chant.ID.String(),
+				Title:  chant.Title,
+				Points: points.online,
+				IsDone: false,
+			})
+		}
 	}
 
-	// Fill the rest of the card with what this user still has to sing. The
-	// pending rows are scoped to the match the Chants screen is showing — the
-	// live one, else the next fixture — so chants defined ahead of kickoff are
-	// listed instead of surfacing only on the day they are scheduled. Each one
-	// leaves the list the moment it is settled, whether sung or walked out of.
+	// Today's settled attempts fill whatever room is left, oldest first.
+	now := time.Now().UTC()
 	if remaining := limit - len(items); remaining > 0 {
-		match, matchErr := s.resolveMatch(ctx, nil)
-		if matchErr != nil {
-			return nil, matchErr
+		feed, feedErr := s.chantRepo.TodayProgramFeed(ctx, userID, remaining)
+		if feedErr != nil {
+			return nil, feedErr
 		}
-		if match != nil {
-			pending, pendingErr := s.chantRepo.PendingChantsForMatch(ctx, userID, match.ID, remaining)
-			if pendingErr != nil {
-				return nil, pendingErr
-			}
-			for _, chant := range pending {
-				items = append(items, dto.ChantProgramItem{
-					ID:     chant.ID.String(),
-					Title:  chant.Title,
-					Points: points.online,
-					IsDone: false,
-				})
-			}
+		for _, row := range feed {
+			completedAt := row.CreatedAt
+			cancelled := row.Status == models.StatusCancelled
+			items = append(items, dto.ChantProgramItem{
+				ID:     row.ID.String(),
+				Title:  row.Title,
+				Points: row.PointsEarned,
+				// A cancelled attempt is settled but never sung, so it is not "done".
+				IsDone:      !cancelled,
+				IsCancelled: cancelled,
+				IsNew:       now.Sub(completedAt.UTC()) <= programNewWindow,
+				CompletedAt: &completedAt,
+			})
 		}
 	}
 

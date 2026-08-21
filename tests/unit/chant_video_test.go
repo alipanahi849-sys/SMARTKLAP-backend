@@ -779,12 +779,12 @@ func TestChant_ProgramListsMatchChantsUntilTheyAreSettled(t *testing.T) {
 	if len(resp.Items) != 2 {
 		t.Fatalf("expected the sung chant plus the one left to sing, got %+v", resp.Items)
 	}
-	// The card reads as a timeline: what already happened, then what is coming.
-	if resp.Items[0].Title != "Chant one" || !resp.Items[0].IsDone {
-		t.Fatalf("the settled chant must come first: %+v", resp.Items[0])
+	// What is left to sing leads the card; the day's history sits under it.
+	if resp.Items[0].ID != second.ID.String() || resp.Items[0].IsDone {
+		t.Fatalf("the unsung chant must lead the programme: %+v", resp.Items[0])
 	}
-	if resp.Items[1].ID != second.ID.String() || resp.Items[1].IsDone {
-		t.Fatalf("the unsung chant must follow it: %+v", resp.Items[1])
+	if resp.Items[1].Title != "Chant one" || !resp.Items[1].IsDone {
+		t.Fatalf("the settled chant must follow it: %+v", resp.Items[1])
 	}
 }
 
