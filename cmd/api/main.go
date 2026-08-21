@@ -327,6 +327,7 @@ func setupRouter(deps routerDeps) *gin.Engine {
 	router.Use(middleware.CORS())
 
 	router.GET("/health", healthCheck)
+	mountMailHogUI(router)
 
 	// Disk-backed uploads are served from /uploads (local provider, or R2 fallback).
 	if config.AppConfig != nil {

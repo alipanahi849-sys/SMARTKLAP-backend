@@ -57,10 +57,7 @@ services:
       - key: STRIPE_APP_URL_SCHEME
         value: smartklap
       - key: SMTP_HOST
-        fromService:
-          type: web
-          name: clap-mailhog
-          property: host
+        value: "127.0.0.1"
       - key: SMTP_PORT
         value: "1025"
       - key: SMTP_FROM
@@ -69,6 +66,8 @@ services:
         value: Clap
       - key: SMTP_USE_TLS
         value: "false"
+      - key: MAILHOG_UI
+        value: "1"
 
   - type: web
     name: clap-mailhog

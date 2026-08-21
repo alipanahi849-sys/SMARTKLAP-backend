@@ -25,7 +25,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/api
 # Final stage
 FROM alpine:latest
 
-RUN apk --no-cache add ca-certificates tzdata ffmpeg postgresql-client
+RUN apk --no-cache add ca-certificates tzdata ffmpeg postgresql-client wget \
+    && wget -qO /usr/local/bin/MailHog https://github.com/mailhog/MailHog/releases/download/v1.0.1/MailHog_linux_amd64 \
+    && chmod +x /usr/local/bin/MailHog
 
 WORKDIR /root/
 
