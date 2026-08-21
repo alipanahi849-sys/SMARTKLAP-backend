@@ -25,7 +25,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/api
 # Final stage
 FROM alpine:latest
 
-RUN apk --no-cache add ca-certificates tzdata ffmpeg
+RUN apk --no-cache add ca-certificates tzdata ffmpeg postgresql-client
 
 WORKDIR /root/
 
@@ -35,8 +35,14 @@ COPY --from=builder /app/main .
 # Copy config files
 COPY --from=builder /app/internal/shared/config/config.yaml ./config/
 
+# SQL migrations run on container start (Render has no separate migrate service)
+COPY --from=builder /app/pkg/migrations ./migrations
+COPY --from=builder /app/scripts/migrate_and_seed.sh ./migrate_and_seed.sh
+COPY --from=builder /app/scripts/docker_entrypoint.sh ./docker_entrypoint.sh
+RUN chmod +x ./main ./migrate_and_seed.sh ./docker_entrypoint.sh
+
 # Expose port
 EXPOSE 8080
 
 # Run the application
-CMD ["./main"]
+CMD ["./docker_entrypoint.sh"]

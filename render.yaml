@@ -1,0 +1,75 @@
+# Render Blueprint for the SMARTKLAP / Clap API.
+# Dashboard: New > Blueprint > this repo (SMARTKLAP-backend), then Deploy.
+# Region: Frankfurt (closest to Iran). Web service stays on Starter so
+# WebSockets are not killed by free-plan spin-down.
+
+services:
+  - type: web
+    name: clap-api
+    runtime: docker
+    plan: starter
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    maxShutdownDelaySeconds: 120
+    disk:
+      name: clap-uploads
+      mountPath: /data/uploads
+      sizeGB: 5
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: SERVER_MODE
+        value: release
+      - key: STORAGE_PROVIDER
+        value: local
+      - key: STORAGE_LOCAL_ROOT
+        value: /data/uploads
+      - key: STORAGE_LOCAL_PUBLIC_URL
+        value: /uploads
+      - key: CORS_ALLOWED_ORIGINS
+        value: "*"
+      - key: JWT_ISSUER
+        value: clap
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: clap-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: clap-redis
+          property: connectionString
+      - key: GOOGLE_CLIENT_IDS
+        value: 342432233670-t023fjm106ff69d4c6p26od5eud5ms3g.apps.googleusercontent.com
+      - key: APPLE_CLIENT_IDS
+        value: com.say1035.SMARTKLAP
+      - key: NEWS_API_KEY
+        value: test
+      - key: NEWS_API_BASE_URL
+        value: https://content.guardianapis.com
+      - key: FOOTBALL_API_BASE_URL
+        value: https://v3.football.api-sports.io
+      - key: STRIPE_APP_URL_SCHEME
+        value: smartklap
+
+  - type: keyvalue
+    name: clap-redis
+    plan: starter
+    region: frankfurt
+    ipAllowList: []
+    maxmemoryPolicy: noeviction
+    persistenceMode: journal-snapshot
+
+databases:
+  - name: clap-db
+    databaseName: clap
+    user: clap
+    plan: basic-256mb
+    region: frankfurt
+    postgresMajorVersion: "16"
+    ipAllowList: []

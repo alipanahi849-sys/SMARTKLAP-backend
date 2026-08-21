@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -118,6 +119,9 @@ type Server struct {
 }
 
 type Database struct {
+	// URL is the full Postgres connection string (Render DATABASE_URL). When
+	// set, GetDSN returns it instead of assembling fields.
+	URL             string `mapstructure:"url"`
 	Host            string `mapstructure:"host"`
 	Port            string `mapstructure:"port"`
 	User            string `mapstructure:"user"`
@@ -130,6 +134,9 @@ type Database struct {
 }
 
 type Redis struct {
+	// URL is the full Redis connection string (Render REDIS_URL). When set,
+	// the Redis client parses it directly.
+	URL      string `mapstructure:"url"`
 	Host     string `mapstructure:"host"`
 	Port     string `mapstructure:"port"`
 	Password string `mapstructure:"password"`
@@ -242,13 +249,14 @@ func LoadFromEnv() error {
 	AppConfig = &Config{
 		Environment: getEnv("ENVIRONMENT", "development"),
 		Server: Server{
-			Port:           getEnv("SERVER_PORT", "8080"),
+			Port:           firstNonEmpty(os.Getenv("PORT"), os.Getenv("SERVER_PORT"), "8080"),
 			Mode:           getEnv("SERVER_MODE", "debug"),
 			ReadTimeout:    60,
 			WriteTimeout:   60,
 			RequestTimeout: getEnvAsInt("REQUEST_TIMEOUT_SECONDS", 30),
 		},
 		Database: Database{
+			URL:             os.Getenv("DATABASE_URL"),
 			Host:            getEnv("DB_HOST", "localhost"),
 			Port:            getEnv("DB_PORT", "5432"),
 			User:            getEnv("DB_USER", "postgres"),
@@ -260,6 +268,7 @@ func LoadFromEnv() error {
 			ConnMaxLifetime: 3600,
 		},
 		Redis: Redis{
+			URL:      os.Getenv("REDIS_URL"),
 			Host:     getEnv("REDIS_HOST", "localhost"),
 			Port:     getEnv("REDIS_PORT", "6379"),
 			Password: getEnv("REDIS_PASSWORD", ""),
@@ -306,7 +315,7 @@ func LoadFromEnv() error {
 			ShutdownDrainTimeoutSeconds:   getEnvAsInt("REALTIME_SHUTDOWN_DRAIN_TIMEOUT_SECONDS", 0),
 		},
 		SMTP: SMTP{
-			Host:     getEnv("SMTP_HOST", "localhost"),
+			Host:     getEnv("SMTP_HOST", ""),
 			Port:     getEnv("SMTP_PORT", "1025"),
 			Username: getEnv("SMTP_USERNAME", ""),
 			Password: getEnv("SMTP_PASSWORD", ""),
@@ -341,6 +350,10 @@ func LoadFromEnv() error {
 			APIKey:  getEnv("NEWS_API_KEY", "test"),
 			BaseURL: getEnv("NEWS_API_BASE_URL", "https://content.guardianapis.com"),
 		},
+	}
+
+	if err := applyConnectionURLs(AppConfig); err != nil {
+		return err
 	}
 
 	applyRealtimeDefaults(AppConfig)
@@ -497,10 +510,86 @@ func getEnvAsBool(key string, defaultValue bool) bool {
 
 func GetDSN() string {
 	cfg := AppConfig.Database
+	if strings.TrimSpace(cfg.URL) != "" {
+		return cfg.URL
+	}
 	return fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.DBName, cfg.SSLMode,
 	)
+}
+
+// applyConnectionURLs overlays DATABASE_URL / REDIS_URL onto structured fields
+// so Render and other hosts that only inject connection strings still work.
+func applyConnectionURLs(cfg *Config) error {
+	if raw := strings.TrimSpace(cfg.Database.URL); raw != "" {
+		normalized, err := parsePostgresURL(raw)
+		if err != nil {
+			return fmt.Errorf("invalid DATABASE_URL: %w", err)
+		}
+		normalized.MaxOpenConns = cfg.Database.MaxOpenConns
+		normalized.MaxIdleConns = cfg.Database.MaxIdleConns
+		normalized.ConnMaxLifetime = cfg.Database.ConnMaxLifetime
+		cfg.Database = normalized
+	}
+	if raw := strings.TrimSpace(cfg.Redis.URL); raw != "" {
+		u, err := url.Parse(raw)
+		if err != nil {
+			return fmt.Errorf("invalid REDIS_URL: %w", err)
+		}
+		cfg.Redis.Host = u.Hostname()
+		if port := u.Port(); port != "" {
+			cfg.Redis.Port = port
+		}
+		if u.User != nil {
+			if pw, ok := u.User.Password(); ok {
+				cfg.Redis.Password = pw
+			}
+		}
+	}
+	return nil
+}
+
+func parsePostgresURL(raw string) (Database, error) {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return Database{}, err
+	}
+	if u.Scheme != "postgres" && u.Scheme != "postgresql" {
+		return Database{}, fmt.Errorf("unsupported scheme %q", u.Scheme)
+	}
+
+	q := u.Query()
+	sslMode := q.Get("sslmode")
+	if sslMode == "" {
+		sslMode = "require"
+		q.Set("sslmode", sslMode)
+		u.RawQuery = q.Encode()
+	}
+
+	password := ""
+	userName := ""
+	if u.User != nil {
+		userName = u.User.Username()
+		password, _ = u.User.Password()
+	}
+	dbName := strings.TrimPrefix(u.Path, "/")
+	if i := strings.Index(dbName, "/"); i >= 0 {
+		dbName = dbName[:i]
+	}
+
+	return Database{
+		URL:             u.String(),
+		Host:            u.Hostname(),
+		Port:            firstNonEmpty(u.Port(), "5432"),
+		User:            userName,
+		Password:        password,
+		DBName:          dbName,
+		SSLMode:         sslMode,
+		MaxOpenConns:    100,
+		MaxIdleConns:    10,
+		ConnMaxLifetime: 3600,
+	}, nil
 }
 
 func GetRedisAddr() string {

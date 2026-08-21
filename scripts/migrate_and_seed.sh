@@ -17,10 +17,18 @@ SKIP_SEED="${SKIP_SEED:-0}"
 export PGPASSWORD="$DB_PASSWORD"
 
 psql_cmd() {
-	psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 "$@"
+	if [ -n "${DATABASE_URL:-}" ]; then
+		psql "$DATABASE_URL" -v ON_ERROR_STOP=1 "$@"
+	else
+		psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 "$@"
+	fi
 }
 
-echo "Waiting for PostgreSQL at ${DB_HOST}:${DB_PORT}..."
+if [ -n "${DATABASE_URL:-}" ]; then
+	echo "Waiting for PostgreSQL via DATABASE_URL..."
+else
+	echo "Waiting for PostgreSQL at ${DB_HOST}:${DB_PORT}..."
+fi
 i=0
 until psql_cmd -c '\q' >/dev/null 2>&1; do
 	i=$((i + 1))

@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"clap/internal/shared/config"
@@ -15,11 +16,11 @@ var Client *redis.Client
 var Ctx = context.Background()
 
 func Init() error {
-	Client = redis.NewClient(&redis.Options{
-		Addr:     config.GetRedisAddr(),
-		Password: config.AppConfig.Redis.Password,
-		DB:       config.AppConfig.Redis.DB,
-	})
+	opts, err := redisOptions()
+	if err != nil {
+		return err
+	}
+	Client = redis.NewClient(opts)
 
 	ctx, cancel := context.WithTimeout(Ctx, 5*time.Second)
 	defer cancel()
@@ -47,6 +48,21 @@ func Close() error {
 
 func GetClient() *redis.Client {
 	return Client
+}
+
+func redisOptions() (*redis.Options, error) {
+	if url := strings.TrimSpace(config.AppConfig.Redis.URL); url != "" {
+		opts, err := redis.ParseURL(url)
+		if err != nil {
+			return nil, fmt.Errorf("invalid REDIS_URL: %w", err)
+		}
+		return opts, nil
+	}
+	return &redis.Options{
+		Addr:     config.GetRedisAddr(),
+		Password: config.AppConfig.Redis.Password,
+		DB:       config.AppConfig.Redis.DB,
+	}, nil
 }
 
 func HealthCheck() error {
