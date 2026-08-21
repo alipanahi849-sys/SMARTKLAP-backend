@@ -33,8 +33,7 @@ const (
 
 const audioURLExpiry = 2 * time.Hour
 
-// catalogSectionTitle heads the predefined song library, kept separate from the
-// scheduled online chants above it.
+// catalogSectionTitle heads the predefined song library on the Chants screen.
 const catalogSectionTitle = "All chants"
 
 // Catalog songs have no per-chant feedback tuning, so they use the same
@@ -138,109 +137,30 @@ func (s *chantService) List(ctx context.Context, userID uuid.UUID, filters dto.C
 	if limit <= 0 {
 		limit = 20
 	}
-	points := s.points(ctx)
 
-	sections, matchTitle, meta, err := s.onlineSections(ctx, userID, filters, limit, points.online)
+	// Scheduled online chants live on the Home programme. This screen is the
+	// catalog: every defined song, whether or not a match is on.
+	sections := make([]dto.ChantSection, 0, 1)
+	catalog, err := s.catalogSection(ctx, userID, filters.Search, limit, s.points(ctx).song)
 	if err != nil {
 		return nil, err
 	}
-
-	// The catalog is the same on every page, so it only rides along on the first.
-	if filters.Cursor == nil {
-		catalog, catalogErr := s.catalogSection(ctx, userID, filters.Search, limit, points.song)
-		if catalogErr != nil {
-			return nil, catalogErr
-		}
-		if catalog != nil {
-			sections = append(sections, *catalog)
-		}
+	if catalog != nil {
+		sections = append(sections, *catalog)
 	}
 
-	return &dto.ChantListResponse{MatchTitle: matchTitle, Sections: sections, Meta: meta}, nil
-}
-
-// onlineSections lists the match's scheduled chants as one untitled block.
-// Day buckets ("Todays chants") belong on the Home programme, not here.
-func (s *chantService) onlineSections(
-	ctx context.Context,
-	userID uuid.UUID,
-	filters dto.ChantListFilters,
-	limit int,
-	onlinePoints int,
-) ([]dto.ChantSection, string, dto.ChantListMeta, error) {
-	sections := make([]dto.ChantSection, 0, 4)
-	meta := dto.ChantListMeta{Limit: limit, HasMore: false}
-
-	match, err := s.resolveMatch(ctx, filters.MatchID)
-	if err != nil {
-		return nil, "", meta, err
-	}
-	if match == nil {
-		return sections, "", meta, nil
+	matchTitle := ""
+	if match, matchErr := s.resolveMatch(ctx, filters.MatchID); matchErr != nil {
+		return nil, matchErr
+	} else if match != nil {
+		matchTitle = match.HomeClub.Name + " - " + match.AwayClub.Name + "'s chants"
 	}
 
-	var after *repository.ChantCursorAnchor
-	if filters.Cursor != nil {
-		cursorChant, cursorErr := s.chantRepo.FindByID(ctx, *filters.Cursor)
-		if cursorErr != nil {
-			return nil, "", meta, errors.NewBadRequest("Invalid cursor", nil)
-		}
-		if cursorChant.MatchID != match.ID {
-			return nil, "", meta, errors.NewBadRequest("Invalid cursor", nil)
-		}
-		after = &repository.ChantCursorAnchor{
-			ScheduledAt: cursorChant.ScheduledAt,
-			ID:          cursorChant.ID,
-		}
-	}
-
-	chants, err := s.chantRepo.FindByMatchAfter(ctx, match.ID, filters.Search, limit+1, after)
-	if err != nil {
-		return nil, "", meta, err
-	}
-
-	hasMore := len(chants) > limit
-	if hasMore {
-		chants = chants[:limit]
-	}
-
-	chantIDs := make([]uuid.UUID, len(chants))
-	for i, c := range chants {
-		chantIDs[i] = c.ID
-	}
-	done, err := s.chantRepo.CompletedChantIDs(ctx, userID, chantIDs)
-	if err != nil {
-		return nil, "", meta, err
-	}
-
-	items := make([]dto.ChantItem, 0, len(chants))
-	for _, c := range chants {
-		items = append(items, dto.ChantItem{
-			ID:              c.ID,
-			SongID:          c.SongID,
-			Title:           c.Title,
-			SongPoints:      onlinePoints,
-			DurationSeconds: chantDuration(&c),
-			IsDone:          done[c.ID],
-			// Every defined online chant is playable from this screen whatever its
-			// schedule says, so it is never the silent lyrics-only view. The live
-			// synced run is still entered from the countdown, not from here.
-			IsPreview: false,
-			Source:    models.SourceOnline,
-		})
-	}
-
-	if len(items) > 0 {
-		sections = append(sections, dto.ChantSection{Items: items})
-	}
-
-	meta.HasMore = hasMore
-	if hasMore && len(chants) > 0 {
-		lastID := chants[len(chants)-1].ID
-		meta.NextCursor = &lastID
-	}
-
-	return sections, match.HomeClub.Name + " - " + match.AwayClub.Name + "'s chants", meta, nil
+	return &dto.ChantListResponse{
+		MatchTitle: matchTitle,
+		Sections:   sections,
+		Meta:       dto.ChantListMeta{Limit: limit, HasMore: false},
+	}, nil
 }
 
 // catalogSection lists the predefined song library. It is independent of any

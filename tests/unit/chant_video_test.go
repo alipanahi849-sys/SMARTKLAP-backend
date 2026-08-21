@@ -639,33 +639,19 @@ func TestChant_ListGroupsIntoSections(t *testing.T) {
 	matchRepo := newStubMatchRepo()
 	svc := newChantService(chantRepo, matchRepo)
 
-	match := newScheduledMatch(matchRepo, time.Now().Add(2*time.Hour))
-	chantRepo.chants[uuid.New()] = &chantmodels.Chant{
-		ID:          uuid.New(),
-		MatchID:     match.ID,
-		Title:       "Today chant",
-		ScheduledAt: time.Now().UTC().Add(time.Hour),
-	}
-	for id, c := range chantRepo.chants {
-		c.ID = id
-	}
+	song := &songmodels.Song{ID: uuid.New(), Title: "Library song", Duration: 120, IsActive: true}
+	chantRepo.songs[song.ID] = song
 
-	resp, err := svc.List(context.Background(), uuid.New(), chantdto.ChantListFilters{
-		MatchID: &match.ID,
-		Limit:   20,
-	})
+	resp, err := svc.List(context.Background(), uuid.New(), chantdto.ChantListFilters{Limit: 20})
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
-	if len(resp.Sections) == 0 {
-		t.Fatal("expected at least one section")
-	}
-	if resp.Sections[0].Title != "" {
-		t.Fatalf("online chants must not carry a day heading, got %q", resp.Sections[0].Title)
+	if len(resp.Sections) != 1 || resp.Sections[0].Title != "All chants" {
+		t.Fatalf("expected only the catalog section, got %+v", resp.Sections)
 	}
 }
 
-func TestChant_ListSeparatesCatalogFromOnlineChants(t *testing.T) {
+func TestChant_ListKeepsScheduledChantsOffTheCatalog(t *testing.T) {
 	chantRepo := newStubChantRepo()
 	matchRepo := newStubMatchRepo()
 	svc := newChantService(chantRepo, matchRepo)
@@ -692,31 +678,19 @@ func TestChant_ListSeparatesCatalogFromOnlineChants(t *testing.T) {
 		t.Fatalf("List failed: %v", err)
 	}
 
-	var online, catalog *chantdto.ChantItem
-	for _, section := range resp.Sections {
-		for i, item := range section.Items {
-			switch item.Source {
-			case chantmodels.SourceOnline:
-				online = &section.Items[i]
-			case chantmodels.SourceCatalog:
-				catalog = &section.Items[i]
-			}
+	if len(resp.Sections) != 1 {
+		t.Fatalf("expected only the catalog, got %d sections", len(resp.Sections))
+	}
+	for _, item := range resp.Sections[0].Items {
+		if item.Source == chantmodels.SourceOnline || item.ID == chant.ID {
+			t.Fatal("scheduled online chants belong on the Home programme, not this list")
 		}
 	}
-
-	if online == nil {
-		t.Fatal("expected the scheduled chant in the list")
+	if resp.Sections[0].Items[0].ID != song.ID {
+		t.Fatalf("expected the catalog song, got %+v", resp.Sections[0].Items[0])
 	}
-	if catalog == nil {
-		t.Fatal("expected the song catalog in the list")
-	}
-	// is_preview would open the silent lyrics-only view; the Chants screen must
-	// hand out playable chants so a full listen can be scored.
-	if online.IsPreview || catalog.IsPreview {
-		t.Fatal("everything on the Chants screen must be playable, not silent")
-	}
-	if online.SongPoints != 250 || catalog.SongPoints != 100 {
-		t.Fatalf("online and catalog must score differently: %d vs %d", online.SongPoints, catalog.SongPoints)
+	if resp.Sections[0].Items[0].IsPreview || resp.Sections[0].Items[0].SongPoints != 100 {
+		t.Fatalf("catalog rows must be playable at song points: %+v", resp.Sections[0].Items[0])
 	}
 }
 
