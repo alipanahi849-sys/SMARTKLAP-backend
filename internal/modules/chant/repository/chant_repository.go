@@ -65,7 +65,9 @@ type ChantRepository interface {
 	// ListenStartedAt returns that stamp, or nil when the user never opened the
 	// lyrics for this song.
 	ListenStartedAt(ctx context.Context, userID, songID uuid.UUID, source string) (*time.Time, error)
-	// TodayProgramFeed returns today's completions for one user, newest first.
+	// TodayProgramFeed returns today's completions for one user, oldest first so
+	// the Home card reads as a timeline. When the limit bites it is the most
+	// recent attempts that are kept.
 	TodayProgramFeed(ctx context.Context, userID uuid.UUID, limit int) ([]ProgramCompletion, error)
 	// PendingChantsForMatch returns the match's online chants the user has not
 	// settled yet, soonest first. A chant drops out as soon as it is completed
@@ -329,18 +331,24 @@ func (r *chantRepository) ListenStartedAt(ctx context.Context, userID, songID uu
 func (r *chantRepository) TodayProgramFeed(ctx context.Context, userID uuid.UUID, limit int) ([]ProgramCompletion, error) {
 	startOfDay := time.Now().UTC().Truncate(24 * time.Hour)
 
+	// The inner query keeps the newest attempts when the limit bites; the outer
+	// one hands them back in the order the card reads them.
 	const query = `
-		SELECT cc.id,
-		       COALESCE(c.title, s.title, '') AS title,
-		       cc.status,
-		       cc.points_earned,
-		       cc.created_at
-		FROM chant_completions cc
-		LEFT JOIN chants c ON c.id = cc.chant_id
-		LEFT JOIN songs s  ON s.id = cc.song_id
-		WHERE cc.user_id = ? AND cc.created_at >= ?
-		ORDER BY cc.created_at DESC
-		LIMIT ?`
+		SELECT t.id, t.title, t.status, t.points_earned, t.created_at
+		FROM (
+			SELECT cc.id,
+			       COALESCE(c.title, s.title, '') AS title,
+			       cc.status,
+			       cc.points_earned,
+			       cc.created_at
+			FROM chant_completions cc
+			LEFT JOIN chants c ON c.id = cc.chant_id
+			LEFT JOIN songs s  ON s.id = cc.song_id
+			WHERE cc.user_id = ? AND cc.created_at >= ?
+			ORDER BY cc.created_at DESC
+			LIMIT ?
+		) t
+		ORDER BY t.created_at ASC`
 
 	var rows []ProgramCompletion
 	if err := r.db.WithContext(ctx).Raw(query, userID, startOfDay, limit).Scan(&rows).Error; err != nil {

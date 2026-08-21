@@ -172,6 +172,7 @@ type listenKey struct {
 type stubAttempt struct {
 	status string
 	points int
+	at     time.Time
 }
 
 type stubChantRepo struct {
@@ -305,7 +306,7 @@ func (r *stubChantRepo) Complete(_ context.Context, target chantrepo.CompletionT
 	if _, settled := r.completions[key]; settled {
 		return r.userPoints[target.UserID], false, nil
 	}
-	r.completions[key] = stubAttempt{status: chantmodels.StatusCompleted, points: target.Points}
+	r.completions[key] = stubAttempt{status: chantmodels.StatusCompleted, points: target.Points, at: time.Now().UTC()}
 	r.userPoints[target.UserID] += target.Points
 	return r.userPoints[target.UserID], true, nil
 }
@@ -315,7 +316,7 @@ func (r *stubChantRepo) Cancel(_ context.Context, target chantrepo.CompletionTar
 	if _, settled := r.completions[key]; settled {
 		return false, nil
 	}
-	r.completions[key] = stubAttempt{status: chantmodels.StatusCancelled}
+	r.completions[key] = stubAttempt{status: chantmodels.StatusCancelled, at: time.Now().UTC()}
 	return true, nil
 }
 
@@ -365,8 +366,35 @@ func (r *stubChantRepo) ListenStartedAt(_ context.Context, userID, songID uuid.U
 	return nil, nil
 }
 
-func (r *stubChantRepo) TodayProgramFeed(_ context.Context, _ uuid.UUID, _ int) ([]chantrepo.ProgramCompletion, error) {
-	return nil, nil
+func (r *stubChantRepo) TodayProgramFeed(_ context.Context, userID uuid.UUID, limit int) ([]chantrepo.ProgramCompletion, error) {
+	var rows []chantrepo.ProgramCompletion
+	for key, attempt := range r.completions {
+		if key.user != userID {
+			continue
+		}
+		title := ""
+		if key.source == chantmodels.SourceCatalog {
+			if song, ok := r.songs[key.target]; ok {
+				title = song.Title
+			}
+		} else if chant, ok := r.chants[key.target]; ok {
+			title = chant.Title
+		}
+		rows = append(rows, chantrepo.ProgramCompletion{
+			ID:           uuid.New(),
+			Title:        title,
+			Status:       attempt.status,
+			PointsEarned: attempt.points,
+			CreatedAt:    attempt.at,
+		})
+	}
+	// Newest attempts survive the limit, then the feed reads oldest first.
+	sort.Slice(rows, func(i, j int) bool { return rows[i].CreatedAt.After(rows[j].CreatedAt) })
+	if limit > 0 && len(rows) > limit {
+		rows = rows[:limit]
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].CreatedAt.Before(rows[j].CreatedAt) })
+	return rows, nil
 }
 
 func (r *stubChantRepo) PendingChantsForMatch(_ context.Context, userID, matchID uuid.UUID, limit int) ([]chantrepo.PendingChant, error) {
@@ -748,8 +776,15 @@ func TestChant_ProgramListsMatchChantsUntilTheyAreSettled(t *testing.T) {
 			t.Fatal("a sung chant must leave the programme's pending list")
 		}
 	}
-	if len(resp.Items) != 1 || resp.Items[0].ID != second.ID.String() {
-		t.Fatalf("expected only the unsung chant to remain, got %+v", resp.Items)
+	if len(resp.Items) != 2 {
+		t.Fatalf("expected the sung chant plus the one left to sing, got %+v", resp.Items)
+	}
+	// The card reads as a timeline: what already happened, then what is coming.
+	if resp.Items[0].Title != "Chant one" || !resp.Items[0].IsDone {
+		t.Fatalf("the settled chant must come first: %+v", resp.Items[0])
+	}
+	if resp.Items[1].ID != second.ID.String() || resp.Items[1].IsDone {
+		t.Fatalf("the unsung chant must follow it: %+v", resp.Items[1])
 	}
 }
 
