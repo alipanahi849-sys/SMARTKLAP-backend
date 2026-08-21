@@ -368,7 +368,7 @@ func (r *stubChantRepo) ListenStartedAt(_ context.Context, userID, songID uuid.U
 	return nil, nil
 }
 
-func (r *stubChantRepo) TodayProgramFeed(_ context.Context, _ int) ([]chantrepo.ProgramCompletion, error) {
+func (r *stubChantRepo) TodayProgramFeed(_ context.Context, _ uuid.UUID, _ int) ([]chantrepo.ProgramCompletion, error) {
 	return nil, nil
 }
 
@@ -707,6 +707,88 @@ func TestChant_SetOnlineChantFromCatalogSong(t *testing.T) {
 	}
 	if created.Points != 250 {
 		t.Fatalf("expected the configured online points, got %d", created.Points)
+	}
+}
+
+// Scheduling a song as an online chant is a fresh event every time, so the
+// "already earned this" rule is scoped to one scheduled chant. It never spreads
+// to the song itself, which would let one live performance spoil the next.
+func TestChant_EachScheduledChantIsItsOwnEarningOpportunity(t *testing.T) {
+	chantRepo := newStubChantRepo()
+	matchRepo := newStubMatchRepo()
+	svc := newChantService(chantRepo, matchRepo)
+
+	match := newScheduledMatch(matchRepo, time.Now().Add(2*time.Hour))
+	song := &songmodels.Song{ID: uuid.New(), Title: "Rap God", Duration: 120, IsActive: true}
+	chantRepo.songs[song.ID] = song
+	adminID := uuid.New()
+	userID := uuid.New()
+
+	// Scheduled in the past so the full-listen guard is already satisfied.
+	schedule := func() uuid.UUID {
+		created, err := svc.SetOnlineChant(context.Background(), adminID, chantdto.SetOnlineChantRequest{
+			SongID:      song.ID,
+			MatchID:     match.ID,
+			ScheduledAt: time.Now().UTC().Add(-5 * time.Minute),
+		})
+		if err != nil {
+			t.Fatalf("SetOnlineChant failed: %v", err)
+		}
+		return created.ID
+	}
+
+	first := schedule()
+	resp, err := svc.Complete(context.Background(), userID, first, chantmodels.SourceOnline)
+	if err != nil {
+		t.Fatalf("Complete failed: %v", err)
+	}
+	if resp.PointsEarned != 250 {
+		t.Fatalf("expected the first chant to pay 250, got %d", resp.PointsEarned)
+	}
+
+	// Same song, scheduled again: the fan gets another shot at the points.
+	second := schedule()
+	resp, err = svc.Complete(context.Background(), userID, second, chantmodels.SourceOnline)
+	if err != nil {
+		t.Fatalf("Complete on the re-scheduled chant failed: %v", err)
+	}
+	if resp.PointsEarned != 250 || resp.TotalPoints != 500 {
+		t.Fatalf("re-scheduled chant should pay again: %+v", resp)
+	}
+
+	// Walking out of a third one settles only that one.
+	third := schedule()
+	if err := svc.Cancel(context.Background(), userID, third); err != nil {
+		t.Fatalf("Cancel failed: %v", err)
+	}
+	fourth := schedule()
+	resp, err = svc.Complete(context.Background(), userID, fourth, chantmodels.SourceOnline)
+	if err != nil {
+		t.Fatalf("Complete after cancelling a different chant failed: %v", err)
+	}
+	if resp.PointsEarned != 250 {
+		t.Fatalf("a cancelled chant must not spoil the next one: %+v", resp)
+	}
+
+	// The library entry for the same song is still a separate, once-only award.
+	// Catalog songs have no schedule to fall back on, so stand in for the fan
+	// having opened the lyrics long enough ago to have heard the whole track.
+	chantRepo.listens[listenKey{user: userID, song: song.ID, source: chantmodels.SourceCatalog}] =
+		time.Now().UTC().Add(-5 * time.Minute)
+
+	resp, err = svc.Complete(context.Background(), userID, song.ID, chantmodels.SourceCatalog)
+	if err != nil {
+		t.Fatalf("catalog Complete failed: %v", err)
+	}
+	if resp.PointsEarned != 100 {
+		t.Fatalf("expected the catalog award to be untouched, got %d", resp.PointsEarned)
+	}
+	resp, err = svc.Complete(context.Background(), userID, song.ID, chantmodels.SourceCatalog)
+	if err != nil {
+		t.Fatalf("second catalog Complete failed: %v", err)
+	}
+	if resp.PointsEarned != 0 {
+		t.Fatalf("the catalog song must pay only once, got %d", resp.PointsEarned)
 	}
 }
 

@@ -440,7 +440,7 @@ func (s *chantService) Program(ctx context.Context, userID uuid.UUID, limit int)
 		return nil, err
 	}
 
-	feed, err := s.chantRepo.TodayProgramFeed(ctx, limit)
+	feed, err := s.chantRepo.TodayProgramFeed(ctx, userID, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -449,19 +449,15 @@ func (s *chantService) Program(ctx context.Context, userID uuid.UUID, limit int)
 	items := make([]dto.ChantProgramItem, 0, limit)
 	for _, row := range feed {
 		completedAt := row.CreatedAt
-		scorer := row.UserID
 		cancelled := row.Status == models.StatusCancelled
 		items = append(items, dto.ChantProgramItem{
-			ID:       row.ID.String(),
-			UserID:   &scorer,
-			UserName: displayName(row.FirstName, row.LastName),
-			Title:    row.Title,
-			Points:   row.PointsEarned,
+			ID:     row.ID.String(),
+			Title:  row.Title,
+			Points: row.PointsEarned,
 			// A cancelled attempt is settled but never sung, so it is not "done".
 			IsDone:      !cancelled,
 			IsCancelled: cancelled,
 			IsNew:       now.Sub(completedAt.UTC()) <= programNewWindow,
-			IsSelf:      row.UserID == userID,
 			CompletedAt: &completedAt,
 		})
 	}
@@ -478,7 +474,6 @@ func (s *chantService) Program(ctx context.Context, userID uuid.UUID, limit int)
 				Title:  chant.Title,
 				Points: points.online,
 				IsDone: false,
-				IsSelf: true,
 			})
 		}
 	}

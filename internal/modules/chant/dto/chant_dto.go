@@ -89,11 +89,10 @@ type ChantLyricsResponse struct {
 }
 
 // ChantProgramItem is one row of the Home "Chants Program" scoreboard: either
-// a chant the user still has to sing, or points somebody earned today.
+// a chant the user still has to sing, or points they earned today. The
+// scoreboard is personal, so it never carries another fan's rows.
 type ChantProgramItem struct {
-	ID          string     `json:"id"`
-	UserID      *uuid.UUID `json:"user_id,omitempty"`
-	UserName    string     `json:"user_name,omitempty"`
+	ID     string `json:"id"`
 	Title  string `json:"title"`
 	Points int    `json:"points"`
 	IsDone bool   `json:"is_done"`
@@ -101,7 +100,6 @@ type ChantProgramItem struct {
 	// like a completion — it is simply worth nothing.
 	IsCancelled bool       `json:"is_cancelled"`
 	IsNew       bool       `json:"is_new"`
-	IsSelf      bool       `json:"is_self"`
 	CompletedAt *time.Time `json:"completed_at,omitempty"`
 }
 

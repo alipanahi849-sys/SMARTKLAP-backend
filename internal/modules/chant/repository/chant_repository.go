@@ -31,13 +31,10 @@ type CompletionTarget struct {
 }
 
 // ProgramCompletion is a settled attempt shown on the Home scoreboard, joined
-// with the chant or song title and the user it belongs to. Status tells apart a
-// finished chant from one the fan walked out of.
+// with the chant or song title. Status tells apart a finished chant from one
+// the fan walked out of.
 type ProgramCompletion struct {
 	ID           uuid.UUID
-	UserID       uuid.UUID
-	FirstName    string
-	LastName     string
 	Title        string
 	Status       string
 	PointsEarned int
@@ -68,8 +65,8 @@ type ChantRepository interface {
 	// ListenStartedAt returns that stamp, or nil when the user never opened the
 	// lyrics for this song.
 	ListenStartedAt(ctx context.Context, userID, songID uuid.UUID, source string) (*time.Time, error)
-	// TodayProgramFeed returns today's completions across all users, newest first.
-	TodayProgramFeed(ctx context.Context, limit int) ([]ProgramCompletion, error)
+	// TodayProgramFeed returns today's completions for one user, newest first.
+	TodayProgramFeed(ctx context.Context, userID uuid.UUID, limit int) ([]ProgramCompletion, error)
 	// PendingTodayChants returns today's scheduled chants the user has not
 	// completed, soonest first.
 	PendingTodayChants(ctx context.Context, userID uuid.UUID, limit int) ([]PendingChant, error)
@@ -354,28 +351,24 @@ func (r *chantRepository) ListenStartedAt(ctx context.Context, userID, songID uu
 	return &session.StartedAt, nil
 }
 
-func (r *chantRepository) TodayProgramFeed(ctx context.Context, limit int) ([]ProgramCompletion, error) {
+func (r *chantRepository) TodayProgramFeed(ctx context.Context, userID uuid.UUID, limit int) ([]ProgramCompletion, error) {
 	startOfDay := time.Now().UTC().Truncate(24 * time.Hour)
 
 	const query = `
 		SELECT cc.id,
-		       cc.user_id,
-		       u.first_name,
-		       u.last_name,
 		       COALESCE(c.title, s.title, '') AS title,
 		       cc.status,
 		       cc.points_earned,
 		       cc.created_at
 		FROM chant_completions cc
-		JOIN users u       ON u.id = cc.user_id
 		LEFT JOIN chants c ON c.id = cc.chant_id
 		LEFT JOIN songs s  ON s.id = cc.song_id
-		WHERE cc.created_at >= ?
+		WHERE cc.user_id = ? AND cc.created_at >= ?
 		ORDER BY cc.created_at DESC
 		LIMIT ?`
 
 	var rows []ProgramCompletion
-	if err := r.db.WithContext(ctx).Raw(query, startOfDay, limit).Scan(&rows).Error; err != nil {
+	if err := r.db.WithContext(ctx).Raw(query, userID, startOfDay, limit).Scan(&rows).Error; err != nil {
 		return nil, errors.NewInternal("Failed to load chant scores", err)
 	}
 	return rows, nil
