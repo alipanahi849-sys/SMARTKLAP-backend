@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
+	"sort"
 	"testing"
 	"time"
 
@@ -251,10 +252,6 @@ func (r *stubChantRepo) FindByMatchAfter(_ context.Context, matchID uuid.UUID, _
 	return result, nil
 }
 
-func (r *stubChantRepo) HasIncompleteAtOrBefore(_ context.Context, _ uuid.UUID, _ uuid.UUID, _ string, _ *chantrepo.ChantCursorAnchor) (bool, error) {
-	return false, nil
-}
-
 func (r *stubChantRepo) FindStartingBetween(_ context.Context, from, to time.Time) ([]chantmodels.Chant, error) {
 	var result []chantmodels.Chant
 	for _, c := range r.chants {
@@ -372,8 +369,23 @@ func (r *stubChantRepo) TodayProgramFeed(_ context.Context, _ uuid.UUID, _ int) 
 	return nil, nil
 }
 
-func (r *stubChantRepo) PendingTodayChants(_ context.Context, _ uuid.UUID, _ int) ([]chantrepo.PendingChant, error) {
-	return nil, nil
+func (r *stubChantRepo) PendingChantsForMatch(_ context.Context, userID, matchID uuid.UUID, limit int) ([]chantrepo.PendingChant, error) {
+	var rows []chantrepo.PendingChant
+	for _, c := range r.chants {
+		if !c.IsActive || c.MatchID != matchID {
+			continue
+		}
+		key := completionKey{target: c.ID, user: userID, source: chantmodels.SourceOnline}
+		if _, settled := r.completions[key]; settled {
+			continue
+		}
+		rows = append(rows, chantrepo.PendingChant{ID: c.ID, Title: c.Title, ScheduledAt: c.ScheduledAt})
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].ScheduledAt.Before(rows[j].ScheduledAt) })
+	if limit > 0 && len(rows) > limit {
+		rows = rows[:limit]
+	}
+	return rows, nil
 }
 
 func (r *stubChantRepo) CreateChant(_ context.Context, chant *chantmodels.Chant) error {
@@ -677,8 +689,67 @@ func TestChant_ListSeparatesCatalogFromOnlineChants(t *testing.T) {
 	if online.SongPoints != 250 || catalog.SongPoints != 100 {
 		t.Fatalf("online and catalog must score differently: %d vs %d", online.SongPoints, catalog.SongPoints)
 	}
-	if !online.IsNext {
-		t.Fatal("is_next must still be marked on the first incomplete scheduled chant")
+}
+
+// The Home programme is the fan's to-do list: every online chant defined for the
+// match belongs on it, however far off kickoff is, and each one leaves as soon
+// as it is settled.
+func TestChant_ProgramListsMatchChantsUntilTheyAreSettled(t *testing.T) {
+	chantRepo := newStubChantRepo()
+	matchRepo := newStubMatchRepo()
+	svc := newChantService(chantRepo, matchRepo)
+
+	kickoff := time.Now().UTC().Add(72 * time.Hour)
+	match := newScheduledMatch(matchRepo, kickoff)
+	first := &chantmodels.Chant{
+		ID:          uuid.New(),
+		MatchID:     match.ID,
+		SongID:      uuid.New(),
+		Title:       "Chant one",
+		ScheduledAt: kickoff,
+		IsActive:    true,
+	}
+	second := &chantmodels.Chant{
+		ID:          uuid.New(),
+		MatchID:     match.ID,
+		SongID:      uuid.New(),
+		Title:       "Chant two",
+		ScheduledAt: kickoff.Add(30 * time.Minute),
+		IsActive:    true,
+	}
+	chantRepo.chants[first.ID] = first
+	chantRepo.chants[second.ID] = second
+
+	userID := uuid.New()
+	resp, err := svc.Program(context.Background(), userID, 20)
+	if err != nil {
+		t.Fatalf("Program failed: %v", err)
+	}
+	if len(resp.Items) != 2 {
+		t.Fatalf("expected both scheduled chants, got %d", len(resp.Items))
+	}
+	if resp.Items[0].ID != first.ID.String() {
+		t.Fatalf("pending chants must be listed soonest first, got %q", resp.Items[0].Title)
+	}
+	if resp.Items[0].IsDone || resp.Items[0].Points != 250 {
+		t.Fatalf("a chant still to sing must be pending and worth the online points: %+v", resp.Items[0])
+	}
+
+	if _, err := svc.Complete(context.Background(), userID, first.ID, chantmodels.SourceOnline); err != nil {
+		t.Fatalf("Complete failed: %v", err)
+	}
+
+	resp, err = svc.Program(context.Background(), userID, 20)
+	if err != nil {
+		t.Fatalf("Program after completion failed: %v", err)
+	}
+	for _, item := range resp.Items {
+		if item.ID == first.ID.String() {
+			t.Fatal("a sung chant must leave the programme's pending list")
+		}
+	}
+	if len(resp.Items) != 1 || resp.Items[0].ID != second.ID.String() {
+		t.Fatalf("expected only the unsung chant to remain, got %+v", resp.Items)
 	}
 }
 

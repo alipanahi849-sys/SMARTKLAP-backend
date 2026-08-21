@@ -18,7 +18,6 @@ type ChantItem struct {
 	SongPoints      int       `json:"song_points"`
 	DurationSeconds int       `json:"duration_seconds"`
 	IsDone          bool      `json:"is_done"`
-	IsNext          bool      `json:"is_next"`
 	IsPreview       bool      `json:"is_preview"`
 	Source          string    `json:"source"`
 }

@@ -160,7 +160,9 @@ func (s *chantService) List(ctx context.Context, userID uuid.UUID, filters dto.C
 }
 
 // onlineSections builds the scheduled-chant part of the list: the day-grouped
-// sections with sequential is_next unlocking that production already relies on.
+// sections of chants defined for the match. Every chant is open to sing, so the
+// list carries no sequential unlocking — what is coming up next is shown on the
+// Home "Chants Program" card instead.
 func (s *chantService) onlineSections(
 	ctx context.Context,
 	userID uuid.UUID,
@@ -239,18 +241,6 @@ func (s *chantService) onlineSections(
 			todayItems = append(todayItems, item)
 		default:
 			upcomingItems = append(upcomingItems, item)
-		}
-	}
-
-	if after == nil {
-		markNextInActiveSection(todayItems, upcomingItems, previousItems)
-	} else {
-		incompleteBefore, checkErr := s.chantRepo.HasIncompleteAtOrBefore(ctx, userID, match.ID, filters.Search, after)
-		if checkErr != nil {
-			return nil, "", meta, checkErr
-		}
-		if !incompleteBefore {
-			markNextInActiveSection(todayItems, upcomingItems, previousItems)
 		}
 	}
 
@@ -462,19 +452,29 @@ func (s *chantService) Program(ctx context.Context, userID uuid.UUID, limit int)
 		})
 	}
 
-	// Fill the rest of the card with what this user still has to sing today.
+	// Fill the rest of the card with what this user still has to sing. The
+	// pending rows are scoped to the match the Chants screen is showing — the
+	// live one, else the next fixture — so chants defined ahead of kickoff are
+	// listed instead of surfacing only on the day they are scheduled. Each one
+	// leaves the list the moment it is settled, whether sung or walked out of.
 	if remaining := limit - len(items); remaining > 0 {
-		pending, pendingErr := s.chantRepo.PendingTodayChants(ctx, userID, remaining)
-		if pendingErr != nil {
-			return nil, pendingErr
+		match, matchErr := s.resolveMatch(ctx, nil)
+		if matchErr != nil {
+			return nil, matchErr
 		}
-		for _, chant := range pending {
-			items = append(items, dto.ChantProgramItem{
-				ID:     chant.ID.String(),
-				Title:  chant.Title,
-				Points: points.online,
-				IsDone: false,
-			})
+		if match != nil {
+			pending, pendingErr := s.chantRepo.PendingChantsForMatch(ctx, userID, match.ID, remaining)
+			if pendingErr != nil {
+				return nil, pendingErr
+			}
+			for _, chant := range pending {
+				items = append(items, dto.ChantProgramItem{
+					ID:     chant.ID.String(),
+					Title:  chant.Title,
+					Points: points.online,
+					IsDone: false,
+				})
+			}
 		}
 	}
 
@@ -790,54 +790,4 @@ func chantDuration(c *models.Chant) int {
 		return c.DurationSeconds
 	}
 	return c.Song.Duration
-}
-
-// markNextInActiveSection marks is_next only in the first section (in API order)
-// that still has incomplete chants; other sections stay locked until it is finished.
-func markNextInActiveSection(sections ...[]dto.ChantItem) {
-	activeMarked := false
-	for _, items := range sections {
-		if len(items) == 0 {
-			continue
-		}
-		if !activeMarked && sectionHasIncomplete(items) {
-			markNextInSection(items)
-			activeMarked = true
-			continue
-		}
-		for i := range items {
-			items[i].IsNext = false
-		}
-	}
-}
-
-func sectionHasIncomplete(items []dto.ChantItem) bool {
-	for _, item := range items {
-		if !item.IsDone {
-			return true
-		}
-	}
-	return false
-}
-
-// markNextInSection sets is_next on the first incomplete item that follows
-// a completed prefix within the same section (parent group).
-func markNextInSection(items []dto.ChantItem) {
-	for i := range items {
-		items[i].IsNext = false
-		if items[i].IsDone {
-			continue
-		}
-		allPrevDone := true
-		for j := 0; j < i; j++ {
-			if !items[j].IsDone {
-				allPrevDone = false
-				break
-			}
-		}
-		if allPrevDone {
-			items[i].IsNext = true
-			return
-		}
-	}
 }

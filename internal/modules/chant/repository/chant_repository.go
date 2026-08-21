@@ -41,7 +41,7 @@ type ProgramCompletion struct {
 	CreatedAt    time.Time
 }
 
-// PendingChant is a scheduled chant the user has not sung yet today.
+// PendingChant is a scheduled chant the user has not settled yet.
 type PendingChant struct {
 	ID          uuid.UUID
 	Title       string
@@ -67,9 +67,10 @@ type ChantRepository interface {
 	ListenStartedAt(ctx context.Context, userID, songID uuid.UUID, source string) (*time.Time, error)
 	// TodayProgramFeed returns today's completions for one user, newest first.
 	TodayProgramFeed(ctx context.Context, userID uuid.UUID, limit int) ([]ProgramCompletion, error)
-	// PendingTodayChants returns today's scheduled chants the user has not
-	// completed, soonest first.
-	PendingTodayChants(ctx context.Context, userID uuid.UUID, limit int) ([]PendingChant, error)
+	// PendingChantsForMatch returns the match's online chants the user has not
+	// settled yet, soonest first. A chant drops out as soon as it is completed
+	// or cancelled, so the Home programme only lists what is still to sing.
+	PendingChantsForMatch(ctx context.Context, userID, matchID uuid.UUID, limit int) ([]PendingChant, error)
 	// CreateChant schedules an online chant built from a catalog song.
 	CreateChant(ctx context.Context, chant *models.Chant) error
 	// FindScheduled lists active online chants for the admin panel, soonest first.
@@ -79,9 +80,6 @@ type ChantRepository interface {
 	// FindByMatchAfter returns active chants for a match ordered by schedule time.
 	// Pass after=nil for the first page.
 	FindByMatchAfter(ctx context.Context, matchID uuid.UUID, search string, limit int, after *ChantCursorAnchor) ([]models.Chant, error)
-	// HasIncompleteAtOrBefore reports whether the user has not completed any chant
-	// at or before the given anchor in the match list order.
-	HasIncompleteAtOrBefore(ctx context.Context, userID, matchID uuid.UUID, search string, anchor *ChantCursorAnchor) (bool, error)
 	// CompletedChantIDs returns which of the given chants the user completed.
 	CompletedChantIDs(ctx context.Context, userID uuid.UUID, chantIDs []uuid.UUID) (map[uuid.UUID]bool, error)
 	// TodayPoints sums the user's chant points earned since local midnight (UTC).
@@ -143,29 +141,6 @@ func (r *chantRepository) FindByMatchAfter(ctx context.Context, matchID uuid.UUI
 		return nil, errors.NewInternal("Failed to list chants", err)
 	}
 	return chants, nil
-}
-
-func (r *chantRepository) HasIncompleteAtOrBefore(ctx context.Context, userID, matchID uuid.UUID, search string, anchor *ChantCursorAnchor) (bool, error) {
-	if anchor == nil {
-		return false, nil
-	}
-
-	q := r.db.WithContext(ctx).Table("chants c").
-		Joins("LEFT JOIN chant_completions cc ON cc.chant_id = c.id AND cc.user_id = ? AND cc.source = ?", userID, models.SourceOnline).
-		Where("c.match_id = ? AND c.is_active = ? AND cc.id IS NULL", matchID, true).
-		Where(
-			"(c.scheduled_at < ?) OR (c.scheduled_at = ? AND c.id <= ?)",
-			anchor.ScheduledAt, anchor.ScheduledAt, anchor.ID,
-		)
-	if s := strings.TrimSpace(search); s != "" {
-		q = q.Where("c.title ILIKE ?", "%"+s+"%")
-	}
-
-	var count int64
-	if err := q.Count(&count).Error; err != nil {
-		return false, errors.NewInternal("Failed to check chant progress", err)
-	}
-	return count > 0, nil
 }
 
 func (r *chantRepository) CompletedChantIDs(ctx context.Context, userID uuid.UUID, chantIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
@@ -374,25 +349,21 @@ func (r *chantRepository) TodayProgramFeed(ctx context.Context, userID uuid.UUID
 	return rows, nil
 }
 
-func (r *chantRepository) PendingTodayChants(ctx context.Context, userID uuid.UUID, limit int) ([]PendingChant, error) {
-	startOfDay := time.Now().UTC().Truncate(24 * time.Hour)
-	endOfDay := startOfDay.Add(24 * time.Hour)
-
+func (r *chantRepository) PendingChantsForMatch(ctx context.Context, userID, matchID uuid.UUID, limit int) ([]PendingChant, error) {
 	const query = `
 		SELECT c.id, c.title, c.scheduled_at
 		FROM chants c
 		LEFT JOIN chant_completions cc
 		       ON cc.chant_id = c.id AND cc.user_id = ? AND cc.source = 'online'
-		WHERE c.is_active = TRUE
+		WHERE c.match_id = ?
+		  AND c.is_active = TRUE
 		  AND c.deleted_at IS NULL
-		  AND c.scheduled_at >= ?
-		  AND c.scheduled_at < ?
 		  AND cc.id IS NULL
 		ORDER BY c.scheduled_at ASC
 		LIMIT ?`
 
 	var rows []PendingChant
-	if err := r.db.WithContext(ctx).Raw(query, userID, startOfDay, endOfDay, limit).Scan(&rows).Error; err != nil {
+	if err := r.db.WithContext(ctx).Raw(query, userID, matchID, limit).Scan(&rows).Error; err != nil {
 		return nil, errors.NewInternal("Failed to load pending chants", err)
 	}
 	return rows, nil
