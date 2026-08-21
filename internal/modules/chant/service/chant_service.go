@@ -159,10 +159,8 @@ func (s *chantService) List(ctx context.Context, userID uuid.UUID, filters dto.C
 	return &dto.ChantListResponse{MatchTitle: matchTitle, Sections: sections, Meta: meta}, nil
 }
 
-// onlineSections builds the scheduled-chant part of the list: the day-grouped
-// sections of chants defined for the match. Every chant is open to sing, so the
-// list carries no sequential unlocking — what is coming up next is shown on the
-// Home "Chants Program" card instead.
+// onlineSections lists the match's scheduled chants as one untitled block.
+// Day buckets ("Todays chants") belong on the Home programme, not here.
 func (s *chantService) onlineSections(
 	ctx context.Context,
 	userID uuid.UUID,
@@ -215,13 +213,9 @@ func (s *chantService) onlineSections(
 		return nil, "", meta, err
 	}
 
-	now := time.Now().UTC()
-	today := now.Truncate(24 * time.Hour)
-	tomorrow := today.Add(24 * time.Hour)
-
-	var todayItems, upcomingItems, previousItems []dto.ChantItem
+	items := make([]dto.ChantItem, 0, len(chants))
 	for _, c := range chants {
-		item := dto.ChantItem{
+		items = append(items, dto.ChantItem{
 			ID:              c.ID,
 			SongID:          c.SongID,
 			Title:           c.Title,
@@ -233,25 +227,11 @@ func (s *chantService) onlineSections(
 			// synced run is still entered from the countdown, not from here.
 			IsPreview: false,
 			Source:    models.SourceOnline,
-		}
-		switch {
-		case c.ScheduledAt.Before(today):
-			previousItems = append(previousItems, item)
-		case c.ScheduledAt.Before(tomorrow):
-			todayItems = append(todayItems, item)
-		default:
-			upcomingItems = append(upcomingItems, item)
-		}
+		})
 	}
 
-	if len(todayItems) > 0 {
-		sections = append(sections, dto.ChantSection{Title: "Todays chants", Items: todayItems})
-	}
-	if len(upcomingItems) > 0 {
-		sections = append(sections, dto.ChantSection{Title: "Upcoming chants", Items: upcomingItems})
-	}
-	if len(previousItems) > 0 {
-		sections = append(sections, dto.ChantSection{Title: "Previous chants", Items: previousItems})
+	if len(items) > 0 {
+		sections = append(sections, dto.ChantSection{Items: items})
 	}
 
 	meta.HasMore = hasMore

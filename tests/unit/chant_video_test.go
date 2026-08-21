@@ -660,6 +660,9 @@ func TestChant_ListGroupsIntoSections(t *testing.T) {
 	if len(resp.Sections) == 0 {
 		t.Fatal("expected at least one section")
 	}
+	if resp.Sections[0].Title != "" {
+		t.Fatalf("online chants must not carry a day heading, got %q", resp.Sections[0].Title)
+	}
 }
 
 func TestChant_ListSeparatesCatalogFromOnlineChants(t *testing.T) {
