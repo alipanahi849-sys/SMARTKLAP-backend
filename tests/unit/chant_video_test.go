@@ -388,12 +388,10 @@ func (r *stubChantRepo) TodayProgramFeed(_ context.Context, userID uuid.UUID, li
 			CreatedAt:    attempt.at,
 		})
 	}
-	// Newest attempts survive the limit, then the feed reads oldest first.
 	sort.Slice(rows, func(i, j int) bool { return rows[i].CreatedAt.After(rows[j].CreatedAt) })
 	if limit > 0 && len(rows) > limit {
 		rows = rows[:limit]
 	}
-	sort.Slice(rows, func(i, j int) bool { return rows[i].CreatedAt.Before(rows[j].CreatedAt) })
 	return rows, nil
 }
 
@@ -745,16 +743,25 @@ func TestChant_ProgramListsMatchChantsUntilTheyAreSettled(t *testing.T) {
 		ScheduledAt: kickoff.Add(30 * time.Minute),
 		IsActive:    true,
 	}
+	third := &chantmodels.Chant{
+		ID:          uuid.New(),
+		MatchID:     match.ID,
+		SongID:      uuid.New(),
+		Title:       "Chant three",
+		ScheduledAt: kickoff.Add(60 * time.Minute),
+		IsActive:    true,
+	}
 	chantRepo.chants[first.ID] = first
 	chantRepo.chants[second.ID] = second
+	chantRepo.chants[third.ID] = third
 
 	userID := uuid.New()
 	resp, err := svc.Program(context.Background(), userID, 20)
 	if err != nil {
 		t.Fatalf("Program failed: %v", err)
 	}
-	if len(resp.Items) != 2 {
-		t.Fatalf("expected both scheduled chants, got %d", len(resp.Items))
+	if len(resp.Items) != 3 {
+		t.Fatalf("expected every scheduled chant, got %d", len(resp.Items))
 	}
 	if resp.Items[0].ID != first.ID.String() {
 		t.Fatalf("pending chants must be listed soonest first, got %q", resp.Items[0].Title)
@@ -763,8 +770,10 @@ func TestChant_ProgramListsMatchChantsUntilTheyAreSettled(t *testing.T) {
 		t.Fatalf("a chant still to sing must be pending and worth the online points: %+v", resp.Items[0])
 	}
 
-	if _, err := svc.Complete(context.Background(), userID, first.ID, chantmodels.SourceOnline); err != nil {
-		t.Fatalf("Complete failed: %v", err)
+	for _, chant := range []*chantmodels.Chant{first, second} {
+		if _, err := svc.Complete(context.Background(), userID, chant.ID, chantmodels.SourceOnline); err != nil {
+			t.Fatalf("Complete %s failed: %v", chant.Title, err)
+		}
 	}
 
 	resp, err = svc.Program(context.Background(), userID, 20)
@@ -772,19 +781,23 @@ func TestChant_ProgramListsMatchChantsUntilTheyAreSettled(t *testing.T) {
 		t.Fatalf("Program after completion failed: %v", err)
 	}
 	for _, item := range resp.Items {
-		if item.ID == first.ID.String() {
+		if item.ID == first.ID.String() || item.ID == second.ID.String() {
 			t.Fatal("a sung chant must leave the programme's pending list")
 		}
 	}
-	if len(resp.Items) != 2 {
-		t.Fatalf("expected the sung chant plus the one left to sing, got %+v", resp.Items)
+	if len(resp.Items) != 3 {
+		t.Fatalf("expected the two sung chants plus the one left to sing, got %+v", resp.Items)
 	}
-	// What is left to sing leads the card; the day's history sits under it.
-	if resp.Items[0].ID != second.ID.String() || resp.Items[0].IsDone {
+	// What is left to sing leads the card; under it the day's history runs from
+	// the chant sung most recently back through the earlier ones.
+	if resp.Items[0].ID != third.ID.String() || resp.Items[0].IsDone {
 		t.Fatalf("the unsung chant must lead the programme: %+v", resp.Items[0])
 	}
-	if resp.Items[1].Title != "Chant one" || !resp.Items[1].IsDone {
-		t.Fatalf("the settled chant must follow it: %+v", resp.Items[1])
+	if resp.Items[1].Title != "Chant two" || !resp.Items[1].IsDone {
+		t.Fatalf("the most recently sung chant must head the history: %+v", resp.Items[1])
+	}
+	if resp.Items[2].Title != "Chant one" {
+		t.Fatalf("older attempts must trail the history: %+v", resp.Items[2])
 	}
 }
 

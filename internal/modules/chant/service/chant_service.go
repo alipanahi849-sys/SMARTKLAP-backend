@@ -455,7 +455,7 @@ func (s *chantService) Program(ctx context.Context, userID uuid.UUID, limit int)
 		}
 	}
 
-	// Today's settled attempts fill whatever room is left, oldest first.
+	// Today's settled attempts fill whatever room is left, most recent first.
 	now := time.Now().UTC()
 	if remaining := limit - len(items); remaining > 0 {
 		feed, feedErr := s.chantRepo.TodayProgramFeed(ctx, userID, remaining)
