@@ -12,6 +12,9 @@ type Song struct {
 	Title     string         `gorm:"type:varchar(255);not null" json:"title" binding:"required"`
 	Artist    string         `gorm:"type:varchar(255)" json:"artist"`
 	Album     string         `gorm:"type:varchar(255)" json:"album"`
+	// Category heads the section this song sits under on the Chants screen.
+	// Empty means the catch-all section.
+	Category  string         `gorm:"type:varchar(100);not null;default:''" json:"category"`
 	Duration  int            `gorm:"type:integer" json:"duration"` // in seconds
 	AudioURL  string         `gorm:"type:varchar(500)" json:"audio_url"`
 	IsActive  bool           `gorm:"default:true" json:"is_active"`

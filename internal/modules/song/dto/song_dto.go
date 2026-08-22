@@ -7,9 +7,12 @@ import (
 )
 
 type CreateSongRequest struct {
-	Title    string `json:"title" binding:"required"`
-	Artist   string `json:"artist"`
-	Album    string `json:"album"`
+	Title  string `json:"title" binding:"required"`
+	Artist string `json:"artist"`
+	Album  string `json:"album"`
+	// Category heads the section this song appears under on the Chants screen.
+	// Songs left without one are gathered into the catch-all section.
+	Category string `json:"category" binding:"omitempty,max=100"`
 	Duration int    `json:"duration"`
 	AudioURL string `json:"audio_url"`
 	IsActive bool   `json:"is_active"`
@@ -19,6 +22,7 @@ type UpdateSongRequest struct {
 	Title    string `json:"title" binding:"required"`
 	Artist   string `json:"artist"`
 	Album    string `json:"album"`
+	Category string `json:"category" binding:"omitempty,max=100"`
 	Duration int    `json:"duration"`
 	AudioURL string `json:"audio_url"`
 	IsActive *bool  `json:"is_active"`
