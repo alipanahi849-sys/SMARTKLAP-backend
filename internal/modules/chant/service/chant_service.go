@@ -335,6 +335,13 @@ func (s *chantService) Program(ctx context.Context, userID uuid.UUID, limit int,
 		return nil, err
 	}
 
+	now := time.Now().UTC()
+	if match != nil {
+		if settleErr := s.settleMissedOnlineChants(ctx, userID, match.ID, now); settleErr != nil {
+			return nil, settleErr
+		}
+	}
+
 	includePending := true
 	var pendingAfter *repository.ChantCursorAnchor
 	var historyAfter *repository.ProgramHistoryAnchor
@@ -362,7 +369,7 @@ func (s *chantService) Program(ctx context.Context, userID uuid.UUID, limit int,
 	need := limit + 1
 	items := make([]dto.ChantProgramItem, 0, need)
 	if includePending && match != nil {
-		pending, pendingErr := s.chantRepo.PendingChantsForMatch(ctx, userID, match.ID, need, pendingAfter)
+		pending, pendingErr := s.chantRepo.PendingChantsForMatch(ctx, userID, match.ID, need, pendingAfter, now)
 		if pendingErr != nil {
 			return nil, pendingErr
 		}
@@ -378,7 +385,6 @@ func (s *chantService) Program(ctx context.Context, userID uuid.UUID, limit int,
 		}
 	}
 
-	now := time.Now().UTC()
 	if remaining := need - len(items); remaining > 0 {
 		feed, feedErr := s.chantRepo.TodayProgramFeed(ctx, userID, remaining, historyAfter)
 		if feedErr != nil {
@@ -414,6 +420,28 @@ func (s *chantService) Program(ctx context.Context, userID uuid.UUID, limit int,
 		Items:       items,
 		Meta:        meta,
 	}, nil
+}
+
+// settleMissedOnlineChants records a cancelled attempt for every scheduled
+// chant whose window has closed without this user singing it, so the Home
+// card shows those rows as cancelled instead of still to do.
+func (s *chantService) settleMissedOnlineChants(ctx context.Context, userID, matchID uuid.UUID, now time.Time) error {
+	missed, err := s.chantRepo.MissedPendingChantsForMatch(ctx, userID, matchID, now)
+	if err != nil {
+		return err
+	}
+	for _, chant := range missed {
+		chantID := chant.ID
+		if _, cancelErr := s.chantRepo.Cancel(ctx, repository.CompletionTarget{
+			UserID:  userID,
+			ChantID: &chantID,
+			SongID:  chant.SongID,
+			Source:  models.SourceOnline,
+		}); cancelErr != nil {
+			return cancelErr
+		}
+	}
+	return nil
 }
 
 func (s *chantService) TodayStats(ctx context.Context, userID uuid.UUID) (*dto.ChantTodayStatsResponse, error) {

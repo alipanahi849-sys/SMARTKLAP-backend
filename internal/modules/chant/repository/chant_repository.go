@@ -49,9 +49,11 @@ type ProgramCompletion struct {
 
 // PendingChant is a scheduled chant the user has not settled yet.
 type PendingChant struct {
-	ID          uuid.UUID
-	Title       string
-	ScheduledAt time.Time
+	ID              uuid.UUID
+	SongID          uuid.UUID
+	Title           string
+	ScheduledAt     time.Time
+	DurationSeconds int
 }
 
 type ChantRepository interface {
@@ -78,10 +80,13 @@ type ChantRepository interface {
 	// FindUserProgramCompletion loads one of today's scoreboard rows by id.
 	FindUserProgramCompletion(ctx context.Context, userID, id uuid.UUID) (*ProgramCompletion, error)
 	// PendingChantsForMatch returns the match's online chants the user has not
-	// settled yet, soonest first. A chant drops out as soon as it is completed
-	// or cancelled, so the Home programme only lists what is still to sing.
-	// Pass after=nil for the first pending page.
-	PendingChantsForMatch(ctx context.Context, userID, matchID uuid.UUID, limit int, after *ChantCursorAnchor) ([]PendingChant, error)
+	// settled yet and that have not finished, soonest first. A chant drops out
+	// as soon as it is completed or cancelled, so the Home programme only lists
+	// what is still to sing. Pass after=nil for the first pending page.
+	PendingChantsForMatch(ctx context.Context, userID, matchID uuid.UUID, limit int, after *ChantCursorAnchor, now time.Time) ([]PendingChant, error)
+	// MissedPendingChantsForMatch returns unsettled online chants whose window
+	// has already closed, so the programme can mark them cancelled.
+	MissedPendingChantsForMatch(ctx context.Context, userID, matchID uuid.UUID, now time.Time) ([]PendingChant, error)
 	// CreateChant schedules an online chant built from a catalog song.
 	CreateChant(ctx context.Context, chant *models.Chant) error
 	// FindScheduled lists active online chants for the admin panel, soonest first.
@@ -391,17 +396,18 @@ func (r *chantRepository) FindUserProgramCompletion(ctx context.Context, userID,
 	return &row, nil
 }
 
-func (r *chantRepository) PendingChantsForMatch(ctx context.Context, userID, matchID uuid.UUID, limit int, after *ChantCursorAnchor) ([]PendingChant, error) {
+func (r *chantRepository) PendingChantsForMatch(ctx context.Context, userID, matchID uuid.UUID, limit int, after *ChantCursorAnchor, now time.Time) ([]PendingChant, error) {
 	query := `
-		SELECT c.id, c.title, c.scheduled_at
+		SELECT c.id, c.song_id, c.title, c.scheduled_at, c.duration_seconds
 		FROM chants c
 		LEFT JOIN chant_completions cc
 		       ON cc.chant_id = c.id AND cc.user_id = ? AND cc.source = 'online'
 		WHERE c.match_id = ?
 		  AND c.is_active = TRUE
 		  AND c.deleted_at IS NULL
-		  AND cc.id IS NULL`
-	args := []any{userID, matchID}
+		  AND cc.id IS NULL
+		  AND c.scheduled_at + make_interval(secs => GREATEST(c.duration_seconds, 0)) > ?`
+	args := []any{userID, matchID, now}
 	if after != nil {
 		query += ` AND ((c.scheduled_at > ?) OR (c.scheduled_at = ? AND c.id > ?))`
 		args = append(args, after.ScheduledAt, after.ScheduledAt, after.ID)
@@ -414,6 +420,26 @@ func (r *chantRepository) PendingChantsForMatch(ctx context.Context, userID, mat
 	var rows []PendingChant
 	if err := r.db.WithContext(ctx).Raw(query, args...).Scan(&rows).Error; err != nil {
 		return nil, errors.NewInternal("Failed to load pending chants", err)
+	}
+	return rows, nil
+}
+
+func (r *chantRepository) MissedPendingChantsForMatch(ctx context.Context, userID, matchID uuid.UUID, now time.Time) ([]PendingChant, error) {
+	const query = `
+		SELECT c.id, c.song_id, c.title, c.scheduled_at, c.duration_seconds
+		FROM chants c
+		LEFT JOIN chant_completions cc
+		       ON cc.chant_id = c.id AND cc.user_id = ? AND cc.source = 'online'
+		WHERE c.match_id = ?
+		  AND c.is_active = TRUE
+		  AND c.deleted_at IS NULL
+		  AND cc.id IS NULL
+		  AND c.scheduled_at + make_interval(secs => GREATEST(c.duration_seconds, 0)) <= ?
+		ORDER BY c.scheduled_at ASC, c.id ASC`
+
+	var rows []PendingChant
+	if err := r.db.WithContext(ctx).Raw(query, userID, matchID, now).Scan(&rows).Error; err != nil {
+		return nil, errors.NewInternal("Failed to load missed chants", err)
 	}
 	return rows, nil
 }

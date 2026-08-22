@@ -432,10 +432,17 @@ func (r *stubChantRepo) FindUserProgramCompletion(_ context.Context, userID, id 
 	return nil, nil
 }
 
-func (r *stubChantRepo) PendingChantsForMatch(_ context.Context, userID, matchID uuid.UUID, limit int, after *chantrepo.ChantCursorAnchor) ([]chantrepo.PendingChant, error) {
+func chantEndedAt(c *chantmodels.Chant) time.Time {
+	return c.ScheduledAt.Add(time.Duration(c.DurationSeconds) * time.Second)
+}
+
+func (r *stubChantRepo) PendingChantsForMatch(_ context.Context, userID, matchID uuid.UUID, limit int, after *chantrepo.ChantCursorAnchor, now time.Time) ([]chantrepo.PendingChant, error) {
 	var rows []chantrepo.PendingChant
 	for _, c := range r.chants {
 		if !c.IsActive || c.MatchID != matchID {
+			continue
+		}
+		if !chantEndedAt(c).After(now) {
 			continue
 		}
 		if after != nil {
@@ -450,7 +457,13 @@ func (r *stubChantRepo) PendingChantsForMatch(_ context.Context, userID, matchID
 		if _, settled := r.completions[key]; settled {
 			continue
 		}
-		rows = append(rows, chantrepo.PendingChant{ID: c.ID, Title: c.Title, ScheduledAt: c.ScheduledAt})
+		rows = append(rows, chantrepo.PendingChant{
+			ID:              c.ID,
+			SongID:          c.SongID,
+			Title:           c.Title,
+			ScheduledAt:     c.ScheduledAt,
+			DurationSeconds: c.DurationSeconds,
+		})
 	}
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].ScheduledAt.Equal(rows[j].ScheduledAt) {
@@ -461,6 +474,36 @@ func (r *stubChantRepo) PendingChantsForMatch(_ context.Context, userID, matchID
 	if limit > 0 && len(rows) > limit {
 		rows = rows[:limit]
 	}
+	return rows, nil
+}
+
+func (r *stubChantRepo) MissedPendingChantsForMatch(_ context.Context, userID, matchID uuid.UUID, now time.Time) ([]chantrepo.PendingChant, error) {
+	var rows []chantrepo.PendingChant
+	for _, c := range r.chants {
+		if !c.IsActive || c.MatchID != matchID {
+			continue
+		}
+		if chantEndedAt(c).After(now) {
+			continue
+		}
+		key := completionKey{target: c.ID, user: userID, source: chantmodels.SourceOnline}
+		if _, settled := r.completions[key]; settled {
+			continue
+		}
+		rows = append(rows, chantrepo.PendingChant{
+			ID:              c.ID,
+			SongID:          c.SongID,
+			Title:           c.Title,
+			ScheduledAt:     c.ScheduledAt,
+			DurationSeconds: c.DurationSeconds,
+		})
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].ScheduledAt.Equal(rows[j].ScheduledAt) {
+			return rows[i].ID.String() < rows[j].ID.String()
+		}
+		return rows[i].ScheduledAt.Before(rows[j].ScheduledAt)
+	})
 	return rows, nil
 }
 
@@ -891,6 +934,50 @@ func TestChant_ProgramPagesWithCursor(t *testing.T) {
 
 	if _, err := svc.Program(context.Background(), userID, 2, &userID); err == nil {
 		t.Fatal("a cursor that is not on the feed must be rejected")
+	}
+}
+
+func TestChant_ProgramMarksMissedChantsCancelled(t *testing.T) {
+	chantRepo := newStubChantRepo()
+	matchRepo := newStubMatchRepo()
+	svc := newChantService(chantRepo, matchRepo)
+
+	now := time.Now().UTC()
+	match := newScheduledMatch(matchRepo, now.Add(-time.Hour))
+	missed := &chantmodels.Chant{
+		ID:              uuid.New(),
+		MatchID:         match.ID,
+		SongID:          uuid.New(),
+		Title:           "Missed chant",
+		ScheduledAt:     now.Add(-20 * time.Minute),
+		DurationSeconds: 120,
+		IsActive:        true,
+	}
+	upcoming := &chantmodels.Chant{
+		ID:              uuid.New(),
+		MatchID:         match.ID,
+		SongID:          uuid.New(),
+		Title:           "Still to sing",
+		ScheduledAt:     now.Add(20 * time.Minute),
+		DurationSeconds: 120,
+		IsActive:        true,
+	}
+	chantRepo.chants[missed.ID] = missed
+	chantRepo.chants[upcoming.ID] = upcoming
+
+	userID := uuid.New()
+	resp, err := svc.Program(context.Background(), userID, 20, nil)
+	if err != nil {
+		t.Fatalf("Program failed: %v", err)
+	}
+	if len(resp.Items) != 2 {
+		t.Fatalf("expected the missed chant and the one still to sing, got %+v", resp.Items)
+	}
+	if resp.Items[0].ID != upcoming.ID.String() || resp.Items[0].IsCancelled || resp.Items[0].IsDone {
+		t.Fatalf("a chant that has not started must stay pending: %+v", resp.Items[0])
+	}
+	if !resp.Items[1].IsCancelled || resp.Items[1].IsDone || resp.Items[1].Title != "Missed chant" {
+		t.Fatalf("a chant the fan missed must show as cancelled: %+v", resp.Items[1])
 	}
 }
 
