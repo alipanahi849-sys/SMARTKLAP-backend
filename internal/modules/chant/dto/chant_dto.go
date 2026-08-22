@@ -110,6 +110,7 @@ type ChantProgramResponse struct {
 	TodayPoints int                `json:"today_points"`
 	TodayTarget int                `json:"today_target"`
 	Items       []ChantProgramItem `json:"items"`
+	Meta        ChantListMeta      `json:"meta"`
 }
 
 // ChantPointsSettings is the admin-configurable point payload

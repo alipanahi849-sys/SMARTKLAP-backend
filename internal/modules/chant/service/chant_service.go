@@ -63,7 +63,7 @@ type ChantService interface {
 	Cancel(ctx context.Context, userID, id uuid.UUID) error
 	TodayStats(ctx context.Context, userID uuid.UUID) (*dto.ChantTodayStatsResponse, error)
 	// Program powers the Home "Chants Program" scoreboard.
-	Program(ctx context.Context, userID uuid.UUID, limit int) (*dto.ChantProgramResponse, error)
+	Program(ctx context.Context, userID uuid.UUID, limit int, cursor *uuid.UUID) (*dto.ChantProgramResponse, error)
 
 	// Admin surface.
 	GetPointsSettings(ctx context.Context) (*dto.ChantPointsSettings, error)
@@ -319,7 +319,7 @@ func (s *chantService) Cancel(ctx context.Context, userID, id uuid.UUID) error {
 	return nil
 }
 
-func (s *chantService) Program(ctx context.Context, userID uuid.UUID, limit int) (*dto.ChantProgramResponse, error) {
+func (s *chantService) Program(ctx context.Context, userID uuid.UUID, limit int, cursor *uuid.UUID) (*dto.ChantProgramResponse, error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -330,18 +330,39 @@ func (s *chantService) Program(ctx context.Context, userID uuid.UUID, limit int)
 		return nil, err
 	}
 
-	// What the fan still has to sing leads the card, soonest first. The pending
-	// rows are scoped to the match the Chants screen is showing — the live one,
-	// else the next fixture — so chants defined ahead of kickoff are listed
-	// instead of surfacing only on the day they are scheduled. Each one leaves
-	// the list the moment it is settled, whether sung or walked out of.
-	items := make([]dto.ChantProgramItem, 0, limit)
 	match, err := s.resolveMatch(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-	if match != nil {
-		pending, pendingErr := s.chantRepo.PendingChantsForMatch(ctx, userID, match.ID, limit)
+
+	includePending := true
+	var pendingAfter *repository.ChantCursorAnchor
+	var historyAfter *repository.ProgramHistoryAnchor
+	if cursor != nil {
+		if match != nil {
+			if chant, chantErr := s.chantRepo.FindByID(ctx, *cursor); chantErr == nil && chant.MatchID == match.ID {
+				pendingAfter = &repository.ChantCursorAnchor{ScheduledAt: chant.ScheduledAt, ID: chant.ID}
+			}
+		}
+		if pendingAfter == nil {
+			row, rowErr := s.chantRepo.FindUserProgramCompletion(ctx, userID, *cursor)
+			if rowErr != nil {
+				return nil, rowErr
+			}
+			if row == nil {
+				return nil, errors.NewBadRequest("Invalid cursor", nil)
+			}
+			includePending = false
+			historyAfter = &repository.ProgramHistoryAnchor{CreatedAt: row.CreatedAt, ID: row.ID}
+		}
+	}
+
+	// One extra row tells the client whether another page follows. Pending
+	// chants still lead; today's history only fills what is left.
+	need := limit + 1
+	items := make([]dto.ChantProgramItem, 0, need)
+	if includePending && match != nil {
+		pending, pendingErr := s.chantRepo.PendingChantsForMatch(ctx, userID, match.ID, need, pendingAfter)
 		if pendingErr != nil {
 			return nil, pendingErr
 		}
@@ -357,10 +378,9 @@ func (s *chantService) Program(ctx context.Context, userID uuid.UUID, limit int)
 		}
 	}
 
-	// Today's settled attempts fill whatever room is left, most recent first.
 	now := time.Now().UTC()
-	if remaining := limit - len(items); remaining > 0 {
-		feed, feedErr := s.chantRepo.TodayProgramFeed(ctx, userID, remaining)
+	if remaining := need - len(items); remaining > 0 {
+		feed, feedErr := s.chantRepo.TodayProgramFeed(ctx, userID, remaining, historyAfter)
 		if feedErr != nil {
 			return nil, feedErr
 		}
@@ -368,10 +388,9 @@ func (s *chantService) Program(ctx context.Context, userID uuid.UUID, limit int)
 			completedAt := row.CreatedAt
 			cancelled := row.Status == models.StatusCancelled
 			items = append(items, dto.ChantProgramItem{
-				ID:     row.ID.String(),
-				Title:  row.Title,
-				Points: row.PointsEarned,
-				// A cancelled attempt is settled but never sung, so it is not "done".
+				ID:          row.ID.String(),
+				Title:       row.Title,
+				Points:      row.PointsEarned,
 				IsDone:      !cancelled,
 				IsCancelled: cancelled,
 				IsNew:       now.Sub(completedAt.UTC()) <= programNewWindow,
@@ -380,10 +399,20 @@ func (s *chantService) Program(ctx context.Context, userID uuid.UUID, limit int)
 		}
 	}
 
+	meta := dto.ChantListMeta{Limit: limit, HasMore: len(items) > limit}
+	if meta.HasMore {
+		items = items[:limit]
+	}
+	if meta.HasMore && len(items) > 0 {
+		lastID := uuid.MustParse(items[len(items)-1].ID)
+		meta.NextCursor = &lastID
+	}
+
 	return &dto.ChantProgramResponse{
 		TodayPoints: todayPoints,
 		TodayTarget: points.dailyTarget,
 		Items:       items,
+		Meta:        meta,
 	}, nil
 }
 

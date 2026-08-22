@@ -259,9 +259,11 @@ func (h *chantHandler) TodayStats(c *gin.Context) {
 //	@Tags			chants
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			limit	query	int	false	"Items to return (default 20, max 100)"
+//	@Param			cursor	query	string	false	"ID of the last item from the previous page"
+//	@Param			limit	query	int		false	"Items per page (default 20, max 100)"
 //	@Success		200	{object}	response.Response
 //	@Failure		401	{object}	response.Response
+//	@Failure		400	{object}	response.Response
 //	@Router			/api/v1/chants/program [get]
 func (h *chantHandler) Program(c *gin.Context) {
 	userID := middleware.GetUserID(c)
@@ -270,7 +272,17 @@ func (h *chantHandler) Program(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.Program(c.Request.Context(), userID, utils.GetMobileCursorLimit(c))
+	var cursor *uuid.UUID
+	if raw := strings.TrimSpace(c.Query("cursor")); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			response.BadRequest(c, "Invalid cursor")
+			return
+		}
+		cursor = &id
+	}
+
+	result, err := h.svc.Program(c.Request.Context(), userID, utils.GetMobileCursorLimit(c), cursor)
 	if err != nil {
 		response.Error(c, err)
 		return

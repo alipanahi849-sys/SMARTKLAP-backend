@@ -20,6 +20,12 @@ type ChantCursorAnchor struct {
 	ID          uuid.UUID
 }
 
+// ProgramHistoryAnchor is the completion the next history page starts after.
+type ProgramHistoryAnchor struct {
+	CreatedAt time.Time
+	ID        uuid.UUID
+}
+
 // CompletionTarget is what a user just finished. Online completions carry a
 // ChantID; catalog completions carry only the song.
 type CompletionTarget struct {
@@ -67,11 +73,15 @@ type ChantRepository interface {
 	ListenStartedAt(ctx context.Context, userID, songID uuid.UUID, source string) (*time.Time, error)
 	// TodayProgramFeed returns today's completions for one user, newest first so
 	// the Home card shows the most recently sung chant at the top of its history.
-	TodayProgramFeed(ctx context.Context, userID uuid.UUID, limit int) ([]ProgramCompletion, error)
+	// Pass after=nil for the first history page.
+	TodayProgramFeed(ctx context.Context, userID uuid.UUID, limit int, after *ProgramHistoryAnchor) ([]ProgramCompletion, error)
+	// FindUserProgramCompletion loads one of today's scoreboard rows by id.
+	FindUserProgramCompletion(ctx context.Context, userID, id uuid.UUID) (*ProgramCompletion, error)
 	// PendingChantsForMatch returns the match's online chants the user has not
 	// settled yet, soonest first. A chant drops out as soon as it is completed
 	// or cancelled, so the Home programme only lists what is still to sing.
-	PendingChantsForMatch(ctx context.Context, userID, matchID uuid.UUID, limit int) ([]PendingChant, error)
+	// Pass after=nil for the first pending page.
+	PendingChantsForMatch(ctx context.Context, userID, matchID uuid.UUID, limit int, after *ChantCursorAnchor) ([]PendingChant, error)
 	// CreateChant schedules an online chant built from a catalog song.
 	CreateChant(ctx context.Context, chant *models.Chant) error
 	// FindScheduled lists active online chants for the admin panel, soonest first.
@@ -327,9 +337,37 @@ func (r *chantRepository) ListenStartedAt(ctx context.Context, userID, songID uu
 	return &session.StartedAt, nil
 }
 
-func (r *chantRepository) TodayProgramFeed(ctx context.Context, userID uuid.UUID, limit int) ([]ProgramCompletion, error) {
+func (r *chantRepository) TodayProgramFeed(ctx context.Context, userID uuid.UUID, limit int, after *ProgramHistoryAnchor) ([]ProgramCompletion, error) {
 	startOfDay := time.Now().UTC().Truncate(24 * time.Hour)
 
+	query := `
+		SELECT cc.id,
+		       COALESCE(c.title, s.title, '') AS title,
+		       cc.status,
+		       cc.points_earned,
+		       cc.created_at
+		FROM chant_completions cc
+		LEFT JOIN chants c ON c.id = cc.chant_id
+		LEFT JOIN songs s  ON s.id = cc.song_id
+		WHERE cc.user_id = ? AND cc.created_at >= ?`
+	args := []any{userID, startOfDay}
+	if after != nil {
+		query += ` AND ((cc.created_at < ?) OR (cc.created_at = ? AND cc.id < ?))`
+		args = append(args, after.CreatedAt, after.CreatedAt, after.ID)
+	}
+	query += `
+		ORDER BY cc.created_at DESC, cc.id DESC
+		LIMIT ?`
+	args = append(args, limit)
+
+	var rows []ProgramCompletion
+	if err := r.db.WithContext(ctx).Raw(query, args...).Scan(&rows).Error; err != nil {
+		return nil, errors.NewInternal("Failed to load chant scores", err)
+	}
+	return rows, nil
+}
+
+func (r *chantRepository) FindUserProgramCompletion(ctx context.Context, userID, id uuid.UUID) (*ProgramCompletion, error) {
 	const query = `
 		SELECT cc.id,
 		       COALESCE(c.title, s.title, '') AS title,
@@ -339,19 +377,22 @@ func (r *chantRepository) TodayProgramFeed(ctx context.Context, userID uuid.UUID
 		FROM chant_completions cc
 		LEFT JOIN chants c ON c.id = cc.chant_id
 		LEFT JOIN songs s  ON s.id = cc.song_id
-		WHERE cc.user_id = ? AND cc.created_at >= ?
-		ORDER BY cc.created_at DESC
-		LIMIT ?`
+		WHERE cc.id = ? AND cc.user_id = ?
+		LIMIT 1`
 
-	var rows []ProgramCompletion
-	if err := r.db.WithContext(ctx).Raw(query, userID, startOfDay, limit).Scan(&rows).Error; err != nil {
-		return nil, errors.NewInternal("Failed to load chant scores", err)
+	var row ProgramCompletion
+	err := r.db.WithContext(ctx).Raw(query, id, userID).Scan(&row).Error
+	if err != nil {
+		return nil, errors.NewInternal("Failed to load chant score", err)
 	}
-	return rows, nil
+	if row.ID == uuid.Nil {
+		return nil, nil
+	}
+	return &row, nil
 }
 
-func (r *chantRepository) PendingChantsForMatch(ctx context.Context, userID, matchID uuid.UUID, limit int) ([]PendingChant, error) {
-	const query = `
+func (r *chantRepository) PendingChantsForMatch(ctx context.Context, userID, matchID uuid.UUID, limit int, after *ChantCursorAnchor) ([]PendingChant, error) {
+	query := `
 		SELECT c.id, c.title, c.scheduled_at
 		FROM chants c
 		LEFT JOIN chant_completions cc
@@ -359,12 +400,19 @@ func (r *chantRepository) PendingChantsForMatch(ctx context.Context, userID, mat
 		WHERE c.match_id = ?
 		  AND c.is_active = TRUE
 		  AND c.deleted_at IS NULL
-		  AND cc.id IS NULL
-		ORDER BY c.scheduled_at ASC
+		  AND cc.id IS NULL`
+	args := []any{userID, matchID}
+	if after != nil {
+		query += ` AND ((c.scheduled_at > ?) OR (c.scheduled_at = ? AND c.id > ?))`
+		args = append(args, after.ScheduledAt, after.ScheduledAt, after.ID)
+	}
+	query += `
+		ORDER BY c.scheduled_at ASC, c.id ASC
 		LIMIT ?`
+	args = append(args, limit)
 
 	var rows []PendingChant
-	if err := r.db.WithContext(ctx).Raw(query, userID, matchID, limit).Scan(&rows).Error; err != nil {
+	if err := r.db.WithContext(ctx).Raw(query, args...).Scan(&rows).Error; err != nil {
 		return nil, errors.NewInternal("Failed to load pending chants", err)
 	}
 	return rows, nil

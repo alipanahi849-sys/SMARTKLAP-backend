@@ -170,6 +170,7 @@ type listenKey struct {
 // stubAttempt mirrors a chant_completions row: the slot is taken either way,
 // but only a completed one is worth points.
 type stubAttempt struct {
+	id     uuid.UUID
 	status string
 	points int
 	at     time.Time
@@ -306,7 +307,7 @@ func (r *stubChantRepo) Complete(_ context.Context, target chantrepo.CompletionT
 	if _, settled := r.completions[key]; settled {
 		return r.userPoints[target.UserID], false, nil
 	}
-	r.completions[key] = stubAttempt{status: chantmodels.StatusCompleted, points: target.Points, at: time.Now().UTC()}
+	r.completions[key] = stubAttempt{id: uuid.New(), status: chantmodels.StatusCompleted, points: target.Points, at: time.Now().UTC()}
 	r.userPoints[target.UserID] += target.Points
 	return r.userPoints[target.UserID], true, nil
 }
@@ -316,7 +317,7 @@ func (r *stubChantRepo) Cancel(_ context.Context, target chantrepo.CompletionTar
 	if _, settled := r.completions[key]; settled {
 		return false, nil
 	}
-	r.completions[key] = stubAttempt{status: chantmodels.StatusCancelled, at: time.Now().UTC()}
+	r.completions[key] = stubAttempt{id: uuid.New(), status: chantmodels.StatusCancelled, at: time.Now().UTC()}
 	return true, nil
 }
 
@@ -366,11 +367,19 @@ func (r *stubChantRepo) ListenStartedAt(_ context.Context, userID, songID uuid.U
 	return nil, nil
 }
 
-func (r *stubChantRepo) TodayProgramFeed(_ context.Context, userID uuid.UUID, limit int) ([]chantrepo.ProgramCompletion, error) {
+func (r *stubChantRepo) TodayProgramFeed(_ context.Context, userID uuid.UUID, limit int, after *chantrepo.ProgramHistoryAnchor) ([]chantrepo.ProgramCompletion, error) {
 	var rows []chantrepo.ProgramCompletion
 	for key, attempt := range r.completions {
 		if key.user != userID {
 			continue
+		}
+		if after != nil {
+			if attempt.at.After(after.CreatedAt) {
+				continue
+			}
+			if attempt.at.Equal(after.CreatedAt) && attempt.id.String() >= after.ID.String() {
+				continue
+			}
 		}
 		title := ""
 		if key.source == chantmodels.SourceCatalog {
@@ -381,25 +390,61 @@ func (r *stubChantRepo) TodayProgramFeed(_ context.Context, userID uuid.UUID, li
 			title = chant.Title
 		}
 		rows = append(rows, chantrepo.ProgramCompletion{
-			ID:           uuid.New(),
+			ID:           attempt.id,
 			Title:        title,
 			Status:       attempt.status,
 			PointsEarned: attempt.points,
 			CreatedAt:    attempt.at,
 		})
 	}
-	sort.Slice(rows, func(i, j int) bool { return rows[i].CreatedAt.After(rows[j].CreatedAt) })
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].CreatedAt.Equal(rows[j].CreatedAt) {
+			return rows[i].ID.String() > rows[j].ID.String()
+		}
+		return rows[i].CreatedAt.After(rows[j].CreatedAt)
+	})
 	if limit > 0 && len(rows) > limit {
 		rows = rows[:limit]
 	}
 	return rows, nil
 }
 
-func (r *stubChantRepo) PendingChantsForMatch(_ context.Context, userID, matchID uuid.UUID, limit int) ([]chantrepo.PendingChant, error) {
+func (r *stubChantRepo) FindUserProgramCompletion(_ context.Context, userID, id uuid.UUID) (*chantrepo.ProgramCompletion, error) {
+	for key, attempt := range r.completions {
+		if key.user == userID && attempt.id == id {
+			title := ""
+			if key.source == chantmodels.SourceCatalog {
+				if song, ok := r.songs[key.target]; ok {
+					title = song.Title
+				}
+			} else if chant, ok := r.chants[key.target]; ok {
+				title = chant.Title
+			}
+			return &chantrepo.ProgramCompletion{
+				ID:           attempt.id,
+				Title:        title,
+				Status:       attempt.status,
+				PointsEarned: attempt.points,
+				CreatedAt:    attempt.at,
+			}, nil
+		}
+	}
+	return nil, nil
+}
+
+func (r *stubChantRepo) PendingChantsForMatch(_ context.Context, userID, matchID uuid.UUID, limit int, after *chantrepo.ChantCursorAnchor) ([]chantrepo.PendingChant, error) {
 	var rows []chantrepo.PendingChant
 	for _, c := range r.chants {
 		if !c.IsActive || c.MatchID != matchID {
 			continue
+		}
+		if after != nil {
+			if c.ScheduledAt.Before(after.ScheduledAt) {
+				continue
+			}
+			if c.ScheduledAt.Equal(after.ScheduledAt) && c.ID.String() <= after.ID.String() {
+				continue
+			}
 		}
 		key := completionKey{target: c.ID, user: userID, source: chantmodels.SourceOnline}
 		if _, settled := r.completions[key]; settled {
@@ -407,7 +452,12 @@ func (r *stubChantRepo) PendingChantsForMatch(_ context.Context, userID, matchID
 		}
 		rows = append(rows, chantrepo.PendingChant{ID: c.ID, Title: c.Title, ScheduledAt: c.ScheduledAt})
 	}
-	sort.Slice(rows, func(i, j int) bool { return rows[i].ScheduledAt.Before(rows[j].ScheduledAt) })
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].ScheduledAt.Equal(rows[j].ScheduledAt) {
+			return rows[i].ID.String() < rows[j].ID.String()
+		}
+		return rows[i].ScheduledAt.Before(rows[j].ScheduledAt)
+	})
 	if limit > 0 && len(rows) > limit {
 		rows = rows[:limit]
 	}
@@ -733,7 +783,7 @@ func TestChant_ProgramListsMatchChantsUntilTheyAreSettled(t *testing.T) {
 	chantRepo.chants[third.ID] = third
 
 	userID := uuid.New()
-	resp, err := svc.Program(context.Background(), userID, 20)
+	resp, err := svc.Program(context.Background(), userID, 20, nil)
 	if err != nil {
 		t.Fatalf("Program failed: %v", err)
 	}
@@ -757,7 +807,7 @@ func TestChant_ProgramListsMatchChantsUntilTheyAreSettled(t *testing.T) {
 		}
 	}
 
-	resp, err = svc.Program(context.Background(), userID, 20)
+	resp, err = svc.Program(context.Background(), userID, 20, nil)
 	if err != nil {
 		t.Fatalf("Program after completion failed: %v", err)
 	}
@@ -779,6 +829,68 @@ func TestChant_ProgramListsMatchChantsUntilTheyAreSettled(t *testing.T) {
 	}
 	if resp.Items[2].Title != "Chant one" {
 		t.Fatalf("older attempts must trail the history: %+v", resp.Items[2])
+	}
+}
+
+func TestChant_ProgramPagesWithCursor(t *testing.T) {
+	chantRepo := newStubChantRepo()
+	matchRepo := newStubMatchRepo()
+	svc := newChantService(chantRepo, matchRepo)
+
+	kickoff := time.Now().UTC().Add(2 * time.Hour)
+	match := newScheduledMatch(matchRepo, kickoff)
+	one := &chantmodels.Chant{ID: uuid.New(), MatchID: match.ID, Title: "One", ScheduledAt: kickoff, IsActive: true}
+	two := &chantmodels.Chant{ID: uuid.New(), MatchID: match.ID, Title: "Two", ScheduledAt: kickoff.Add(time.Minute), IsActive: true}
+	three := &chantmodels.Chant{ID: uuid.New(), MatchID: match.ID, Title: "Three", ScheduledAt: kickoff.Add(2 * time.Minute), IsActive: true}
+	chantRepo.chants[one.ID] = one
+	chantRepo.chants[two.ID] = two
+	chantRepo.chants[three.ID] = three
+
+	userID := uuid.New()
+	first, err := svc.Program(context.Background(), userID, 2, nil)
+	if err != nil {
+		t.Fatalf("first page failed: %v", err)
+	}
+	if !first.Meta.HasMore || first.Meta.NextCursor == nil || len(first.Items) != 2 {
+		t.Fatalf("expected a cursor after the first two pending chants: %+v", first)
+	}
+	if first.Items[0].Title != "One" || first.Items[1].Title != "Two" {
+		t.Fatalf("first page must stay soonest first: %+v", first.Items)
+	}
+
+	second, err := svc.Program(context.Background(), userID, 2, first.Meta.NextCursor)
+	if err != nil {
+		t.Fatalf("second page failed: %v", err)
+	}
+	if second.Meta.HasMore || len(second.Items) != 1 || second.Items[0].Title != "Three" {
+		t.Fatalf("second page should finish the pending list: %+v", second)
+	}
+
+	if _, err := svc.Complete(context.Background(), userID, one.ID, chantmodels.SourceOnline); err != nil {
+		t.Fatalf("Complete failed: %v", err)
+	}
+	if _, err := svc.Complete(context.Background(), userID, two.ID, chantmodels.SourceOnline); err != nil {
+		t.Fatalf("Complete failed: %v", err)
+	}
+
+	afterPending, err := svc.Program(context.Background(), userID, 1, &three.ID)
+	if err != nil {
+		t.Fatalf("page after last pending failed: %v", err)
+	}
+	if !afterPending.Meta.HasMore || len(afterPending.Items) != 1 || afterPending.Items[0].Title != "Two" {
+		t.Fatalf("history after the last pending chant should start newest first: %+v", afterPending)
+	}
+
+	history, err := svc.Program(context.Background(), userID, 2, afterPending.Meta.NextCursor)
+	if err != nil {
+		t.Fatalf("history page failed: %v", err)
+	}
+	if history.Meta.HasMore || len(history.Items) != 1 || history.Items[0].Title != "One" {
+		t.Fatalf("next history page should be the older attempt: %+v", history)
+	}
+
+	if _, err := svc.Program(context.Background(), userID, 2, &userID); err == nil {
+		t.Fatal("a cursor that is not on the feed must be rejected")
 	}
 }
 
