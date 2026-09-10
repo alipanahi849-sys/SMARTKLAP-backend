@@ -45,7 +45,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	}
 
 	admin := r.Group("/admin")
-	admin.Use(middleware.Auth(), middleware.RequirePermission("videos"))
+	admin.Use(middleware.AdminAuth(), middleware.RequirePermission("videos"))
 	{
 		admin.GET("/videos/pending", h.ListPending)
 		admin.GET("/videos/rejected", h.ListRejected)

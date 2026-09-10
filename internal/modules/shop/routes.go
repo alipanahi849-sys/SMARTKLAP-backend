@@ -35,18 +35,24 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	cartH := handler.NewCartHandler(cartSvc)
 
 	shop := r.Group("/shop")
-	shop.Use(middleware.Auth())
 	{
-		shop.GET("", productH.List)
-		shop.POST("", productH.Create)
+		// Catalog reads: app fans and admin dashboard.
+		shop.GET("", middleware.AnyAuth(), productH.List)
 
-		shop.POST("/cart/items", cartH.AddItem)
-		shop.POST("/cart/items/decrease", cartH.DecreaseItem)
-		shop.GET("/cart", cartH.GetBasket)
+		// Cart is fan-only (app users). Register before /:id.
+		cart := shop.Group("/cart")
+		cart.Use(middleware.Auth())
+		{
+			cart.POST("/items", cartH.AddItem)
+			cart.POST("/items/decrease", cartH.DecreaseItem)
+			cart.GET("", cartH.GetBasket)
+		}
 
-		shop.GET("/:id", productH.GetByID)
-		shop.PUT("/:id", productH.Update)
-		shop.DELETE("/:id", productH.Delete)
-		shop.POST("/:id/image", productH.UploadProductImage)
+		// Product mutations: admin staff only.
+		shop.POST("", middleware.AdminAuth(), productH.Create)
+		shop.GET("/:id", middleware.AnyAuth(), productH.GetByID)
+		shop.PUT("/:id", middleware.AdminAuth(), productH.Update)
+		shop.DELETE("/:id", middleware.AdminAuth(), productH.Delete)
+		shop.POST("/:id/image", middleware.AdminAuth(), productH.UploadProductImage)
 	}
 }

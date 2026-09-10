@@ -36,14 +36,14 @@ func RegisterRoutes(r *gin.RouterGroup, clubsFrom *matchsvc.SyncService) {
 	h := handler.NewNewsHandler(svc)
 
 	newsGroup := r.Group("/news")
-	newsGroup.Use(middleware.Auth())
+	newsGroup.Use(middleware.AnyAuth())
 	{
 		newsGroup.GET("", h.List)
 		newsGroup.GET("/:news_id", h.GetByID)
 	}
 
 	admin := r.Group("/admin")
-	admin.Use(middleware.Auth(), middleware.RequirePermission("teams"))
+	admin.Use(middleware.AdminAuth(), middleware.RequirePermission("teams"))
 	{
 		admin.GET("/settings/news-club", h.GetNewsClub)
 		admin.PUT("/settings/news-club", h.SetNewsClub)

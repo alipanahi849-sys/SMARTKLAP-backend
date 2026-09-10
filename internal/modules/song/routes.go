@@ -19,11 +19,11 @@ func RegisterRoutes(r *gin.RouterGroup) {
 
 	songs := r.Group("/songs")
 	{
-		songs.POST("", middleware.Auth(), songHandler.Create)
+		songs.POST("", middleware.AdminAuth(), songHandler.Create)
 		songs.GET("", songHandler.List)
 		songs.GET("/search", songHandler.Search)
 		songs.GET("/:id", songHandler.GetByID)
-		songs.PUT("/:id", middleware.Auth(), songHandler.Update)
-		songs.DELETE("/:id", middleware.Auth(), songHandler.Delete)
+		songs.PUT("/:id", middleware.AdminAuth(), songHandler.Update)
+		songs.DELETE("/:id", middleware.AdminAuth(), songHandler.Delete)
 	}
 }

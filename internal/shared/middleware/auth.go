@@ -16,39 +16,103 @@ const (
 	UserEmailKey = "user_email"
 	UserRolesKey = "user_roles"
 	UserPermsKey = "panel_permissions"
+	TokenTypeKey = "token_type"
 )
 
 func Auth() gin.HandlerFunc {
+	return authWithAllowedTypes(utils.TokenTypeApp)
+}
+
+// AdminAuth accepts only admin-panel JWTs (staff identity, not app users).
+func AdminAuth() gin.HandlerFunc {
+	return authWithAllowedTypes(utils.TokenTypeAdmin)
+}
+
+// AnyAuth accepts either an app or admin access token.
+// Use for read endpoints shared by the mobile app and the admin dashboard.
+func AnyAuth() gin.HandlerFunc {
+	return authWithAllowedTypes(utils.TokenTypeApp, utils.TokenTypeAdmin)
+}
+
+func authWithAllowedTypes(allowed ...string) gin.HandlerFunc {
+	allowedSet := make(map[string]struct{}, len(allowed))
+	for _, t := range allowed {
+		allowedSet[t] = struct{}{}
+	}
+
+	return func(c *gin.Context) {
+		claims, ok := parseBearerClaims(c)
+		if !ok {
+			return
+		}
+
+		if _, ok := allowedSet[claims.TokenType]; !ok {
+			response.Unauthorized(c, "Invalid token type for this endpoint")
+			c.Abort()
+			return
+		}
+
+		setAuthContext(c, claims)
+		c.Next()
+	}
+}
+
+func OptionalAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			response.Unauthorized(c, "Authorization header is required")
-			c.Abort()
+			c.Next()
 			return
 		}
 
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || parts[0] != "Bearer" {
-			response.Unauthorized(c, "Invalid authorization header format")
-			c.Abort()
+			c.Next()
 			return
 		}
 
-		token := parts[1]
-		claims, err := utils.ValidateAccessToken(token)
+		claims, err := utils.ValidateAccessToken(parts[1])
 		if err != nil {
-			response.Error(c, errors.ErrInvalidToken)
-			c.Abort()
+			c.Next()
 			return
 		}
 
-		c.Set(UserIDKey, claims.UserID)
-		c.Set(UserEmailKey, claims.Email)
-		c.Set(UserRolesKey, claims.Roles)
-		c.Set(UserPermsKey, claims.PanelPermissions)
-
+		setAuthContext(c, claims)
 		c.Next()
 	}
+}
+
+func parseBearerClaims(c *gin.Context) (*utils.Claims, bool) {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		response.Unauthorized(c, "Authorization header is required")
+		c.Abort()
+		return nil, false
+	}
+
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		response.Unauthorized(c, "Invalid authorization header format")
+		c.Abort()
+		return nil, false
+	}
+
+	claims, err := utils.ValidateAccessToken(parts[1])
+	if err != nil {
+		response.Error(c, errors.ErrInvalidToken)
+		c.Abort()
+		return nil, false
+	}
+
+	return claims, true
+}
+
+func setAuthContext(c *gin.Context, claims *utils.Claims) {
+	c.Set(UserIDKey, claims.UserID)
+	c.Set(UserEmailKey, claims.Email)
+	c.Set(UserRolesKey, claims.Roles)
+	c.Set(UserPermsKey, claims.PanelPermissions)
+	c.Set(TokenTypeKey, claims.TokenType)
 }
 
 func GetUserID(c *gin.Context) uuid.UUID {
@@ -86,6 +150,18 @@ func GetPanelPermissions(c *gin.Context) []string {
 	default:
 		return []string{}
 	}
+}
+
+func GetTokenType(c *gin.Context) string {
+	tokenType, exists := c.Get(TokenTypeKey)
+	if !exists {
+		return ""
+	}
+	return tokenType.(string)
+}
+
+func IsAdminToken(c *gin.Context) bool {
+	return GetTokenType(c) == utils.TokenTypeAdmin
 }
 
 func hasRole(roles []string, want string) bool {
@@ -153,35 +229,5 @@ func RequirePanelAccess() gin.HandlerFunc {
 		}
 		response.Forbidden(c, "Admin panel access required")
 		c.Abort()
-	}
-}
-
-func OptionalAuth() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			c.Next()
-			return
-		}
-
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			c.Next()
-			return
-		}
-
-		token := parts[1]
-		claims, err := utils.ValidateAccessToken(token)
-		if err != nil {
-			c.Next()
-			return
-		}
-
-		c.Set(UserIDKey, claims.UserID)
-		c.Set(UserEmailKey, claims.Email)
-		c.Set(UserRolesKey, claims.Roles)
-		c.Set(UserPermsKey, claims.PanelPermissions)
-
-		c.Next()
 	}
 }

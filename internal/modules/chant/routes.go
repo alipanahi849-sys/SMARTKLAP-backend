@@ -39,7 +39,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	}
 
 	admin := r.Group("/admin")
-	admin.Use(middleware.Auth(), middleware.RequirePermission("events"))
+	admin.Use(middleware.AdminAuth(), middleware.RequirePermission("events"))
 	{
 		admin.GET("/settings/chant-points", h.GetPoints)
 		admin.PUT("/settings/chant-points", h.UpdatePoints)

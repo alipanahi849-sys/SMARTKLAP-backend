@@ -53,6 +53,10 @@ func (h *productHandler) List(c *gin.Context) {
 		response.Unauthorized(c, "Invalid user")
 		return
 	}
+	// Admin tokens are not fan accounts — skip cart/points lookup.
+	if middleware.IsAdminToken(c) {
+		userID = uuid.Nil
+	}
 
 	limit := utils.GetMobileCursorLimit(c)
 

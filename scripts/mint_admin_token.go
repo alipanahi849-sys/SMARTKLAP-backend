@@ -16,7 +16,7 @@ func main() {
 		os.Exit(1)
 	}
 	uid := uuid.MustParse("c1000000-0000-4000-8000-000000000001")
-	tok, _, err := utils.GenerateAccessToken(uid, "admin@clap.test", []string{"admin"})
+	tok, _, err := utils.GenerateAdminAccessToken(uid, "admin@clap.test", []string{"admin"})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

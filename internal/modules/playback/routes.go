@@ -35,7 +35,7 @@ func RegisterRoutesWithEvents(r *gin.RouterGroup, eventScheduler service.SongEve
 	h := handler.NewPlaybackHandler(svc)
 
 	songs := r.Group("/songs")
-	songs.Use(middleware.Auth())
+	songs.Use(middleware.AdminAuth())
 	{
 		songs.POST("/schedule", h.ScheduleSong)
 		songs.DELETE("/schedule/:id", h.CancelSong)

@@ -138,11 +138,6 @@ func (s *productService) List(ctx context.Context, userID uuid.UUID, filters dto
 		}
 	}
 
-	user, err := s.userRepo.FindByID(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
 	repoFilters := repository.ProductFilters{
 		Search:      filters.Search,
 		Category:    category,
@@ -194,17 +189,25 @@ func (s *productService) List(ctx context.Context, userID uuid.UUID, filters dto
 		meta.NextCursor = &lastID
 	}
 
+	userPoints := 0
 	cartCount := 0
-	if s.cartCounter != nil {
-		if count, err := s.cartCounter.CountItems(ctx, userID); err == nil {
-			cartCount = count
+	if userID != uuid.Nil {
+		user, err := s.userRepo.FindByID(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		userPoints = user.Points
+		if s.cartCounter != nil {
+			if count, err := s.cartCounter.CountItems(ctx, userID); err == nil {
+				cartCount = count
+			}
 		}
 	}
 
 	return &dto.ProductListResponse{
 		Items:      items,
 		CartCount:  cartCount,
-		UserPoints: user.Points,
+		UserPoints: userPoints,
 		Meta:       meta,
 	}, nil
 }

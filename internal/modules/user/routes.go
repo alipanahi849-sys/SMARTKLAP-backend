@@ -40,7 +40,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	}
 
 	admin := r.Group("/admin")
-	admin.Use(middleware.Auth(), middleware.RequirePermission(authmodels.PanelUsers))
+	admin.Use(middleware.AdminAuth(), middleware.RequirePermission(authmodels.PanelUsers))
 	{
 		admin.GET("/users", adminUsers.List)
 		admin.POST("/users", adminUsers.Create)

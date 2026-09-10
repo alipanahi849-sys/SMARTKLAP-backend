@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"clap/cmd/api/docs"
+	"clap/internal/modules/adminauth"
 	"clap/internal/modules/auth"
 	"clap/internal/modules/chant"
 	chantrepo "clap/internal/modules/chant/repository"
@@ -366,6 +367,7 @@ func setupRouter(deps routerDeps) *gin.Engine {
 	v1 := router.Group("/api/v1")
 	{
 		auth.RegisterRoutes(v1)
+		adminauth.RegisterRoutes(v1)
 		user.RegisterRoutes(v1)
 		song.RegisterRoutes(v1)
 		songlyric.RegisterRoutes(v1)

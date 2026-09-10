@@ -340,7 +340,7 @@ func newRealtimeRouter(t *testing.T) *gin.Engine {
 
 func adminToken(t *testing.T) string {
 	t.Helper()
-	tok, _, err := utils.GenerateAccessToken(uuid.New(), "admin@example.com", []string{string(utils.RoleAdmin)})
+	tok, _, err := utils.GenerateAdminAccessToken(uuid.New(), "admin@example.com", []string{string(utils.RoleAdmin)})
 	require.NoError(t, err)
 	return tok
 }

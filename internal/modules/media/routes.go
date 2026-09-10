@@ -32,13 +32,13 @@ func RegisterRoutes(r *gin.RouterGroup) {
 
 	media := r.Group("/media")
 	{
-		media.POST("/upload", middleware.Auth(), mediaHandler.Upload)
-		media.GET("/:id/playback-url", middleware.Auth(), mediaHandler.GetPlaybackURL)
+		media.POST("/upload", middleware.AdminAuth(), mediaHandler.Upload)
+		media.GET("/:id/playback-url", middleware.AnyAuth(), mediaHandler.GetPlaybackURL)
 	}
 
 	songs := r.Group("/songs")
 	{
-		songs.POST("/:id/audio", middleware.Auth(), mediaHandler.UploadSongAudio)
+		songs.POST("/:id/audio", middleware.AdminAuth(), mediaHandler.UploadSongAudio)
 	}
 }
 

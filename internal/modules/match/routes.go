@@ -62,7 +62,7 @@ func RegisterRoutes(r *gin.RouterGroup, syncer *service.SyncService) {
 	h := handler.NewMatchHandler(svc)
 
 	matches := r.Group("/matches")
-	matches.Use(middleware.Auth())
+	matches.Use(middleware.AnyAuth())
 	{
 		matches.GET("", h.List)
 		matches.GET("/current", h.GetCurrent)
@@ -70,13 +70,13 @@ func RegisterRoutes(r *gin.RouterGroup, syncer *service.SyncService) {
 	}
 
 	players := r.Group("/players")
-	players.Use(middleware.Auth())
+	players.Use(middleware.AnyAuth())
 	{
 		players.GET("/:player_id", h.GetPlayer)
 	}
 
 	admin := r.Group("/admin")
-	admin.Use(middleware.Auth(), middleware.RequirePermission("teams"))
+	admin.Use(middleware.AdminAuth(), middleware.RequirePermission("teams"))
 	{
 		admin.GET("/football/teams", h.SearchTeams)
 		admin.GET("/settings/featured-club", h.GetFeaturedClub)

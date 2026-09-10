@@ -19,10 +19,10 @@ func RegisterRoutes(r *gin.RouterGroup) {
 
 	lyrics := r.Group("/song-lyrics")
 	{
-		lyrics.POST("", middleware.Auth(), lyricHandler.Create)
+		lyrics.POST("", middleware.AdminAuth(), lyricHandler.Create)
 		lyrics.GET("/:id", lyricHandler.GetByID)
-		lyrics.PUT("/:id", middleware.Auth(), lyricHandler.Update)
-		lyrics.DELETE("/:id", middleware.Auth(), lyricHandler.Delete)
+		lyrics.PUT("/:id", middleware.AdminAuth(), lyricHandler.Update)
+		lyrics.DELETE("/:id", middleware.AdminAuth(), lyricHandler.Delete)
 	}
 
 	// Gin requires the same wildcard name as /songs/:id.
@@ -30,6 +30,6 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	{
 		songs.GET("/lyrics", lyricHandler.ListBySongID)
 		songs.GET("/lyrics/:language", lyricHandler.GetBySongID)
-		songs.POST("/lyrics/import", middleware.Auth(), lyricHandler.ImportLyrics)
+		songs.POST("/lyrics/import", middleware.AdminAuth(), lyricHandler.ImportLyrics)
 	}
 }

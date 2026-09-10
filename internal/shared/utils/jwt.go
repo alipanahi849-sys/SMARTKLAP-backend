@@ -12,11 +12,17 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	TokenTypeApp   = "app"
+	TokenTypeAdmin = "admin"
+)
+
 type Claims struct {
-	UserID            uuid.UUID `json:"user_id"`
-	Email             string    `json:"email"`
-	Roles             []string  `json:"roles"`
-	PanelPermissions  []string  `json:"panel_permissions,omitempty"`
+	UserID           uuid.UUID `json:"user_id"`
+	Email            string    `json:"email"`
+	Roles            []string  `json:"roles"`
+	PanelPermissions []string  `json:"panel_permissions,omitempty"`
+	TokenType        string    `json:"token_type"`
 	jwt.RegisteredClaims
 }
 
@@ -26,12 +32,30 @@ type TokenPair struct {
 	ExpiresIn    int64  `json:"expires_in"`
 }
 
+// GenerateAccessToken issues an app (fan) access token.
+// Optional panelPermissions are ignored for fan tokens but kept for call-site compatibility.
 func GenerateAccessToken(userID uuid.UUID, email string, roles []string, panelPermissions ...[]string) (string, int64, error) {
-	cfg := config.AppConfig.JWT
-
 	var perms []string
 	if len(panelPermissions) > 0 {
 		perms = panelPermissions[0]
+	}
+	return GenerateAccessTokenWithType(userID, email, roles, TokenTypeApp, perms)
+}
+
+// GenerateAdminAccessToken issues an admin-panel access token.
+func GenerateAdminAccessToken(adminID uuid.UUID, email string, roles []string, panelPermissions ...[]string) (string, int64, error) {
+	var perms []string
+	if len(panelPermissions) > 0 {
+		perms = panelPermissions[0]
+	}
+	return GenerateAccessTokenWithType(adminID, email, roles, TokenTypeAdmin, perms)
+}
+
+func GenerateAccessTokenWithType(userID uuid.UUID, email string, roles []string, tokenType string, panelPermissions []string) (string, int64, error) {
+	cfg := config.AppConfig.JWT
+
+	if tokenType == "" {
+		tokenType = TokenTypeApp
 	}
 
 	expiresAt := time.Now().Add(time.Duration(cfg.AccessExpiry) * time.Second)
@@ -39,12 +63,14 @@ func GenerateAccessToken(userID uuid.UUID, email string, roles []string, panelPe
 		UserID:           userID,
 		Email:            email,
 		Roles:            roles,
-		PanelPermissions: perms,
+		PanelPermissions: panelPermissions,
+		TokenType:        tokenType,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
 			Issuer:    cfg.Issuer,
+			Audience:  []string{tokenType},
 		},
 	}
 
@@ -91,6 +117,11 @@ func ValidateAccessToken(tokenString string) (*Claims, error) {
 	claims, ok := token.Claims.(*Claims)
 	if !ok || !token.Valid {
 		return nil, errors.New("invalid token")
+	}
+
+	// Legacy tokens minted before token_type existed are treated as app tokens.
+	if claims.TokenType == "" {
+		claims.TokenType = TokenTypeApp
 	}
 
 	return claims, nil
