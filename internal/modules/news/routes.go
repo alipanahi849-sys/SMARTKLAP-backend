@@ -4,6 +4,7 @@ import (
 	clubrepo "clap/internal/modules/club/repository"
 	matchsvc "clap/internal/modules/match/service"
 	"clap/internal/modules/news/handler"
+	"clap/internal/modules/news/repository"
 	"clap/internal/modules/news/service"
 	settingsrepo "clap/internal/modules/settings/repository"
 	"clap/internal/shared/config"
@@ -29,6 +30,7 @@ func RegisterRoutes(r *gin.RouterGroup, clubsFrom *matchsvc.SyncService) {
 	db := database.GetDB()
 	svc := service.NewNewsService(
 		newProvider(),
+		repository.NewNewsRepository(db),
 		settingsrepo.NewSettingsRepository(db),
 		clubrepo.NewClubRepository(db),
 		clubsFrom,
@@ -47,5 +49,6 @@ func RegisterRoutes(r *gin.RouterGroup, clubsFrom *matchsvc.SyncService) {
 	{
 		admin.GET("/settings/news-club", h.GetNewsClub)
 		admin.PUT("/settings/news-club", h.SetNewsClub)
+		admin.GET("/settings/news-club/search", h.SearchNewsClubs)
 	}
 }

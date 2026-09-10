@@ -16,6 +16,7 @@ type NewsHandler interface {
 	GetByID(c *gin.Context)
 	GetNewsClub(c *gin.Context)
 	SetNewsClub(c *gin.Context)
+	SearchNewsClubs(c *gin.Context)
 }
 
 type newsHandler struct {
@@ -116,4 +117,27 @@ func (h *newsHandler) SetNewsClub(c *gin.Context) {
 		return
 	}
 	response.SuccessWithMessage(c, result, "News club updated")
+}
+
+// SearchNewsClubs godoc
+//
+//	@Summary		Search clubs for news source
+//	@Tags			admin-news
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			q	query	string	true	"Club name search"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		403	{object}	response.Response
+//	@Router			/api/v1/admin/settings/news-club/search [get]
+func (h *newsHandler) SearchNewsClubs(c *gin.Context) {
+	result, err := h.svc.SearchNewsClubs(c.Request.Context(), strings.TrimSpace(c.Query("q")))
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	if result == nil {
+		result = []dto.NewsClubCandidate{}
+	}
+	response.Success(c, result)
 }

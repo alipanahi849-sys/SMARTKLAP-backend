@@ -49,4 +49,16 @@ type NewsClubResponse struct {
 type SetNewsClubRequest struct {
 	ClubID         *uuid.UUID `json:"club_id"`
 	ProviderTeamID string     `json:"provider_team_id"`
+	// Name sets/creates a local club used as the Guardian news query.
+	// Useful when the football provider API is not configured.
+	Name string `json:"name"`
+}
+
+type NewsClubCandidate struct {
+	ClubID         *uuid.UUID `json:"club_id,omitempty"`
+	Name           string     `json:"name"`
+	Country        string     `json:"country,omitempty"`
+	LogoURL        string     `json:"logo_url,omitempty"`
+	ProviderTeamID string     `json:"provider_team_id,omitempty"`
+	Provider       string     `json:"provider,omitempty"`
 }

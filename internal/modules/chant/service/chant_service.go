@@ -448,8 +448,13 @@ func (s *chantService) Program(ctx context.Context, userID uuid.UUID, limit int,
 
 // settleMissedOnlineChants records a cancelled attempt for every scheduled
 // chant whose window has closed without this user singing it, so the Home
-// card shows those rows as cancelled instead of still to do.
+// card shows those rows as cancelled instead of still to do. Events that
+// ended before the account existed are ignored (and any earlier mistaken
+// auto-cancels for those events are removed).
 func (s *chantService) settleMissedOnlineChants(ctx context.Context, userID, matchID uuid.UUID, now time.Time) error {
+	if err := s.chantRepo.DeletePreJoinMissedCancellations(ctx, userID); err != nil {
+		return err
+	}
 	missed, err := s.chantRepo.MissedPendingChantsForMatch(ctx, userID, matchID, now)
 	if err != nil {
 		return err

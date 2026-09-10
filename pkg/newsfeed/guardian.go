@@ -25,15 +25,20 @@ type guardianClient struct {
 }
 
 // NewGuardian builds The Guardian Open Platform client used for club news.
-// An empty key disables it.
+// An empty key disables it. The old documented demo key "test" is no longer
+// accepted by Guardian and is treated as unset.
 func NewGuardian(apiKey, baseURL string) Provider {
 	if strings.TrimSpace(baseURL) == "" {
 		baseURL = defaultGuardianBase
 	}
+	apiKey = strings.TrimSpace(apiKey)
+	if strings.EqualFold(apiKey, "test") {
+		apiKey = ""
+	}
 	return &guardianClient{
 		httpClient: &http.Client{Timeout: 15 * time.Second},
 		baseURL:    strings.TrimRight(baseURL, "/"),
-		apiKey:     strings.TrimSpace(apiKey),
+		apiKey:     apiKey,
 	}
 }
 

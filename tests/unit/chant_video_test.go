@@ -507,6 +507,10 @@ func (r *stubChantRepo) MissedPendingChantsForMatch(_ context.Context, userID, m
 	return rows, nil
 }
 
+func (r *stubChantRepo) DeletePreJoinMissedCancellations(context.Context, uuid.UUID) error {
+	return nil
+}
+
 func (r *stubChantRepo) CreateChant(_ context.Context, chant *chantmodels.Chant) error {
 	if chant.ID == uuid.Nil {
 		chant.ID = uuid.New()

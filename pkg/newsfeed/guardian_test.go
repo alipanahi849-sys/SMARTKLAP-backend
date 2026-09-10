@@ -85,7 +85,7 @@ func TestGuardianSearchMapsPublisherFields(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewGuardian("test", server.URL)
+	client := NewGuardian("dev-key", server.URL)
 	result, err := client.Search(context.Background(), "Manchester United", 1, 20)
 	if err != nil {
 		t.Fatal(err)
@@ -131,7 +131,7 @@ func TestGuardianGet(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewGuardian("test", server.URL)
+	client := NewGuardian("dev-key", server.URL)
 	article, err := client.Get(context.Background(), "football/2026/jul/14/tielemans-united")
 	if err != nil {
 		t.Fatal(err)

@@ -85,8 +85,13 @@ type ChantRepository interface {
 	// what is still to sing. Pass after=nil for the first pending page.
 	PendingChantsForMatch(ctx context.Context, userID, matchID uuid.UUID, limit int, after *ChantCursorAnchor, now time.Time) ([]PendingChant, error)
 	// MissedPendingChantsForMatch returns unsettled online chants whose window
-	// has already closed, so the programme can mark them cancelled.
+	// has already closed, so the programme can mark them cancelled. Chants that
+	// ended before the user joined are excluded — a brand-new account must not
+	// inherit past stadium events as missed rows.
 	MissedPendingChantsForMatch(ctx context.Context, userID, matchID uuid.UUID, now time.Time) ([]PendingChant, error)
+	// DeletePreJoinMissedCancellations removes cancelled online scores that were
+	// incorrectly auto-settled for chants which ended before the user existed.
+	DeletePreJoinMissedCancellations(ctx context.Context, userID uuid.UUID) error
 	// CreateChant schedules an online chant built from a catalog song.
 	CreateChant(ctx context.Context, chant *models.Chant) error
 	// HasScheduleOverlap reports whether an active chant on the same match
@@ -431,13 +436,15 @@ func (r *chantRepository) MissedPendingChantsForMatch(ctx context.Context, userI
 	const query = `
 		SELECT c.id, c.song_id, c.title, c.scheduled_at, c.duration_seconds
 		FROM chants c
+		JOIN users u ON u.id = ?
 		LEFT JOIN chant_completions cc
-		       ON cc.chant_id = c.id AND cc.user_id = ? AND cc.source = 'online'
+		       ON cc.chant_id = c.id AND cc.user_id = u.id AND cc.source = 'online'
 		WHERE c.match_id = ?
 		  AND c.is_active = TRUE
 		  AND c.deleted_at IS NULL
 		  AND cc.id IS NULL
 		  AND c.scheduled_at + make_interval(secs => GREATEST(c.duration_seconds, 0)) <= ?
+		  AND c.scheduled_at + make_interval(secs => GREATEST(c.duration_seconds, 0)) > COALESCE(u.created_at, '-infinity'::timestamptz)
 		ORDER BY c.scheduled_at ASC, c.id ASC`
 
 	var rows []PendingChant
@@ -445,6 +452,24 @@ func (r *chantRepository) MissedPendingChantsForMatch(ctx context.Context, userI
 		return nil, errors.NewInternal("Failed to load missed chants", err)
 	}
 	return rows, nil
+}
+
+func (r *chantRepository) DeletePreJoinMissedCancellations(ctx context.Context, userID uuid.UUID) error {
+	const query = `
+		DELETE FROM chant_completions cc
+		USING chants c, users u
+		WHERE cc.user_id = u.id
+		  AND cc.user_id = ?
+		  AND cc.chant_id = c.id
+		  AND cc.source = 'online'
+		  AND cc.status = 'cancelled'
+		  AND COALESCE(cc.points_earned, 0) = 0
+		  AND c.scheduled_at + make_interval(secs => GREATEST(c.duration_seconds, 0)) <= COALESCE(u.created_at, '-infinity'::timestamptz)`
+
+	if err := r.db.WithContext(ctx).Exec(query, userID).Error; err != nil {
+		return errors.NewInternal("Failed to clear pre-join missed chants", err)
+	}
+	return nil
 }
 
 func (r *chantRepository) CreateChant(ctx context.Context, chant *models.Chant) error {

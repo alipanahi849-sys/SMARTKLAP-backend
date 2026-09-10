@@ -85,6 +85,7 @@ func TestListUsesProviderArticlesForNewsClub(t *testing.T) {
 
 	svc := NewNewsService(
 		stubFeed{articles: []newsfeed.Article{article}, pages: 1},
+		nil,
 		stubSettings{settings: &settingsmodels.AppSettings{ID: 1, NewsClubID: &clubID, NewsClub: club}},
 		stubClubs{byID: map[uuid.UUID]*clubmodels.Club{clubID: club}},
 		nil,
@@ -124,6 +125,7 @@ func TestListFallsBackToFeaturedClub(t *testing.T) {
 			ProviderID: "football/2026/aug/01/arsenal",
 			Title:      "Arsenal news",
 		}}, pages: 1},
+		nil,
 		stubSettings{settings: &settingsmodels.AppSettings{ID: 1, FeaturedClubID: &clubID, FeaturedClub: club}},
 		stubClubs{byID: map[uuid.UUID]*clubmodels.Club{clubID: club}},
 		nil,
@@ -145,27 +147,52 @@ func (s stubProvisioner) EnsureClubFromProvider(context.Context, string) (*clubm
 	return s.club, nil
 }
 
-func TestSetNewsClubFromProviderTeam(t *testing.T) {
-	clubID := uuid.MustParse("a3000000-0000-4000-8000-000000000077")
-	club := &clubmodels.Club{
-		ID:             clubID,
-		Name:           "Liverpool",
-		Provider:       "api-football",
-		ProviderTeamID: "40",
-	}
+func TestSetNewsClubFromName(t *testing.T) {
 	settings := &settingsmodels.AppSettings{ID: 1}
+	created := &clubmodels.Club{}
 	svc := NewNewsService(
 		stubFeed{},
+		nil,
 		stubSettings{settings: settings},
-		stubClubs{byID: map[uuid.UUID]*clubmodels.Club{clubID: club}},
-		stubProvisioner{club: club},
+		&capturingClubs{created: created},
+		nil,
 	)
 
-	got, err := svc.SetNewsClub(context.Background(), dto.SetNewsClubRequest{ProviderTeamID: "40"})
+	got, err := svc.SetNewsClub(context.Background(), dto.SetNewsClubRequest{Name: "Arsenal"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Name != "Liverpool" || settings.NewsClubID == nil || *settings.NewsClubID != clubID {
+	if got.Name != "Arsenal" || settings.NewsClubID == nil {
 		t.Fatalf("got=%+v settings=%+v", got, settings)
 	}
+	if created.Name != "Arsenal" || !created.IsActive {
+		t.Fatalf("created=%+v", created)
+	}
 }
+
+type capturingClubs struct {
+	created *clubmodels.Club
+}
+
+func (c *capturingClubs) Create(_ context.Context, club *clubmodels.Club) error {
+	club.ID = uuid.MustParse("a3000000-0000-4000-8000-000000000055")
+	*c.created = *club
+	return nil
+}
+func (c *capturingClubs) FindByID(context.Context, uuid.UUID) (*clubmodels.Club, error) {
+	return nil, nil
+}
+func (c *capturingClubs) FindByIDs(context.Context, []uuid.UUID) (map[uuid.UUID]clubmodels.Club, error) {
+	return nil, nil
+}
+func (c *capturingClubs) FindAll(context.Context, int, int, map[string]string, string, string) ([]clubmodels.Club, int64, error) {
+	return nil, 0, nil
+}
+func (c *capturingClubs) Search(context.Context, string, int, int) ([]clubmodels.Club, int64, error) {
+	return nil, 0, nil
+}
+func (c *capturingClubs) FindByProviderTeamID(context.Context, string, string) (*clubmodels.Club, error) {
+	return nil, nil
+}
+func (c *capturingClubs) Update(context.Context, *clubmodels.Club) error { return nil }
+func (c *capturingClubs) Delete(context.Context, uuid.UUID) error        { return nil }
