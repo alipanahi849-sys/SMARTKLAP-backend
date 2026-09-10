@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"sort"
 	"time"
 
 	"clap/internal/modules/song/dto"
@@ -11,6 +12,8 @@ import (
 
 	"github.com/google/uuid"
 )
+
+const defaultCueDurationMs = 200
 
 type SongService interface {
 	Create(ctx context.Context, req *dto.CreateSongRequest, authCtx *utils.AuthorizationContext) (*dto.SongResponse, error)
@@ -35,14 +38,17 @@ func (s *songService) Create(ctx context.Context, req *dto.CreateSongRequest, au
 	}
 
 	song := &models.Song{
-		Title:     req.Title,
-		Artist:    req.Artist,
-		Album:     req.Album,
-		Duration:  req.Duration,
-		AudioURL:  req.AudioURL,
-		IsActive:  req.IsActive,
-		CreatedBy: &authCtx.UserID,
-		UpdatedBy: &authCtx.UserID,
+		Title:         req.Title,
+		Artist:        req.Artist,
+		Album:         req.Album,
+		Category:      req.Category,
+		Duration:      req.Duration,
+		AudioURL:      req.AudioURL,
+		IsActive:      req.IsActive,
+		VibrationCues: normalizeCues(req.VibrationCues),
+		LightCues:     normalizeCues(req.LightCues),
+		CreatedBy:     &authCtx.UserID,
+		UpdatedBy:     &authCtx.UserID,
 	}
 
 	if err := s.songRepo.Create(ctx, song); err != nil {
@@ -112,8 +118,11 @@ func (s *songService) Update(ctx context.Context, id uuid.UUID, req *dto.UpdateS
 	song.Title = req.Title
 	song.Artist = req.Artist
 	song.Album = req.Album
+	song.Category = req.Category
 	song.Duration = req.Duration
 	song.AudioURL = req.AudioURL
+	song.VibrationCues = normalizeCues(req.VibrationCues)
+	song.LightCues = normalizeCues(req.LightCues)
 	if req.IsActive != nil {
 		song.IsActive = *req.IsActive
 	}
@@ -136,21 +145,51 @@ func (s *songService) Delete(ctx context.Context, id uuid.UUID, authCtx *utils.A
 
 func (s *songService) toResponse(song *models.Song) *dto.SongResponse {
 	return &dto.SongResponse{
-		ID:          song.ID,
-		Title:       song.Title,
-		Artist:      song.Artist,
-		Album:       song.Album,
-		Duration:    song.Duration,
-		AudioURL:    song.AudioURL,
-		IsActive:    song.IsActive,
-		CreatedAt:   song.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:   song.UpdatedAt.Format(time.RFC3339),
-		MediaFileID: song.MediaFileID,
-		StorageKey:  song.StorageKey,
-		MimeType:    song.MimeType,
-		FileSize:    song.FileSize,
-		DurationMs:  song.DurationMs,
-		Bitrate:     song.Bitrate,
-		SampleRate:  song.SampleRate,
+		ID:            song.ID,
+		Title:         song.Title,
+		Artist:        song.Artist,
+		Album:         song.Album,
+		Category:      song.Category,
+		Duration:      song.Duration,
+		AudioURL:      song.AudioURL,
+		IsActive:      song.IsActive,
+		CreatedAt:     song.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:     song.UpdatedAt.Format(time.RFC3339),
+		MediaFileID:   song.MediaFileID,
+		StorageKey:    song.StorageKey,
+		MimeType:      song.MimeType,
+		FileSize:      song.FileSize,
+		DurationMs:    song.DurationMs,
+		Bitrate:       song.Bitrate,
+		SampleRate:    song.SampleRate,
+		VibrationCues: normalizeCues(song.VibrationCues),
+		LightCues:     normalizeCues(song.LightCues),
 	}
+}
+
+func normalizeCues(cues []models.SongCue) []models.SongCue {
+	if cues == nil {
+		return []models.SongCue{}
+	}
+	byAt := make(map[int]models.SongCue, len(cues))
+	order := make([]int, 0, len(cues))
+	for _, cue := range cues {
+		if cue.At < 0 {
+			continue
+		}
+		duration := cue.DurationMs
+		if duration <= 0 {
+			duration = defaultCueDurationMs
+		}
+		if _, exists := byAt[cue.At]; !exists {
+			order = append(order, cue.At)
+		}
+		byAt[cue.At] = models.SongCue{At: cue.At, DurationMs: duration}
+	}
+	sort.Ints(order)
+	out := make([]models.SongCue, 0, len(order))
+	for _, at := range order {
+		out = append(out, byAt[at])
+	}
+	return out
 }

@@ -123,8 +123,14 @@ func (r *stubUserRepo) Delete(context.Context, uuid.UUID) error { return nil }
 func (r *stubUserRepo) List(context.Context, int, int) ([]models.User, int64, error) {
 	return nil, 0, nil
 }
+func (r *stubUserRepo) ListFiltered(context.Context, authrepo.UserListOptions) ([]models.User, int64, error) {
+	return nil, 0, nil
+}
 func (r *stubUserRepo) AddRole(context.Context, uuid.UUID, uuid.UUID) error    { return nil }
 func (r *stubUserRepo) RemoveRole(context.Context, uuid.UUID, uuid.UUID) error { return nil }
+func (r *stubUserRepo) ReplaceRoles(context.Context, uuid.UUID, []uuid.UUID) error {
+	return nil
+}
 func (r *stubUserRepo) GetUserRoles(context.Context, uuid.UUID) ([]models.Role, error) {
 	return nil, nil
 }

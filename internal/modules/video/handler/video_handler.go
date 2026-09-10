@@ -21,6 +21,11 @@ type VideoHandler interface {
 	Like(c *gin.Context)
 	Unlike(c *gin.Context)
 	MarkSeen(c *gin.Context)
+	Delete(c *gin.Context)
+	ListPending(c *gin.Context)
+	ListRejected(c *gin.Context)
+	Approve(c *gin.Context)
+	Reject(c *gin.Context)
 }
 
 type videoHandler struct {
@@ -248,4 +253,179 @@ func (h *videoHandler) MarkSeen(c *gin.Context) {
 		msg = "Video already marked as seen"
 	}
 	response.SuccessWithMessage(c, result, msg)
+}
+
+// Delete video godoc
+//
+//	@Summary		Delete a video (admin)
+//	@Tags			videos
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			video_id	path	string	true	"Video ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		403	{object}	response.Response
+//	@Failure		404	{object}	response.Response
+//	@Router			/api/v1/videos/{video_id} [delete]
+func (h *videoHandler) Delete(c *gin.Context) {
+	videoID, err := uuid.Parse(c.Param("video_id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid video ID")
+		return
+	}
+
+	authCtx := utils.NewAuthorizationContext(
+		middleware.GetUserID(c),
+		middleware.GetUserRoles(c),
+		nil,
+	)
+	if err := h.svc.Delete(c.Request.Context(), videoID, authCtx); err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.SuccessWithMessage(c, response.EmptyObject, "Video deleted successfully")
+}
+
+// List pending videos godoc
+//
+//	@Summary		List pending videos (admin)
+//	@Tags			admin-videos
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			cursor	query	string	false	"Cursor video ID"
+//	@Param			limit	query	int		false	"Items per page"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		403	{object}	response.Response
+//	@Router			/api/v1/admin/videos/pending [get]
+func (h *videoHandler) ListPending(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == uuid.Nil {
+		response.Unauthorized(c, "Invalid user")
+		return
+	}
+
+	limit := utils.GetMobileCursorLimit(c)
+	var cursor *uuid.UUID
+	if raw := strings.TrimSpace(c.Query("cursor")); raw != "" {
+		parsed, err := uuid.Parse(raw)
+		if err != nil {
+			response.BadRequest(c, "Invalid cursor")
+			return
+		}
+		cursor = &parsed
+	}
+
+	result, err := h.svc.ListPending(c.Request.Context(), userID, dto.VideoListFilters{
+		Cursor: cursor,
+		Limit:  limit,
+	})
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+// List rejected videos godoc
+//
+//	@Summary		List rejected videos (admin)
+//	@Tags			admin-videos
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			cursor	query	string	false	"Cursor video ID"
+//	@Param			limit	query	int		false	"Items per page"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		403	{object}	response.Response
+//	@Router			/api/v1/admin/videos/rejected [get]
+func (h *videoHandler) ListRejected(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == uuid.Nil {
+		response.Unauthorized(c, "Invalid user")
+		return
+	}
+
+	limit := utils.GetMobileCursorLimit(c)
+	var cursor *uuid.UUID
+	if raw := strings.TrimSpace(c.Query("cursor")); raw != "" {
+		parsed, err := uuid.Parse(raw)
+		if err != nil {
+			response.BadRequest(c, "Invalid cursor")
+			return
+		}
+		cursor = &parsed
+	}
+
+	result, err := h.svc.ListRejected(c.Request.Context(), userID, dto.VideoListFilters{
+		Cursor: cursor,
+		Limit:  limit,
+	})
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+// Approve video godoc
+//
+//	@Summary		Approve a video (admin)
+//	@Description	Publishes a pending or previously rejected video to the feed.
+//	@Tags			admin-videos
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			video_id	path	string	true	"Video ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		403	{object}	response.Response
+//	@Failure		404	{object}	response.Response
+//	@Router			/api/v1/admin/videos/{video_id}/approve [post]
+func (h *videoHandler) Approve(c *gin.Context) {
+	h.moderate(c, true)
+}
+
+// Reject video godoc
+//
+//	@Summary		Reject a pending video (admin)
+//	@Tags			admin-videos
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			video_id	path	string	true	"Video ID"
+//	@Success		200	{object}	response.Response
+//	@Failure		401	{object}	response.Response
+//	@Failure		403	{object}	response.Response
+//	@Failure		404	{object}	response.Response
+//	@Router			/api/v1/admin/videos/{video_id}/reject [post]
+func (h *videoHandler) Reject(c *gin.Context) {
+	h.moderate(c, false)
+}
+
+func (h *videoHandler) moderate(c *gin.Context, approve bool) {
+	videoID, err := uuid.Parse(c.Param("video_id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid video ID")
+		return
+	}
+
+	authCtx := utils.NewAuthorizationContext(
+		middleware.GetUserID(c),
+		middleware.GetUserRoles(c),
+		nil,
+	)
+	var svcErr error
+	if approve {
+		svcErr = h.svc.Approve(c.Request.Context(), videoID, authCtx)
+	} else {
+		svcErr = h.svc.Reject(c.Request.Context(), videoID, authCtx)
+	}
+	if svcErr != nil {
+		response.Error(c, svcErr)
+		return
+	}
+	msg := "Video rejected"
+	if approve {
+		msg = "Video approved"
+	}
+	response.SuccessWithMessage(c, response.EmptyObject, msg)
 }

@@ -515,6 +515,30 @@ func (r *stubChantRepo) CreateChant(_ context.Context, chant *chantmodels.Chant)
 	return nil
 }
 
+func (r *stubChantRepo) HasScheduleOverlap(_ context.Context, matchID uuid.UUID, start time.Time, durationSeconds int, excludeID *uuid.UUID) (bool, error) {
+	if durationSeconds <= 0 {
+		durationSeconds = 1
+	}
+	end := start.Add(time.Duration(durationSeconds) * time.Second)
+	for _, c := range r.chants {
+		if !c.IsActive || c.MatchID != matchID {
+			continue
+		}
+		if excludeID != nil && c.ID == *excludeID {
+			continue
+		}
+		existingDuration := c.DurationSeconds
+		if existingDuration <= 0 {
+			existingDuration = 1
+		}
+		existingEnd := c.ScheduledAt.Add(time.Duration(existingDuration) * time.Second)
+		if c.ScheduledAt.Before(end) && existingEnd.After(start) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (r *stubChantRepo) FindScheduled(_ context.Context, matchID *uuid.UUID, limit int) ([]chantmodels.Chant, error) {
 	var result []chantmodels.Chant
 	for _, c := range r.chants {
@@ -546,7 +570,7 @@ func (r *stubChantRepo) DeactivateChant(_ context.Context, id uuid.UUID) error {
 // newChantService wires the service with admin point values of 100 for catalog
 // songs and 250 for online chants.
 func newChantService(chantRepo *stubChantRepo, matchRepo *stubMatchRepo) chantsvc.ChantService {
-	return chantsvc.NewChantService(chantRepo, matchRepo, nil, newStubSettingsRepo(100, 250), nil)
+	return chantsvc.NewChantService(chantRepo, matchRepo, nil, newStubSettingsRepo(100, 250), nil, nil)
 }
 
 func TestChant_CompleteAwardsOnlinePointsOnce(t *testing.T) {
@@ -1009,6 +1033,40 @@ func TestChant_SetOnlineChantFromCatalogSong(t *testing.T) {
 	}
 }
 
+func TestChant_SetOnlineChantRejectsOverlappingSchedule(t *testing.T) {
+	chantRepo := newStubChantRepo()
+	matchRepo := newStubMatchRepo()
+	svc := newChantService(chantRepo, matchRepo)
+
+	match := newScheduledMatch(matchRepo, time.Now().Add(2*time.Hour))
+	songA := &songmodels.Song{ID: uuid.New(), Title: "First", Duration: 120, IsActive: true}
+	songB := &songmodels.Song{ID: uuid.New(), Title: "Second", Duration: 90, IsActive: true}
+	chantRepo.songs[songA.ID] = songA
+	chantRepo.songs[songB.ID] = songB
+
+	start := time.Now().UTC().Add(30 * time.Minute).Truncate(time.Second)
+	if _, err := svc.SetOnlineChant(context.Background(), uuid.New(), chantdto.SetOnlineChantRequest{
+		SongID:      songA.ID,
+		MatchID:     match.ID,
+		ScheduledAt: start,
+	}); err != nil {
+		t.Fatalf("first schedule failed: %v", err)
+	}
+
+	_, err := svc.SetOnlineChant(context.Background(), uuid.New(), chantdto.SetOnlineChantRequest{
+		SongID:      songB.ID,
+		MatchID:     match.ID,
+		ScheduledAt: start.Add(30 * time.Second),
+	})
+	if err == nil {
+		t.Fatal("expected overlapping schedule to be rejected")
+	}
+	appErr, ok := err.(*sharederrors.AppError)
+	if !ok || appErr.StatusCode != 409 {
+		t.Fatalf("expected 409 conflict, got %v", err)
+	}
+}
+
 // Scheduling a song as an online chant is a fresh event every time, so the
 // "already earned this" rule is scoped to one scheduled chant. It never spreads
 // to the song itself, which would let one live performance spoil the next.
@@ -1093,7 +1151,7 @@ func TestChant_EachScheduledChantIsItsOwnEarningOpportunity(t *testing.T) {
 
 func TestChant_UpdatePointsSettings(t *testing.T) {
 	settings := newStubSettingsRepo(100, 250)
-	svc := chantsvc.NewChantService(newStubChantRepo(), newStubMatchRepo(), nil, settings, nil)
+	svc := chantsvc.NewChantService(newStubChantRepo(), newStubMatchRepo(), nil, settings, nil, nil)
 
 	songPoints := 40
 	onlinePoints := 900
@@ -1139,6 +1197,36 @@ func (r *stubVideoRepo) FindByID(_ context.Context, id uuid.UUID) (*videomodels.
 		return v, nil
 	}
 	return nil, sharederrors.NewNotFound("Video not found", nil)
+}
+
+func (r *stubVideoRepo) Delete(_ context.Context, id uuid.UUID) error {
+	if _, ok := r.videos[id]; !ok {
+		return sharederrors.NewNotFound("Video not found", nil)
+	}
+	delete(r.videos, id)
+	return nil
+}
+
+func (r *stubVideoRepo) ListByStatusAfter(_ context.Context, status string, limit int, _ *videorepo.VideoCursorAnchor) ([]videomodels.Video, error) {
+	var result []videomodels.Video
+	for _, v := range r.videos {
+		if v.Status == status {
+			result = append(result, *v)
+		}
+	}
+	if limit > 0 && len(result) > limit {
+		result = result[:limit]
+	}
+	return result, nil
+}
+
+func (r *stubVideoRepo) UpdateStatus(_ context.Context, id uuid.UUID, status string) error {
+	v, ok := r.videos[id]
+	if !ok {
+		return sharederrors.NewNotFound("Video not found", nil)
+	}
+	v.Status = status
+	return nil
 }
 
 func (r *stubVideoRepo) FeedAfter(_ context.Context, limit int, _ *videorepo.VideoCursorAnchor) ([]videomodels.Video, error) {
@@ -1308,8 +1396,8 @@ func TestVideo_UploadPublishesAndExtractsHashtags(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Upload failed: %v", err)
 	}
-	if resp.Status != videomodels.StatusPublished {
-		t.Fatalf("expected published, got %q", resp.Status)
+	if resp.Status != videomodels.StatusPending {
+		t.Fatalf("expected pending (awaiting admin approval), got %q", resp.Status)
 	}
 	if resp.VideoURL == nil || *resp.VideoURL == "" {
 		t.Fatal("expected a video URL")

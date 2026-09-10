@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"clap/internal/modules/auth/models"
@@ -28,8 +29,11 @@ type UserRepository interface {
 	Update(ctx context.Context, user *models.User) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, offset, limit int) ([]models.User, int64, error)
+	// ListFiltered returns users matching optional search / active filters.
+	ListFiltered(ctx context.Context, opts UserListOptions) ([]models.User, int64, error)
 	AddRole(ctx context.Context, userID, roleID uuid.UUID) error
 	RemoveRole(ctx context.Context, userID, roleID uuid.UUID) error
+	ReplaceRoles(ctx context.Context, userID uuid.UUID, roleIDs []uuid.UUID) error
 	GetUserRoles(ctx context.Context, userID uuid.UUID) ([]models.Role, error)
 	// AddPoints atomically increments (or decrements) a user's points balance
 	// and returns the new balance.
@@ -46,6 +50,15 @@ type UserRepository interface {
 	TopByPointsAfter(ctx context.Context, limit int, after *LeaderboardCursorAnchor) ([]models.User, error)
 	// LeaderboardRank returns a user's 1-based position on the leaderboard.
 	LeaderboardRank(ctx context.Context, points int, createdAt time.Time, id uuid.UUID) (int, error)
+}
+
+// UserListOptions filters admin user listing.
+type UserListOptions struct {
+	Query    string
+	IsActive *bool
+	Role     string
+	Offset   int
+	Limit    int
 }
 
 type userRepository struct {
@@ -128,14 +141,51 @@ func (r *userRepository) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 func (r *userRepository) List(ctx context.Context, offset, limit int) ([]models.User, int64, error) {
-	var users []models.User
-	var total int64
+	return r.ListFiltered(ctx, UserListOptions{Offset: offset, Limit: limit})
+}
 
-	if err := r.db.WithContext(ctx).Model(&models.User{}).Count(&total).Error; err != nil {
+func (r *userRepository) ListFiltered(ctx context.Context, opts UserListOptions) ([]models.User, int64, error) {
+	limit := opts.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	offset := opts.Offset
+	if offset < 0 {
+		offset = 0
+	}
+
+	q := r.db.WithContext(ctx).Model(&models.User{})
+	if query := strings.TrimSpace(opts.Query); query != "" {
+		like := "%" + strings.ToLower(query) + "%"
+		q = q.Where(
+			"LOWER(email) LIKE ? OR LOWER(first_name) LIKE ? OR LOWER(last_name) LIKE ? OR LOWER(CONCAT(COALESCE(first_name,''), ' ', COALESCE(last_name,''))) LIKE ?",
+			like, like, like, like,
+		)
+	}
+	if opts.IsActive != nil {
+		q = q.Where("is_active = ?", *opts.IsActive)
+	}
+	if role := strings.TrimSpace(opts.Role); role != "" {
+		q = q.Where(
+			"EXISTS (SELECT 1 FROM user_roles ur JOIN roles ro ON ro.id = ur.role_id WHERE ur.user_id = users.id AND ro.name = ?)",
+			role,
+		)
+	}
+
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, errors.NewInternal("Failed to count users", err)
 	}
 
-	if err := r.db.WithContext(ctx).Preload("Roles").Offset(offset).Limit(limit).Find(&users).Error; err != nil {
+	var users []models.User
+	if err := q.Preload("Roles").
+		Order("created_at DESC, id DESC").
+		Offset(offset).
+		Limit(limit).
+		Find(&users).Error; err != nil {
 		return nil, 0, errors.NewInternal("Failed to list users", err)
 	}
 
@@ -154,6 +204,23 @@ func (r *userRepository) RemoveRole(ctx context.Context, userID, roleID uuid.UUI
 		return errors.NewInternal("Failed to remove role from user", err)
 	}
 	return nil
+}
+
+func (r *userRepository) ReplaceRoles(ctx context.Context, userID uuid.UUID, roleIDs []uuid.UUID) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("DELETE FROM user_roles WHERE user_id = ?", userID).Error; err != nil {
+			return errors.NewInternal("Failed to clear user roles", err)
+		}
+		for _, roleID := range roleIDs {
+			if err := tx.Exec(
+				"INSERT INTO user_roles (user_id, role_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
+				userID, roleID,
+			).Error; err != nil {
+				return errors.NewInternal("Failed to assign user role", err)
+			}
+		}
+		return nil
+	})
 }
 
 func (r *userRepository) AddPoints(ctx context.Context, userID uuid.UUID, delta int) (int, error) {

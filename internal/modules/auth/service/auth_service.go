@@ -144,7 +144,7 @@ func (s *authService) generateTokenPair(ctx context.Context, user *models.User, 
 		roles[i] = role.Name
 	}
 
-	accessToken, expiresIn, err := utils.GenerateAccessToken(user.ID, user.Email, roles)
+	accessToken, expiresIn, err := utils.GenerateAccessToken(user.ID, user.Email, roles, []string(user.PanelPermissions))
 	if err != nil {
 		return nil, err
 	}

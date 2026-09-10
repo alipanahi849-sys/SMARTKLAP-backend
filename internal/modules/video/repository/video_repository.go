@@ -21,6 +21,12 @@ type VideoCursorAnchor struct {
 type VideoRepository interface {
 	Create(ctx context.Context, video *models.Video) error
 	FindByID(ctx context.Context, id uuid.UUID) (*models.Video, error)
+	// Soft-delete a video (GORM DeletedAt). Related likes/views stay for audit.
+	Delete(ctx context.Context, id uuid.UUID) error
+	// ListByStatusAfter lists videos with the given status newest-first.
+	ListByStatusAfter(ctx context.Context, status string, limit int, after *VideoCursorAnchor) ([]models.Video, error)
+	// UpdateStatus sets the moderation status for a video.
+	UpdateStatus(ctx context.Context, id uuid.UUID, status string) error
 	// FeedAfter lists published videos newest-first with the author preloaded.
 	FeedAfter(ctx context.Context, limit int, after *VideoCursorAnchor) ([]models.Video, error)
 	// ByUserAfter lists a user's own videos (any status) newest-first.
@@ -65,6 +71,50 @@ func (r *videoRepository) FindByID(ctx context.Context, id uuid.UUID) (*models.V
 		return nil, errors.NewInternal("Failed to find video", err)
 	}
 	return &video, nil
+}
+
+func (r *videoRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	res := r.db.WithContext(ctx).Delete(&models.Video{}, "id = ?", id)
+	if res.Error != nil {
+		return errors.NewInternal("Failed to delete video", res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return errors.NewNotFound("Video not found", nil)
+	}
+	return nil
+}
+
+func (r *videoRepository) ListByStatusAfter(ctx context.Context, status string, limit int, after *VideoCursorAnchor) ([]models.Video, error) {
+	q := r.db.WithContext(ctx).Model(&models.Video{}).
+		Where("status = ?", status)
+	if after != nil {
+		q = q.Where(
+			"(created_at < ?) OR (created_at = ? AND id < ?)",
+			after.CreatedAt, after.CreatedAt, after.ID,
+		)
+	}
+
+	var videos []models.Video
+	if err := q.Preload("User").
+		Order("created_at DESC, id DESC").
+		Limit(limit).
+		Find(&videos).Error; err != nil {
+		return nil, errors.NewInternal("Failed to list videos by status", err)
+	}
+	return videos, nil
+}
+
+func (r *videoRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status string) error {
+	res := r.db.WithContext(ctx).Model(&models.Video{}).
+		Where("id = ?", id).
+		Update("status", status)
+	if res.Error != nil {
+		return errors.NewInternal("Failed to update video status", res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return errors.NewNotFound("Video not found", nil)
+	}
+	return nil
 }
 
 func (r *videoRepository) FeedAfter(ctx context.Context, limit int, after *VideoCursorAnchor) ([]models.Video, error) {

@@ -26,6 +26,8 @@ type RegisterEventRequest struct {
 type EventSchedulerService interface {
 	RegisterEvent(ctx context.Context, req *RegisterEventRequest) (*models.SchedulerEvent, error)
 	CancelEvent(ctx context.Context, eventID uuid.UUID) error
+	// CancelPendingChantEvents withdraws durable chant.started rows for a chant.
+	CancelPendingChantEvents(ctx context.Context, chantID uuid.UUID) (int, error)
 	RescheduleEvent(ctx context.Context, eventID uuid.UUID, newExecuteAt time.Time) error
 	GetPendingEvents(ctx context.Context, upTo time.Time) ([]*models.SchedulerEvent, error)
 }
@@ -88,6 +90,21 @@ func (s *eventSchedulerService) CancelEvent(ctx context.Context, eventID uuid.UU
 	// Best-effort removal from in-memory queue (may already be absent).
 	_ = s.scheduler.CancelEvent(ctx, eventID.String())
 	return nil
+}
+
+func (s *eventSchedulerService) CancelPendingChantEvents(ctx context.Context, chantID uuid.UUID) (int, error) {
+	events, err := s.repo.FindPendingByChantID(ctx, chantID)
+	if err != nil {
+		return 0, err
+	}
+	cancelled := 0
+	for _, ev := range events {
+		if err := s.CancelEvent(ctx, ev.ID); err != nil {
+			return cancelled, err
+		}
+		cancelled++
+	}
+	return cancelled, nil
 }
 
 func (s *eventSchedulerService) RescheduleEvent(ctx context.Context, eventID uuid.UUID, newExecuteAt time.Time) error {

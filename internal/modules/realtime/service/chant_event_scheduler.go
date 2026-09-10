@@ -20,6 +20,8 @@ import (
 // shared clock. Per-line WS events would add load without improving sync.
 type ChantEventScheduler interface {
 	ScheduleChantEvents(ctx context.Context, chant chantmodels.Chant) error
+	// CancelChantEvents withdraws pending chant.started rows for this chant.
+	CancelChantEvents(ctx context.Context, chantID uuid.UUID) error
 }
 
 type chantEventPayload struct {
@@ -79,6 +81,18 @@ func (s *chantEventScheduler) ScheduleChantEvents(ctx context.Context, chant cha
 		Time("starts_at", chant.ScheduledAt).
 		Msg("chant event scheduler: scheduled chant.started")
 
+	return nil
+}
+
+func (s *chantEventScheduler) CancelChantEvents(ctx context.Context, chantID uuid.UUID) error {
+	n, err := s.scheduler.CancelPendingChantEvents(ctx, chantID)
+	if err != nil {
+		return err
+	}
+	logger.Info().
+		Str("chant_id", chantID.String()).
+		Int("cancelled", n).
+		Msg("chant event scheduler: cancelled pending chant.started events")
 	return nil
 }
 

@@ -26,6 +26,7 @@ type OrderRepository interface {
 	FindByStripePaymentIntentID(ctx context.Context, intentID string) (*models.Order, error)
 	MarkPaid(ctx context.Context, orderID uuid.UUID, paidAt time.Time, paymentMethod string) error
 	MarkCancelled(ctx context.Context, orderID uuid.UUID) error
+	UpdateReceiptStatus(ctx context.Context, orderID uuid.UUID, status string, sentAt *time.Time) error
 	UpdatePendingCheckout(ctx context.Context, orderID uuid.UUID, updates map[string]interface{}) error
 	ListExpiredPending(ctx context.Context, cutoff time.Time) ([]models.Order, error)
 	UpdateStripePaymentIntentID(ctx context.Context, orderID uuid.UUID, intentID string) error
@@ -166,6 +167,13 @@ func (r *orderRepository) MarkPaid(ctx context.Context, orderID uuid.UUID, paidA
 	if paymentMethod != "" {
 		updates["payment_method"] = paymentMethod
 	}
+	switch paymentMethod {
+	case models.PaymentMethodPoints:
+		updates["receipt_status"] = models.ReceiptStatusNotApplicable
+		updates["receipt_sent_at"] = nil
+	case models.PaymentMethodCard:
+		updates["receipt_status"] = models.ReceiptStatusPending
+	}
 
 	res := r.db.WithContext(ctx).Model(&models.Order{}).
 		Where("id = ? AND status IN ?", orderID, []string{
@@ -178,6 +186,22 @@ func (r *orderRepository) MarkPaid(ctx context.Context, orderID uuid.UUID, paidA
 	}
 	if res.RowsAffected == 0 {
 		return errors.NewUnprocessable("Order is not pending payment", nil)
+	}
+	return nil
+}
+
+func (r *orderRepository) UpdateReceiptStatus(ctx context.Context, orderID uuid.UUID, status string, sentAt *time.Time) error {
+	updates := map[string]interface{}{
+		"receipt_status": status,
+	}
+	if sentAt != nil {
+		updates["receipt_sent_at"] = *sentAt
+	}
+	res := r.db.WithContext(ctx).Model(&models.Order{}).
+		Where("id = ?", orderID).
+		Updates(updates)
+	if res.Error != nil {
+		return errors.NewInternal("Failed to update receipt status", res.Error)
 	}
 	return nil
 }

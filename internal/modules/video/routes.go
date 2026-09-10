@@ -41,5 +41,15 @@ func RegisterRoutes(r *gin.RouterGroup) {
 		videos.POST("/:video_id/like", h.Like)
 		videos.DELETE("/:video_id/like", h.Unlike)
 		videos.POST("/:video_id/seen", h.MarkSeen)
+		videos.DELETE("/:video_id", h.Delete)
+	}
+
+	admin := r.Group("/admin")
+	admin.Use(middleware.Auth(), middleware.RequirePermission("videos"))
+	{
+		admin.GET("/videos/pending", h.ListPending)
+		admin.GET("/videos/rejected", h.ListRejected)
+		admin.POST("/videos/:video_id/approve", h.Approve)
+		admin.POST("/videos/:video_id/reject", h.Reject)
 	}
 }

@@ -561,13 +561,16 @@ func (s *orderService) ConfirmCardPayment(ctx context.Context, userID, orderID u
 	if err := s.fulfillPaidOrder(ctx, order.ID, models.PaymentMethodCard); err != nil {
 		updated, reloadErr := s.orderRepo.FindByID(ctx, order.ID)
 		if reloadErr == nil && updated.Status == models.OrderStatusPaid {
-			s.emailOrderInvoice(ctx, sessionID)
+			s.emailOrderInvoice(ctx, updated)
 			return &dto.PayOrderResponse{Status: models.OrderStatusPaid}, nil
 		}
 		return nil, err
 	}
 
-	s.emailOrderInvoice(ctx, sessionID)
+	if refreshed, findErr := s.orderRepo.FindByID(ctx, order.ID); findErr == nil {
+		order = refreshed
+	}
+	s.emailOrderInvoice(ctx, order)
 	return &dto.PayOrderResponse{Status: models.OrderStatusPaid}, nil
 }
 
@@ -598,7 +601,7 @@ func (s *orderService) HandleStripeWebhook(ctx context.Context, payload []byte, 
 		return err
 	}
 	if order.Status == models.OrderStatusPaid {
-		s.emailOrderInvoice(ctx, sessionIDFromOrder(order))
+		s.emailOrderInvoice(ctx, order)
 		return nil
 	}
 	if !event.Succeeded {
@@ -608,15 +611,40 @@ func (s *orderService) HandleStripeWebhook(ctx context.Context, payload []byte, 
 	if err := s.fulfillPaidOrder(ctx, order.ID, models.PaymentMethodCard); err != nil {
 		return err
 	}
-	s.emailOrderInvoice(ctx, sessionIDFromOrder(order))
+	// Reload so receipt email uses the latest Stripe session id / status.
+	if refreshed, findErr := s.orderRepo.FindByID(ctx, order.ID); findErr == nil {
+		order = refreshed
+	}
+	s.emailOrderInvoice(ctx, order)
 	return nil
 }
 
-func (s *orderService) emailOrderInvoice(ctx context.Context, sessionID string) {
-	if s.paymentProvider == nil || strings.TrimSpace(sessionID) == "" {
+func (s *orderService) emailOrderInvoice(ctx context.Context, order *models.Order) {
+	if order == nil {
 		return
 	}
-	_ = s.paymentProvider.EmailCheckoutInvoice(ctx, sessionID)
+	sessionID := sessionIDFromOrder(order)
+	if s.paymentProvider == nil || sessionID == "" {
+		return
+	}
+	if order.ReceiptStatus == models.ReceiptStatusSent {
+		return
+	}
+
+	err := s.paymentProvider.EmailCheckoutInvoice(ctx, sessionID)
+	now := time.Now().UTC()
+	if err != nil {
+		logger.Warn().
+			Err(err).
+			Str("order_id", order.ID.String()).
+			Str("session_id", sessionID).
+			Msg("failed to email checkout invoice")
+		_ = s.orderRepo.UpdateReceiptStatus(ctx, order.ID, models.ReceiptStatusFailed, nil)
+		return
+	}
+	_ = s.orderRepo.UpdateReceiptStatus(ctx, order.ID, models.ReceiptStatusSent, &now)
+	order.ReceiptStatus = models.ReceiptStatusSent
+	order.ReceiptSentAt = &now
 }
 
 func sessionIDFromOrder(order *models.Order) string {
@@ -824,6 +852,10 @@ func toOrderListItem(ctx context.Context, order *models.Order, imageKeys map[uui
 	if order.PaymentMethod != nil {
 		item.PaymentMethod = strings.TrimSpace(*order.PaymentMethod)
 	}
+	item.ReceiptStatus = receiptStatusOrNone(order)
+	if order.ReceiptSentAt != nil {
+		item.ReceiptSentAt = order.ReceiptSentAt.UTC().Format(time.RFC3339)
+	}
 	if order.ShippingCents > 0 || order.ShippingPoints > 0 {
 		item.Shipping = formatOrderAmount(order.ShippingCents, order.ShippingPoints, currency)
 	}
@@ -854,6 +886,10 @@ func toOrderDetailResponse(ctx context.Context, order *models.Order, imageKeys m
 	}
 	if order.PaymentMethod != nil {
 		resp.PaymentMethod = strings.TrimSpace(*order.PaymentMethod)
+	}
+	resp.ReceiptStatus = receiptStatusOrNone(order)
+	if order.ReceiptSentAt != nil {
+		resp.ReceiptSentAt = order.ReceiptSentAt.UTC().Format(time.RFC3339)
 	}
 	if order.ShippingCents > 0 || order.ShippingPoints > 0 {
 		resp.Shipping = formatOrderAmount(order.ShippingCents, order.ShippingPoints, currency)
@@ -958,6 +994,17 @@ func listDisplayCurrency(order *models.Order) string {
 		return shopdto.CurrencyPoint
 	}
 	return shopdto.CurrencyEUR
+}
+
+func receiptStatusOrNone(order *models.Order) string {
+	if order == nil {
+		return models.ReceiptStatusNone
+	}
+	status := strings.TrimSpace(order.ReceiptStatus)
+	if status == "" {
+		return models.ReceiptStatusNone
+	}
+	return status
 }
 
 func formatOrderLinePrice(item models.OrderItem, currency string) string {

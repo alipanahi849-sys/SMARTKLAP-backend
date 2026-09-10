@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"sync"
 	"time"
 
 	chantdto "clap/internal/modules/chant/dto"
@@ -96,7 +97,7 @@ type ChantUpcomingNotifier struct {
 	interval       time.Duration
 	leadTime       time.Duration
 
-	// pending is touched only by the Run goroutine — no locking needed.
+	mu      sync.Mutex
 	pending map[uuid.UUID]*pendingChant
 	done    chan struct{}
 }
@@ -161,6 +162,9 @@ func (n *ChantUpcomingNotifier) tick(ctx context.Context, now time.Time) {
 		return
 	}
 
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
 	seen := make(map[uuid.UUID]struct{}, len(chants))
 	for i := range chants {
 		chant := chants[i]
@@ -212,6 +216,49 @@ func (n *ChantUpcomingNotifier) tick(ctx context.Context, now time.Time) {
 		delete(n.pending, id)
 	}
 	n.refreshWelcome()
+}
+
+// OnUnscheduled is called when an admin cancels an online chant. It withdraws
+// pending chant.started rows, drops local pending state, and broadcasts
+// chant.cancelled so every connected device dismisses the countdown/live UI.
+func (n *ChantUpcomingNotifier) OnUnscheduled(ctx context.Context, chant chantmodels.Chant) error {
+	if n.eventScheduler != nil {
+		if err := n.eventScheduler.CancelChantEvents(ctx, chant.ID); err != nil {
+			logger.Warn().
+				Str("chant_id", chant.ID.String()).
+				Err(err).
+				Msg("chant notifier: failed to cancel scheduled chant events")
+		}
+	}
+
+	n.mu.Lock()
+	delete(n.pending, chant.ID)
+	n.refreshWelcome()
+	n.mu.Unlock()
+
+	if n.publisher == nil {
+		return nil
+	}
+
+	payload := &realtimedto.ChantCancelledPayload{
+		ChantID: chant.ID.String(),
+		MatchID: chant.MatchID.String(),
+		Title:   chant.Title,
+	}
+	env := realtimedto.NewEnvelope(realtimedto.EventTypeChantCancelled, &chant.MatchID, payload)
+	if err := n.publisher.BroadcastEnvelope(ctx, env); err != nil {
+		logger.Warn().
+			Str("chant_id", chant.ID.String()).
+			Err(err).
+			Msg("chant notifier: failed to broadcast chant.cancelled")
+		return err
+	}
+
+	logger.Info().
+		Str("chant_id", chant.ID.String()).
+		Str("match_id", chant.MatchID.String()).
+		Msg("chant notifier: chant.cancelled broadcast")
+	return nil
 }
 
 func (n *ChantUpcomingNotifier) sendCountdownPush(ctx context.Context, entry *pendingChant) {

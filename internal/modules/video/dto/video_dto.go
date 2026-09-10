@@ -21,6 +21,8 @@ type VideoItem struct {
 	ThumbnailURL string      `json:"thumbnail_url"`
 	Author       VideoAuthor `json:"author"`
 	PostedAt     string      `json:"posted_at"`
+	Caption      string      `json:"caption,omitempty"`
+	Status       string      `json:"status,omitempty"`
 	Tags         []string    `json:"tags"`
 	LikesCount   int         `json:"likes_count"`
 	ViewsCount   int         `json:"views_count"`

@@ -3,6 +3,8 @@ package dto
 import (
 	"time"
 
+	songmodels "clap/internal/modules/song/models"
+
 	"github.com/google/uuid"
 )
 
@@ -60,9 +62,9 @@ type ChantCompleteResponse struct {
 // ChantLyricLine is one synced lyric line (contract §4.3).
 type ChantLyricLine struct {
 	ID int `json:"id"`
-	// TimeSeconds must stay fractional. Clients fire the torch and haptics on
-	// these offsets, so rounding to a whole second puts the flash up to a
-	// second away from the beat — and by a different amount on every line.
+	// TimeSeconds must stay fractional. Clients highlight lyrics on these
+	// offsets; torch/haptics follow VibrationCues / LightCues on the parent
+	// response instead of firing on every line.
 	TimeSeconds         float64 `json:"time_seconds"`
 	Text                string  `json:"text"`
 	FlashDurationMs     int     `json:"flash_duration_ms"`
@@ -84,7 +86,11 @@ type ChantLyricsResponse struct {
 	// confirmation can name the stake.
 	Points           int              `json:"points"`
 	AlreadyCompleted bool             `json:"already_completed"`
-	Lyrics           []ChantLyricLine `json:"lyrics"`
+	// VibrationCues / LightCues are timed pulses from the song start, authored
+	// on the chant edit page (at = seconds, duration_ms = pulse length).
+	VibrationCues []songmodels.SongCue `json:"vibration_cues"`
+	LightCues     []songmodels.SongCue `json:"light_cues"`
+	Lyrics        []ChantLyricLine     `json:"lyrics"`
 }
 
 // ChantProgramItem is one row of the Home "Chants Program" scoreboard: either

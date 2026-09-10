@@ -165,6 +165,7 @@ func run() error {
 		pushSvc,
 		0, 0,
 	)
+	chant.SetOnlineChantLifecycle(chantNotifier)
 	go chantNotifier.Run(appCtx)
 
 	matchSyncer := match.NewSyncService()

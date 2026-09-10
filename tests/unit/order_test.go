@@ -113,6 +113,23 @@ func (r *stubOrderRepo) MarkPaid(_ context.Context, orderID uuid.UUID, _ time.Ti
 	if paymentMethod != "" {
 		o.PaymentMethod = &paymentMethod
 	}
+	switch paymentMethod {
+	case ordermodels.PaymentMethodPoints:
+		o.ReceiptStatus = ordermodels.ReceiptStatusNotApplicable
+		o.ReceiptSentAt = nil
+	case ordermodels.PaymentMethodCard:
+		o.ReceiptStatus = ordermodels.ReceiptStatusPending
+	}
+	return nil
+}
+
+func (r *stubOrderRepo) UpdateReceiptStatus(_ context.Context, orderID uuid.UUID, status string, sentAt *time.Time) error {
+	o, ok := r.orders[orderID]
+	if !ok {
+		return sharederrors.NewNotFound("Order not found", nil)
+	}
+	o.ReceiptStatus = status
+	o.ReceiptSentAt = sentAt
 	return nil
 }
 

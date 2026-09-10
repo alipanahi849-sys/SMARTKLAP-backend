@@ -15,6 +15,7 @@ const (
 	UserIDKey    = "user_id"
 	UserEmailKey = "user_email"
 	UserRolesKey = "user_roles"
+	UserPermsKey = "panel_permissions"
 )
 
 func Auth() gin.HandlerFunc {
@@ -44,6 +45,7 @@ func Auth() gin.HandlerFunc {
 		c.Set(UserIDKey, claims.UserID)
 		c.Set(UserEmailKey, claims.Email)
 		c.Set(UserRolesKey, claims.Roles)
+		c.Set(UserPermsKey, claims.PanelPermissions)
 
 		c.Next()
 	}
@@ -73,6 +75,37 @@ func GetUserRoles(c *gin.Context) []string {
 	return roles.([]string)
 }
 
+func GetPanelPermissions(c *gin.Context) []string {
+	perms, exists := c.Get(UserPermsKey)
+	if !exists || perms == nil {
+		return []string{}
+	}
+	switch v := perms.(type) {
+	case []string:
+		return v
+	default:
+		return []string{}
+	}
+}
+
+func hasRole(roles []string, want string) bool {
+	for _, role := range roles {
+		if role == want {
+			return true
+		}
+	}
+	return false
+}
+
+func hasPermission(perms []string, want string) bool {
+	for _, perm := range perms {
+		if perm == want {
+			return true
+		}
+	}
+	return false
+}
+
 func RequireRole(allowedRoles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userRoles := GetUserRoles(c)
@@ -87,6 +120,38 @@ func RequireRole(allowedRoles ...string) gin.HandlerFunc {
 		}
 
 		response.Forbidden(c, "Insufficient permissions")
+		c.Abort()
+	}
+}
+
+// RequirePermission allows full admins, or users granted the given panel section.
+func RequirePermission(section string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if hasRole(GetUserRoles(c), string(utils.RoleAdmin)) {
+			c.Next()
+			return
+		}
+		if hasPermission(GetPanelPermissions(c), section) {
+			c.Next()
+			return
+		}
+		response.Forbidden(c, "Insufficient permissions")
+		c.Abort()
+	}
+}
+
+// RequirePanelAccess allows full admins or anyone with at least one panel section.
+func RequirePanelAccess() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if hasRole(GetUserRoles(c), string(utils.RoleAdmin)) {
+			c.Next()
+			return
+		}
+		if len(GetPanelPermissions(c)) > 0 {
+			c.Next()
+			return
+		}
+		response.Forbidden(c, "Admin panel access required")
 		c.Abort()
 	}
 }
@@ -115,6 +180,7 @@ func OptionalAuth() gin.HandlerFunc {
 		c.Set(UserIDKey, claims.UserID)
 		c.Set(UserEmailKey, claims.Email)
 		c.Set(UserRolesKey, claims.Roles)
+		c.Set(UserPermsKey, claims.PanelPermissions)
 
 		c.Next()
 	}

@@ -12,7 +12,6 @@ import (
 	"clap/internal/shared/config"
 	"clap/internal/shared/database"
 	"clap/internal/shared/middleware"
-	"clap/internal/shared/utils"
 	"clap/pkg/football"
 
 	"github.com/gin-gonic/gin"
@@ -77,7 +76,7 @@ func RegisterRoutes(r *gin.RouterGroup, syncer *service.SyncService) {
 	}
 
 	admin := r.Group("/admin")
-	admin.Use(middleware.Auth(), middleware.RequireRole(string(utils.RoleAdmin)))
+	admin.Use(middleware.Auth(), middleware.RequirePermission("teams"))
 	{
 		admin.GET("/football/teams", h.SearchTeams)
 		admin.GET("/settings/featured-club", h.GetFeaturedClub)

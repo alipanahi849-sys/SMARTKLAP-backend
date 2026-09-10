@@ -9,7 +9,6 @@ import (
 	"clap/internal/shared/config"
 	"clap/internal/shared/database"
 	"clap/internal/shared/middleware"
-	"clap/internal/shared/utils"
 	"clap/pkg/newsfeed"
 
 	"github.com/gin-gonic/gin"
@@ -44,7 +43,7 @@ func RegisterRoutes(r *gin.RouterGroup, clubsFrom *matchsvc.SyncService) {
 	}
 
 	admin := r.Group("/admin")
-	admin.Use(middleware.Auth(), middleware.RequireRole(string(utils.RoleAdmin)))
+	admin.Use(middleware.Auth(), middleware.RequirePermission("teams"))
 	{
 		admin.GET("/settings/news-club", h.GetNewsClub)
 		admin.PUT("/settings/news-club", h.SetNewsClub)

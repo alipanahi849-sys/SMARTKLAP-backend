@@ -7,7 +7,6 @@ import (
 	realtimeservice "clap/internal/modules/realtime/service"
 	"clap/internal/modules/realtime/ws"
 	"clap/internal/shared/middleware"
-	"clap/internal/shared/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -74,12 +73,12 @@ func RegisterRoutesWithWS(r *gin.RouterGroup, cfg WSConfig) {
 		// Metrics snapshot — admin only (CR-7 / F-015).
 		rt.GET("/metrics",
 			middleware.Auth(),
-			middleware.RequireRole(string(utils.RoleAdmin)),
+			middleware.RequirePermission("realtime"),
 			metricsHandler.GetMetrics,
 		)
 
 		admin := rt.Group("/admin")
-		admin.Use(middleware.Auth(), middleware.RequireRole(string(utils.RoleAdmin)))
+		admin.Use(middleware.Auth(), middleware.RequirePermission("realtime"))
 		{
 			if cfg.Gateway != nil {
 				testEmit := realtimehandler.NewTestEmitHandler(cfg.Gateway)

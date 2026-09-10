@@ -18,6 +18,7 @@ const (
 
 // Video statuses.
 const (
+	StatusPending    = "pending"
 	StatusProcessing = "processing"
 	StatusPublished  = "published"
 	StatusRejected   = "rejected"
@@ -34,7 +35,7 @@ type Video struct {
 	ThumbnailKey string          `gorm:"type:varchar(500);not null;default:''" json:"thumbnail_key"`
 	MimeType     string          `gorm:"type:varchar(100);not null" json:"mime_type"`
 	FileSize     int64           `gorm:"not null;default:0" json:"file_size"`
-	Status       string          `gorm:"type:varchar(20);not null;default:'published'" json:"status"`
+	Status       string          `gorm:"type:varchar(20);not null;default:'pending'" json:"status"`
 	LikesCount   int             `gorm:"not null;default:0" json:"likes_count"`
 	ViewsCount   int             `gorm:"not null;default:0" json:"views_count"`
 	CreatedAt    time.Time       `json:"created_at"`

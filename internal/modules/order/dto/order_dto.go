@@ -76,6 +76,8 @@ type OrderListItem struct {
 	Shipping       string                 `json:"shipping,omitempty"`
 	Total          string                 `json:"total"`
 	PaymentMethod  string                 `json:"payment_method,omitempty"`
+	ReceiptStatus  string                 `json:"receipt_status,omitempty"`
+	ReceiptSentAt  string                 `json:"receipt_sent_at,omitempty"`
 	ItemCount      int                    `json:"item_count"`
 	Items          []OrderListPreviewItem `json:"items,omitempty"`
 	CreatedAt      string                 `json:"created_at"`
@@ -113,6 +115,8 @@ type OrderDetailResponse struct {
 	Shipping       string            `json:"shipping,omitempty"`
 	Total          string            `json:"total"`
 	PaymentMethod  string            `json:"payment_method,omitempty"`
+	ReceiptStatus  string            `json:"receipt_status,omitempty"`
+	ReceiptSentAt  string            `json:"receipt_sent_at,omitempty"`
 	ItemCount      int               `json:"item_count"`
 	Items          []OrderDetailItem `json:"items"`
 	CreatedAt      string            `json:"created_at"`

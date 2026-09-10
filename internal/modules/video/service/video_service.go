@@ -17,6 +17,7 @@ import (
 	"clap/internal/modules/video/repository"
 	"clap/internal/shared/errors"
 	"clap/internal/shared/logger"
+	"clap/internal/shared/utils"
 	"clap/pkg/media/optimize"
 	"clap/pkg/storage"
 
@@ -48,6 +49,11 @@ type VideoService interface {
 	Like(ctx context.Context, userID, videoID uuid.UUID) error
 	Unlike(ctx context.Context, userID, videoID uuid.UUID) error
 	MarkSeen(ctx context.Context, userID, videoID uuid.UUID) (*dto.VideoMarkSeenResponse, error)
+	Delete(ctx context.Context, videoID uuid.UUID, authCtx *utils.AuthorizationContext) error
+	ListPending(ctx context.Context, adminID uuid.UUID, filters dto.VideoListFilters) (*dto.VideoFeedResponse, error)
+	ListRejected(ctx context.Context, adminID uuid.UUID, filters dto.VideoListFilters) (*dto.VideoFeedResponse, error)
+	Approve(ctx context.Context, videoID uuid.UUID, authCtx *utils.AuthorizationContext) error
+	Reject(ctx context.Context, videoID uuid.UUID, authCtx *utils.AuthorizationContext) error
 }
 
 type videoService struct {
@@ -235,8 +241,8 @@ func (s *videoService) Upload(ctx context.Context, userID uuid.UUID, file *multi
 		ThumbnailKey: thumbnailKey,
 		MimeType:     prepared.ContentType,
 		FileSize:     prepared.Size,
-		// No async transcoding pipeline exists — posts publish immediately.
-		Status: models.StatusPublished,
+		// New uploads wait for admin moderation before appearing in the feed.
+		Status: models.StatusPending,
 	}
 	if err := s.videoRepo.Create(ctx, video); err != nil {
 		_ = s.storage.Delete(ctx, key)
@@ -333,6 +339,123 @@ func (s *videoService) MarkSeen(ctx context.Context, userID, videoID uuid.UUID) 
 	}, nil
 }
 
+func (s *videoService) Delete(ctx context.Context, videoID uuid.UUID, authCtx *utils.AuthorizationContext) error {
+	if authCtx == nil || authCtx.RequireAdmin() != nil {
+		return errors.NewForbidden("Only admin can delete videos", nil)
+	}
+	if _, err := s.videoRepo.FindByID(ctx, videoID); err != nil {
+		return err
+	}
+	if err := s.videoRepo.Delete(ctx, videoID); err != nil {
+		return err
+	}
+	logger.Info().
+		Str("video_id", videoID.String()).
+		Str("admin_id", authCtx.UserID.String()).
+		Msg("video_deleted")
+	return nil
+}
+
+func (s *videoService) ListPending(ctx context.Context, adminID uuid.UUID, filters dto.VideoListFilters) (*dto.VideoFeedResponse, error) {
+	return s.listByStatus(ctx, adminID, models.StatusPending, filters)
+}
+
+func (s *videoService) ListRejected(ctx context.Context, adminID uuid.UUID, filters dto.VideoListFilters) (*dto.VideoFeedResponse, error) {
+	return s.listByStatus(ctx, adminID, models.StatusRejected, filters)
+}
+
+func (s *videoService) listByStatus(
+	ctx context.Context,
+	adminID uuid.UUID,
+	status string,
+	filters dto.VideoListFilters,
+) (*dto.VideoFeedResponse, error) {
+	limit := filters.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+
+	var after *repository.VideoCursorAnchor
+	if filters.Cursor != nil {
+		cursorVideo, err := s.videoRepo.FindByID(ctx, *filters.Cursor)
+		if err != nil {
+			return nil, errors.NewBadRequest("Invalid cursor", nil)
+		}
+		if cursorVideo.Status != status {
+			return nil, errors.NewBadRequest("Invalid cursor", nil)
+		}
+		after = &repository.VideoCursorAnchor{
+			CreatedAt: cursorVideo.CreatedAt,
+			ID:        cursorVideo.ID,
+		}
+	}
+
+	videos, err := s.videoRepo.ListByStatusAfter(ctx, status, limit+1, after)
+	if err != nil {
+		return nil, err
+	}
+	return s.buildFeedResponse(ctx, adminID, videos, limit)
+}
+
+func (s *videoService) Approve(ctx context.Context, videoID uuid.UUID, authCtx *utils.AuthorizationContext) error {
+	return s.setModerationStatus(
+		ctx,
+		videoID,
+		authCtx,
+		models.StatusPublished,
+		[]string{models.StatusPending, models.StatusProcessing, models.StatusRejected},
+		"video_approved",
+	)
+}
+
+func (s *videoService) Reject(ctx context.Context, videoID uuid.UUID, authCtx *utils.AuthorizationContext) error {
+	return s.setModerationStatus(
+		ctx,
+		videoID,
+		authCtx,
+		models.StatusRejected,
+		[]string{models.StatusPending, models.StatusProcessing, models.StatusPublished},
+		"video_rejected",
+	)
+}
+
+func (s *videoService) setModerationStatus(
+	ctx context.Context,
+	videoID uuid.UUID,
+	authCtx *utils.AuthorizationContext,
+	status string,
+	allowedFrom []string,
+	logEvent string,
+) error {
+	if authCtx == nil || authCtx.RequireAdmin() != nil {
+		return errors.NewForbidden("Only admin can moderate videos", nil)
+	}
+	video, err := s.videoRepo.FindByID(ctx, videoID)
+	if err != nil {
+		return err
+	}
+	allowed := false
+	for _, from := range allowedFrom {
+		if video.Status == from {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		return errors.NewConflict("Video cannot be moved to this status from its current state", nil)
+	}
+	if err := s.videoRepo.UpdateStatus(ctx, videoID, status); err != nil {
+		return err
+	}
+	logger.Info().
+		Str("video_id", videoID.String()).
+		Str("admin_id", authCtx.UserID.String()).
+		Str("from_status", video.Status).
+		Str("status", status).
+		Msg(logEvent)
+	return nil
+}
+
 // ─── internals ────────────────────────────────────────────────────────────────
 
 func (s *videoService) buildFeedResponse(ctx context.Context, userID uuid.UUID, videos []models.Video, limit int) (*dto.VideoFeedResponse, error) {
@@ -384,6 +507,8 @@ func (s *videoService) buildFeedResponse(ctx context.Context, userID uuid.UUID, 
 				AvatarURL: avatar,
 			},
 			PostedAt:   v.CreatedAt.UTC().Format(time.RFC3339),
+			Caption:    v.Caption,
+			Status:     v.Status,
 			Tags:       tags,
 			LikesCount: v.LikesCount,
 			ViewsCount: v.ViewsCount,

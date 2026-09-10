@@ -50,6 +50,12 @@ const listenGrace = 5 * time.Second
 // programNewWindow is how long a freshly earned score stays highlighted.
 const programNewWindow = 15 * time.Minute
 
+// OnlineChantLifecycle fans out admin schedule changes to connected devices.
+// Implemented by realtime ChantUpcomingNotifier. Optional — nil is fine in tests.
+type OnlineChantLifecycle interface {
+	OnUnscheduled(ctx context.Context, chant models.Chant) error
+}
+
 // ChantService implements the mobile Chants screens (contract §4).
 type ChantService interface {
 	List(ctx context.Context, userID uuid.UUID, filters dto.ChantListFilters) (*dto.ChantListResponse, error)
@@ -79,6 +85,7 @@ type chantService struct {
 	lyricsSvc    lyricssvc.LyricsSyncService
 	settingsRepo settingsrepo.SettingsRepository
 	storage      storage.StorageProvider
+	lifecycle    OnlineChantLifecycle
 }
 
 func NewChantService(
@@ -87,6 +94,7 @@ func NewChantService(
 	lyricsSvc lyricssvc.LyricsSyncService,
 	settingsRepo settingsrepo.SettingsRepository,
 	storageProvider storage.StorageProvider,
+	lifecycle OnlineChantLifecycle,
 ) ChantService {
 	return &chantService{
 		chantRepo:    chantRepo,
@@ -94,6 +102,7 @@ func NewChantService(
 		lyricsSvc:    lyricsSvc,
 		settingsRepo: settingsRepo,
 		storage:      storageProvider,
+		lifecycle:    lifecycle,
 	}
 }
 
@@ -227,14 +236,18 @@ func (s *chantService) Lyrics(ctx context.Context, userID, id uuid.UUID, mode, s
 		return nil, err
 	}
 
+	// Pulse length stays a fixed default. WHEN flash/vibrate fire comes from
+	// the song's cue markers (chant edit), not from the scheduled event.
+	pulseFlashMs := defaultFlashDurationMs
+	pulseVibrationMs := defaultVibrationDurationMs
 	lines := make([]dto.ChantLyricLine, len(timeline.Entries))
 	for i, entry := range timeline.Entries {
 		lines[i] = dto.ChantLyricLine{
 			ID:                  i + 1,
 			TimeSeconds:         float64(entry.TimestampMs) / 1000,
 			Text:                entry.Text,
-			FlashDurationMs:     resolved.flashMs,
-			VibrationDurationMs: resolved.vibrationMs,
+			FlashDurationMs:     pulseFlashMs,
+			VibrationDurationMs: pulseVibrationMs,
 		}
 	}
 
@@ -252,12 +265,23 @@ func (s *chantService) Lyrics(ctx context.Context, userID, id uuid.UUID, mode, s
 		}
 	}
 
+	vibrationCues := resolved.song.VibrationCues
+	if vibrationCues == nil {
+		vibrationCues = []songmodels.SongCue{}
+	}
+	lightCues := resolved.song.LightCues
+	if lightCues == nil {
+		lightCues = []songmodels.SongCue{}
+	}
+
 	return &dto.ChantLyricsResponse{
 		Title:            resolved.title,
 		AudioURL:         s.resolveAudioURL(ctx, resolved.song),
 		SongID:           resolved.target.SongID,
 		Points:           resolved.target.Points,
 		AlreadyCompleted: alreadyCompleted,
+		VibrationCues:    vibrationCues,
+		LightCues:        lightCues,
 		Lyrics:           lines,
 	}, nil
 }
@@ -525,13 +549,24 @@ func (s *chantService) SetOnlineChant(ctx context.Context, adminID uuid.UUID, re
 		vibration = *req.VibrationDurationMs
 	}
 
+	scheduledAt := req.ScheduledAt.UTC()
+	overlaps, err := s.chantRepo.HasScheduleOverlap(ctx, req.MatchID, scheduledAt, duration, nil)
+	if err != nil {
+		return nil, err
+	}
+	if overlaps {
+		return nil, errors.NewConflict(
+			"Another chant is already scheduled for this match at that time", nil,
+		)
+	}
+
 	chant := &models.Chant{
 		MatchID:             req.MatchID,
 		SongID:              song.ID,
 		Title:               title,
 		Points:              s.points(ctx).online,
 		DurationSeconds:     duration,
-		ScheduledAt:         req.ScheduledAt.UTC(),
+		ScheduledAt:         scheduledAt,
 		FlashDurationMs:     flash,
 		VibrationDurationMs: vibration,
 		IsPreview:           false,
@@ -574,7 +609,26 @@ func (s *chantService) ListOnlineChants(ctx context.Context, matchID *uuid.UUID,
 }
 
 func (s *chantService) UnsetOnlineChant(ctx context.Context, id uuid.UUID) error {
-	return s.chantRepo.DeactivateChant(ctx, id)
+	chant, err := s.chantRepo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if err := s.chantRepo.DeactivateChant(ctx, id); err != nil {
+		return err
+	}
+	if s.lifecycle != nil {
+		if fanoutErr := s.lifecycle.OnUnscheduled(ctx, *chant); fanoutErr != nil {
+			logger.Warn().
+				Str("chant_id", id.String()).
+				Err(fanoutErr).
+				Msg("online_chant_unscheduled_fanout_failed")
+		}
+	}
+	logger.Info().
+		Str("chant_id", id.String()).
+		Str("match_id", chant.MatchID.String()).
+		Msg("online_chant_unscheduled")
+	return nil
 }
 
 func toOnlineChantResponse(chant models.Chant) dto.OnlineChantResponse {

@@ -18,6 +18,12 @@ const (
 	PaymentMethodPoints = "points"
 	PaymentMethodCard   = "card"
 
+	ReceiptStatusNone          = "none"
+	ReceiptStatusNotApplicable = "not_applicable"
+	ReceiptStatusPending       = "pending"
+	ReceiptStatusSent          = "sent"
+	ReceiptStatusFailed        = "failed"
+
 	PickupDiscountCents  int64 = 50
 	PickupDiscountPoints int   = 50
 
@@ -41,6 +47,8 @@ type Order struct {
 	TotalPoints           int         `gorm:"not null;default:0" json:"total_points"`
 	PaymentMethod         *string     `gorm:"type:varchar(20)" json:"payment_method,omitempty"`
 	StripePaymentIntentID *string     `gorm:"type:varchar(255)" json:"stripe_payment_intent_id,omitempty"`
+	ReceiptStatus         string      `gorm:"type:varchar(30);not null;default:'none'" json:"receipt_status"`
+	ReceiptSentAt         *time.Time  `json:"receipt_sent_at,omitempty"`
 	PaidAt                *time.Time  `json:"paid_at,omitempty"`
 	CreatedAt             time.Time   `json:"created_at"`
 	UpdatedAt             time.Time   `json:"updated_at"`

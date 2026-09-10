@@ -89,6 +89,9 @@ type ChantRepository interface {
 	MissedPendingChantsForMatch(ctx context.Context, userID, matchID uuid.UUID, now time.Time) ([]PendingChant, error)
 	// CreateChant schedules an online chant built from a catalog song.
 	CreateChant(ctx context.Context, chant *models.Chant) error
+	// HasScheduleOverlap reports whether an active chant on the same match
+	// already occupies [start, start+durationSeconds).
+	HasScheduleOverlap(ctx context.Context, matchID uuid.UUID, start time.Time, durationSeconds int, excludeID *uuid.UUID) (bool, error)
 	// FindScheduled lists active online chants for the admin panel, soonest first.
 	FindScheduled(ctx context.Context, matchID *uuid.UUID, limit int) ([]models.Chant, error)
 	// DeactivateChant unschedules an online chant.
@@ -449,6 +452,36 @@ func (r *chantRepository) CreateChant(ctx context.Context, chant *models.Chant) 
 		return errors.NewInternal("Failed to schedule online chant", err)
 	}
 	return nil
+}
+
+// HasScheduleOverlap uses half-open windows [start, end):
+//
+//	existing.scheduled_at < new_end  AND  existing.end > new_start
+//
+// where existing.end = scheduled_at + duration_seconds. Duration 0 is treated as
+// 1 second so two point-in-time schedules at the same instant still conflict.
+func (r *chantRepository) HasScheduleOverlap(ctx context.Context, matchID uuid.UUID, start time.Time, durationSeconds int, excludeID *uuid.UUID) (bool, error) {
+	if durationSeconds <= 0 {
+		durationSeconds = 1
+	}
+	end := start.Add(time.Duration(durationSeconds) * time.Second)
+
+	query := r.db.WithContext(ctx).Model(&models.Chant{}).
+		Where(`match_id = ?
+			AND is_active = true
+			AND scheduled_at < ?
+			AND scheduled_at + make_interval(secs => GREATEST(duration_seconds, 1)) > ?`,
+			matchID, end, start,
+		)
+	if excludeID != nil {
+		query = query.Where("id != ?", *excludeID)
+	}
+
+	var count int64
+	if err := query.Count(&count).Error; err != nil {
+		return false, errors.NewInternal("Failed to check chant schedule overlap", err)
+	}
+	return count > 0, nil
 }
 
 func (r *chantRepository) FindScheduled(ctx context.Context, matchID *uuid.UUID, limit int) ([]models.Chant, error) {

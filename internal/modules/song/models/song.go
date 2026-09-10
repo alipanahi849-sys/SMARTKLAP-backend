@@ -7,11 +7,18 @@ import (
 	"gorm.io/gorm"
 )
 
+// SongCue is one timed flash/vibrate marker on a song timeline.
+// At is seconds from the start; DurationMs is how long that pulse lasts.
+type SongCue struct {
+	At         int `json:"at"`
+	DurationMs int `json:"duration_ms"`
+}
+
 type Song struct {
-	ID        uuid.UUID      `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	Title     string         `gorm:"type:varchar(255);not null" json:"title" binding:"required"`
-	Artist    string         `gorm:"type:varchar(255)" json:"artist"`
-	Album     string         `gorm:"type:varchar(255)" json:"album"`
+	ID       uuid.UUID      `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	Title    string         `gorm:"type:varchar(255);not null" json:"title" binding:"required"`
+	Artist   string         `gorm:"type:varchar(255)" json:"artist"`
+	Album    string         `gorm:"type:varchar(255)" json:"album"`
 	// Category heads the section this song sits under on the Chants screen.
 	// Empty means the catch-all section.
 	Category  string         `gorm:"type:varchar(100);not null;default:''" json:"category"`
@@ -31,6 +38,9 @@ type Song struct {
 	DurationMs  int64      `gorm:"type:bigint" json:"duration_ms,omitempty"`
 	Bitrate     int        `gorm:"type:integer" json:"bitrate,omitempty"`
 	SampleRate  int        `gorm:"type:integer" json:"sample_rate,omitempty"`
+	// Timed cue markers authored on the chant edit page.
+	VibrationCues []SongCue `gorm:"type:jsonb;serializer:json;not null;default:'[]'" json:"vibration_cues"`
+	LightCues     []SongCue `gorm:"type:jsonb;serializer:json;not null;default:'[]'" json:"light_cues"`
 }
 
 func (Song) TableName() string {

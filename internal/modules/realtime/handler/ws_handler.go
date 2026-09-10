@@ -39,11 +39,12 @@ func NewWSHandler(cm *ws.ConnectionManager, m *metrics.Metrics) *WSHandler {
 // Connect upgrades an HTTP connection to WebSocket after JWT validation.
 // GET /api/v1/realtime/ws
 //
-// Authentication: Authorization: Bearer <token> (header only).
+// Authentication: Authorization Bearer header, or Sec-WebSocket-Protocol
+// `bearer.<jwt>` for browsers that cannot set custom WS headers.
 // WebSocket connect godoc
 //
 //	@Summary		WebSocket connect
-//	@Description	Real WebSocket upgrade endpoint. Swagger "Try it out" cannot open sockets (plain GET → 400). Use a WS client: Authorization Bearer JWT only (no query token). Example: ws(s)://HOST/api/v1/realtime/ws
+//	@Description	Real WebSocket upgrade endpoint. Swagger "Try it out" cannot open sockets (plain GET → 400). Use Authorization Bearer JWT, or browser Sec-WebSocket-Protocol bearer.<jwt>. Example: ws(s)://HOST/api/v1/realtime/ws
 //	@Tags			realtime
 //	@Produce		json
 //	@Security		BearerAuth
@@ -70,12 +71,17 @@ func (h *WSHandler) Connect(c *gin.Context) {
 	// Swagger / curl without Upgrade headers hit a plain GET; return a clear
 	// JSON 400 instead of gorilla's opaque "Bad Request" text body.
 	if !isWebSocketHandshake(c.Request) {
-		response.BadRequest(c, "WebSocket upgrade required (Connection: Upgrade, Upgrade: websocket). Swagger Try-it-out cannot open WebSockets — use a WS client with Authorization: Bearer <token>.")
+		response.BadRequest(c, "WebSocket upgrade required (Connection: Upgrade, Upgrade: websocket). Swagger Try-it-out cannot open WebSockets — use a WS client with Authorization: Bearer <token> or Sec-WebSocket-Protocol bearer.<jwt>.")
 		return
 	}
 
-	// 2. Upgrade.
-	conn, upgradeErr := upgrader.Upgrade(c.Writer, c.Request, nil)
+	// 2. Upgrade. Echo selected subprotocol when auth used bearer.<jwt>.
+	var responseHeader http.Header
+	if auth.SelectedProtocol != "" {
+		responseHeader = http.Header{}
+		responseHeader.Set("Sec-WebSocket-Protocol", auth.SelectedProtocol)
+	}
+	conn, upgradeErr := upgrader.Upgrade(c.Writer, c.Request, responseHeader)
 	if upgradeErr != nil {
 		logger.Error().
 			Str("user_id", auth.UserID.String()).

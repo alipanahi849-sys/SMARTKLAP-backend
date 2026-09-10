@@ -10,10 +10,18 @@ import (
 	"clap/internal/shared/database"
 	"clap/internal/shared/middleware"
 	"clap/internal/shared/storageinit"
-	"clap/internal/shared/utils"
 
 	"github.com/gin-gonic/gin"
 )
+
+// onlineLifecycle fans admin cancel out to connected devices. Set from main
+// after the realtime notifier is constructed; nil is safe (DB-only cancel).
+var onlineLifecycle service.OnlineChantLifecycle
+
+// SetOnlineChantLifecycle wires the realtime fan-out used by UnsetOnlineChant.
+func SetOnlineChantLifecycle(lifecycle service.OnlineChantLifecycle) {
+	onlineLifecycle = lifecycle
+}
 
 // RegisterRoutes wires the mobile Chants endpoints (Mobile API Contract §4).
 func RegisterRoutes(r *gin.RouterGroup) {
@@ -31,7 +39,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	}
 
 	admin := r.Group("/admin")
-	admin.Use(middleware.Auth(), middleware.RequireRole(string(utils.RoleAdmin)))
+	admin.Use(middleware.Auth(), middleware.RequirePermission("events"))
 	{
 		admin.GET("/settings/chant-points", h.GetPoints)
 		admin.PUT("/settings/chant-points", h.UpdatePoints)
@@ -51,5 +59,6 @@ func NewService() service.ChantService {
 		lyricssvc.NewLyricsSyncService(db),
 		settingsrepo.NewSettingsRepository(db),
 		storageinit.Provider(),
+		onlineLifecycle,
 	)
 }

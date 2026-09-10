@@ -21,6 +21,9 @@ const (
 	// EventTypeChantStarted is broadcast at the scheduled start as a recovery
 	// signal. Clients that already have starts_at must not use it as "go".
 	EventTypeChantStarted = "chant.started"
+	// EventTypeChantCancelled is broadcast when an admin unschedules an online
+	// chant so every connected device drops the countdown / live screen.
+	EventTypeChantCancelled = "chant.cancelled"
 
 	// Control events (client ↔ server)
 	EventTypePing = "ping"
@@ -94,6 +97,13 @@ type ChantStartedPayload struct {
 	MatchID  string    `json:"match_id"`
 	SongID   string    `json:"song_id,omitempty"`
 	StartsAt time.Time `json:"starts_at"`
+}
+
+// ChantCancelledPayload is the body of a chant.cancelled event.
+type ChantCancelledPayload struct {
+	ChantID string `json:"chant_id"`
+	MatchID string `json:"match_id"`
+	Title   string `json:"title,omitempty"`
 }
 
 // ClientMessage is sent from a connected client to the server.

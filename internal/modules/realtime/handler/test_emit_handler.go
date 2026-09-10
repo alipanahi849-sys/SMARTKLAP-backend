@@ -87,11 +87,13 @@ func (h *TestEmitHandler) Emit(c *gin.Context) {
 		return
 	}
 
+	broadcast := req.Broadcast || matchID == nil
 	response.Success(c, gin.H{
-		"emitted":  true,
-		"event_id": env.ID,
-		"type":     env.Type,
-		"match_id": matchID,
-		"broadcast": req.Broadcast || matchID == nil,
+		"emitted":            true,
+		"event_id":           env.ID,
+		"type":               env.Type,
+		"match_id":           matchID,
+		"broadcast":          broadcast,
+		"active_connections": h.gw.ActiveConnectionCount(),
 	})
 }

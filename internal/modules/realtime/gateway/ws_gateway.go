@@ -143,6 +143,14 @@ func (g *WebSocketRealtimeGateway) PublishToUser(ctx context.Context, userID uui
 	return nil
 }
 
+// ActiveConnectionCount returns the current WebSocket connection gauge.
+func (g *WebSocketRealtimeGateway) ActiveConnectionCount() int64 {
+	if g == nil || g.cm == nil {
+		return 0
+	}
+	return g.cm.ActiveConnectionCount()
+}
+
 // BroadcastEnvelope sends env to every connected client.
 func (g *WebSocketRealtimeGateway) BroadcastEnvelope(ctx context.Context, env *dto.EventEnvelope) error {
 	data, err := json.Marshal(env)

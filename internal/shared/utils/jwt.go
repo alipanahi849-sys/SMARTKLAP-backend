@@ -13,9 +13,10 @@ import (
 )
 
 type Claims struct {
-	UserID uuid.UUID `json:"user_id"`
-	Email  string    `json:"email"`
-	Roles  []string  `json:"roles"`
+	UserID            uuid.UUID `json:"user_id"`
+	Email             string    `json:"email"`
+	Roles             []string  `json:"roles"`
+	PanelPermissions  []string  `json:"panel_permissions,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -25,14 +26,20 @@ type TokenPair struct {
 	ExpiresIn    int64  `json:"expires_in"`
 }
 
-func GenerateAccessToken(userID uuid.UUID, email string, roles []string) (string, int64, error) {
+func GenerateAccessToken(userID uuid.UUID, email string, roles []string, panelPermissions ...[]string) (string, int64, error) {
 	cfg := config.AppConfig.JWT
+
+	var perms []string
+	if len(panelPermissions) > 0 {
+		perms = panelPermissions[0]
+	}
 
 	expiresAt := time.Now().Add(time.Duration(cfg.AccessExpiry) * time.Second)
 	claims := Claims{
-		UserID: userID,
-		Email:  email,
-		Roles:  roles,
+		UserID:           userID,
+		Email:            email,
+		Roles:            roles,
+		PanelPermissions: perms,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

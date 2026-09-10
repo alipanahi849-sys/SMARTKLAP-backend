@@ -16,6 +16,8 @@ type SchedulerEventRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*models.SchedulerEvent, error)
 	FindPendingUpTo(ctx context.Context, upTo time.Time) ([]*models.SchedulerEvent, error)
 	FindAllPending(ctx context.Context) ([]*models.SchedulerEvent, error)
+	// FindPendingByChantID returns pending events whose payload targets a chant.
+	FindPendingByChantID(ctx context.Context, chantID uuid.UUID) ([]*models.SchedulerEvent, error)
 	UpdateStatus(ctx context.Context, id uuid.UUID, status models.SchedulerEventStatus) error
 	UpdateExecuteAt(ctx context.Context, id uuid.UUID, executeAt time.Time) error
 	// ClaimForProcessing atomically transitions an event from pending → processing
@@ -82,6 +84,22 @@ func (r *schedulerEventRepository) FindAllPending(ctx context.Context) ([]*model
 		Find(&events).Error
 	if err != nil {
 		return nil, sharederrors.NewInternal("Failed to find all pending scheduler events", err)
+	}
+	return events, nil
+}
+
+func (r *schedulerEventRepository) FindPendingByChantID(ctx context.Context, chantID uuid.UUID) ([]*models.SchedulerEvent, error) {
+	var events []*models.SchedulerEvent
+	err := r.db.WithContext(ctx).
+		Where(
+			"status = ? AND event_type = ? AND payload_json->>'chant_id' = ?",
+			models.SchedulerEventPending,
+			"chant.started",
+			chantID.String(),
+		).
+		Find(&events).Error
+	if err != nil {
+		return nil, sharederrors.NewInternal("Failed to find pending chant scheduler events", err)
 	}
 	return events, nil
 }

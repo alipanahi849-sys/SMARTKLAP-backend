@@ -9,18 +9,19 @@ import (
 
 type User struct {
 	database.BaseModel
-	Email        string         `gorm:"type:varchar(255);uniqueIndex;not null" json:"email"`
-	PasswordHash string         `gorm:"type:varchar(255);not null" json:"-"`
-	GoogleID     *string        `gorm:"type:varchar(255);uniqueIndex" json:"-"`
-	AppleID      *string        `gorm:"type:varchar(255);uniqueIndex" json:"-"`
-	FirstName    string         `gorm:"type:varchar(100)" json:"first_name"`
-	LastName     string         `gorm:"type:varchar(100)" json:"last_name"`
-	Phone        string         `gorm:"type:varchar(20)" json:"phone"`
-	Points       int            `gorm:"not null;default:0" json:"points"`
-	IsActive     bool           `gorm:"default:true" json:"is_active"`
-	IsVerified   bool           `gorm:"default:false" json:"is_verified"`
-	Roles        []Role         `gorm:"many2many:user_roles;" json:"roles,omitempty"`
-	RefreshToken []RefreshToken `gorm:"foreignKey:UserID" json:"refresh_tokens,omitempty"`
+	Email             string         `gorm:"type:varchar(255);uniqueIndex;not null" json:"email"`
+	PasswordHash      string         `gorm:"type:varchar(255);not null" json:"-"`
+	GoogleID          *string        `gorm:"type:varchar(255);uniqueIndex" json:"-"`
+	AppleID           *string        `gorm:"type:varchar(255);uniqueIndex" json:"-"`
+	FirstName         string         `gorm:"type:varchar(100)" json:"first_name"`
+	LastName          string         `gorm:"type:varchar(100)" json:"last_name"`
+	Phone             string         `gorm:"type:varchar(20)" json:"phone"`
+	Points            int            `gorm:"not null;default:0" json:"points"`
+	IsActive          bool           `gorm:"default:true" json:"is_active"`
+	IsVerified        bool           `gorm:"default:false" json:"is_verified"`
+	PanelPermissions  StringList     `gorm:"type:jsonb;not null;default:'[]'" json:"panel_permissions"`
+	Roles             []Role         `gorm:"many2many:user_roles;" json:"roles,omitempty"`
+	RefreshToken      []RefreshToken `gorm:"foreignKey:UserID" json:"refresh_tokens,omitempty"`
 }
 
 // DisplayName returns the mobile-facing single "name" field, combining the
